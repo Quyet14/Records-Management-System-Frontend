@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Yêu cầu xem tài liệu — Trưởng khoa</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+</head>
+<body>
+<div class="app-shell">
+  <nav class="sidebar"></nav>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">
+        Vietnam-HuuNghi Hospital
+      </p>
+    </div>
+
+    <div id="decision-error" style="display:none;margin-bottom:14px;padding:10px 12px;
+      border-left:3px solid var(--stamp-deny);background:rgba(163,59,59,.08);
+      color:var(--stamp-deny);border-radius:var(--radius-sm);font-size:.82rem"></div>
+    <div id="result-count" style="font-size:.82rem;color:var(--gray-600);margin-bottom:12px"></div>
+    <div id="request-list"></div>
+  </main>
+</div>
+
+<div class="toast-container"></div>
+<script src="../assets/js/app.js?v=role-sync-12"></script>
+<script src="../assets/js/sidebar.js?v=role-sync-12"></script>
+<script>
+  Auth.require();
+  if (!Auth.isAdmin() && !Auth.isDeptHead()) {
+    window.location.href = _pagesRoot() + 'dashboard.html';
+  }
+
+  let requests = [];
+
+  function normalizeList(res) {
+    return Array.isArray(res) ? res
+      : Array.isArray(res?.data) ? res.data
+      : Array.isArray(res?.requests) ? res.requests
+      : Array.isArray(res?.items) ? res.items
+      : [];
+  }
+
+  async function loadRequests() {
+    document.getElementById('request-list').innerHTML = skeletonTable(5);
+    try {
+      const res = await api.get('/view-requests?status=pending');
+      requests = normalizeList(res);
+      renderTable();
+    } catch (err) {
+      document.getElementById('request-list').innerHTML = emptyStatePro(
+        '⚠', 'Không thể tải yêu cầu', esc(err.message),
+        '<button class="btn btn-ghost btn-sm" id="btn-retry">Thử lại</button>'
+      );
+      document.getElementById('btn-retry')?.addEventListener('click', loadRequests);
+      Toast.error(err.message);
+    }
+  }
+
+  function requestDoc(r) {
+    return r.document || r.doc || {};
+  }
+
+  function normalizeId(value) {
+    if (!value) return '';
+    if (typeof value === 'object') return value.$oid || value.toString?.() || '';
+    return String(value);
+  }
+
+  function getRequestId(request) {
+    return normalizeId(request?.id || request?._id || request?.requestId);
+  }
+
+  function getDocumentIdFromRequest(request) {
+    const doc = requestDoc(request);
+    return normalizeId(request?.documentId || request?.docId || doc?.id || doc?._id || doc?.documentId);
+  }
+
+  function requester(r) {
+    return r.requester || r.user || r.createdBy || {};
+  }
+
+  function renderTable() {
+    showDecisionError('');
+    document.getElementById('result-count').textContent = `${requests.length} yêu cầu đang chờ`;
+    const container = document.getElementById('request-list');
+    if (!requests.length) {
+      container.innerHTML = emptyStatePro('✓', 'Không có yêu cầu đang chờ', 'Các yêu cầu mới sẽ hiển thị tại đây.');
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tài liệu</th><th>Người yêu cầu</th><th>Lý do</th><th>Thời hạn</th><th>Ngày gửi</th><th>Ghi chú quyết định</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${requests.map((r, i) => {
+              const d = requestDoc(r);
+              const u = requester(r);
+              return `
+                <tr data-idx="${i}">
+                  <td>
+                    <div style="font-weight:600;font-size:.9rem">${esc(d.title || d.originalFilename || r.documentTitle || '—')}</div>
+                    <div class="td-mono">${esc(d.originalFilename || '')}</div>
+                  </td>
+                  <td>
+                    <div style="font-weight:600;font-size:.86rem">${esc(u.fullName || u.email || '—')}</div>
+                    <div class="td-mono">${esc(u.email || '')}</div>
+                  </td>
+                  <td style="max-width:280px">${esc(r.reason || r.requestReason || '—')}</td>
+                  <td>
+                    <div style="font-size:.76rem;color:var(--gray-600);margin-bottom:6px">
+                      Đề xuất: <strong>${esc(formatDurationLabel(getRequestedDuration(r)))}</strong>
+                    </div>
+                    <select class="form-control" data-approved-duration="${i}" style="min-width:130px;font-size:.82rem">
+                      ${durationOptions(r).map(opt => `
+                        <option value="${opt.value}" ${opt.value === getDefaultApprovedDuration(r) ? 'selected' : ''} ${opt.disabled ? 'disabled' : ''}>
+                          ${opt.label}
+                        </option>`).join('')}
+                    </select>
+                    ${getMaxViewDuration(r) ? `<div style="font-size:.72rem;color:var(--gray-500);margin-top:4px">Tối đa: ${getMaxViewDuration(r)} ngày</div>` : ''}
+                  </td>
+                  <td class="td-mono">${fmtDate(r.createdAt || r.requestedAt)}</td>
+                  <td>
+                    <input class="form-control" data-note="${i}" placeholder="Nhập ghi chú..." style="min-width:220px;font-size:.82rem" />
+                  </td>
+                  <td>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                      <button class="btn btn-primary btn-sm" data-action="approved" data-idx="${i}">Duyệt</button>
+                      <button class="btn btn-danger btn-sm" data-action="rejected" data-idx="${i}">Từ chối</button>
+                    </div>
+                  </td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  function showDecisionError(message) {
+    const el = document.getElementById('decision-error');
+    if (!el) return;
+    el.textContent = message || '';
+    el.style.display = message ? 'block' : 'none';
+  }
+
+  function getRequestedDuration(r) {
+    return Number(r.requestedDuration || r.requestedDurationDays || r.durationDays || r.requestedDays || 0);
+  }
+
+  function getApprovedDuration(r) {
+    return Number(r.approvedDuration || r.approvedDurationDays || 0);
+  }
+
+  function getMaxViewDuration(r) {
+    const value = r.maxViewDurationDays ?? r.maxDurationDays ?? r.policy?.maxViewDurationDays ?? null;
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  function getDefaultApprovedDuration(r) {
+    const approved = getApprovedDuration(r);
+    const requested = getRequestedDuration(r);
+    const fallback = approved || requested || 7;
+    const max = getMaxViewDuration(r);
+    return max ? Math.min(fallback, max) : fallback;
+  }
+
+  function formatDurationLabel(days) {
+    const n = Number(days);
+    return Number.isFinite(n) && n > 0 ? `${n} ngày` : 'Không rõ';
+  }
+
+  function durationOptions(r) {
+    const values = [1, 3, 7, 14, 30];
+    const requested = getRequestedDuration(r);
+    const approved = getApprovedDuration(r);
+    const fallback = getDefaultApprovedDuration(r);
+    [requested, approved].forEach(v => {
+      if (v && !values.includes(v)) values.push(v);
+    });
+    if (fallback && !values.includes(fallback)) values.push(fallback);
+    values.sort((a, b) => a - b);
+    const max = getMaxViewDuration(r);
+    return values.map(value => ({
+      value,
+      label: `${value} ngày${value === requested ? ' (đề xuất)' : ''}`,
+      disabled: Boolean(max && value > max),
+    }));
+  }
+
+  async function requestJson(method, path, body) {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = Auth.getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const res = await fetch(API + path, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(data.message || data.error || `HTTP ${res.status}`);
+      err.status = res.status;
+      err.details = data;
+      err.path = path;
+      throw err;
+    }
+    return data;
+  }
+
+  async function submitDecision(documentId, requestId, status, decisionNote, approvedDuration) {
+    const action = status === 'approved' ? 'approve' : 'reject';
+    const statusAction = status === 'approved' ? 'approved' : 'rejected';
+    const note = String(decisionNote || '').trim();
+    const durationPayload = status === 'approved' && approvedDuration
+      ? { approvedDuration: Number(approvedDuration) }
+      : {};
+    const body = compactPayload(status === 'approved'
+      ? { status, decisionNote: note, ...durationPayload }
+      : { status, decisionNote: note });
+    const actionBody = compactPayload(status === 'approved'
+      ? { decisionNote: note, ...durationPayload }
+      : { decisionNote: note });
+    const approveAttempts = [
+      { method: 'PATCH', path: `/documents/${documentId}/view-requests/${requestId}/decision`, body },
+      { method: 'PUT',   path: `/documents/${documentId}/view-requests/${requestId}/decision`, body },
+      { method: 'POST',  path: `/documents/${documentId}/view-requests/${requestId}/decision`, body },
+      { method: 'PATCH', path: `/documents/${documentId}/view-requests/${requestId}/status`, body },
+      { method: 'PUT',   path: `/documents/${documentId}/view-requests/${requestId}/status`, body },
+      { method: 'PATCH', path: `/documents/${documentId}/view-requests/${requestId}/${action}`, body: actionBody },
+      { method: 'POST',  path: `/documents/${documentId}/view-requests/${requestId}/${action}`, body: actionBody },
+      { method: 'PATCH', path: `/documents/${documentId}/view-requests/${requestId}/${statusAction}`, body: actionBody },
+      { method: 'POST',  path: `/documents/${documentId}/view-requests/${requestId}/${statusAction}`, body: actionBody },
+      { method: 'PUT',   path: `/documents/${documentId}/view-requests/${requestId}`, body },
+      { method: 'PATCH', path: `/view-requests/${requestId}/decision`, body },
+      { method: 'PUT',   path: `/view-requests/${requestId}/decision`, body },
+      { method: 'POST',  path: `/view-requests/${requestId}/decision`, body },
+      { method: 'PATCH', path: `/view-requests/${requestId}/status`, body },
+      { method: 'PUT',   path: `/view-requests/${requestId}/status`, body },
+      { method: 'PATCH', path: `/view-requests/${requestId}/${action}`, body: actionBody },
+      { method: 'POST',  path: `/view-requests/${requestId}/${action}`, body: actionBody },
+      { method: 'PATCH', path: `/view-requests/${requestId}/${statusAction}`, body: actionBody },
+      { method: 'POST',  path: `/view-requests/${requestId}/${statusAction}`, body: actionBody },
+      { method: 'PUT',   path: `/view-requests/${requestId}`, body },
+    ];
+    const rejectAttempts = [
+      { method: 'PATCH', path: `/view-requests/${requestId}/reject`, body: actionBody },
+    ];
+    const attempts = status === 'approved' ? approveAttempts : rejectAttempts;
+    let lastErr = null;
+    let firstNon404Err = null;
+    const tried = [];
+    for (const attempt of attempts) {
+      tried.push(`${attempt.method} ${attempt.path}`);
+      try {
+        return await requestJson(attempt.method, attempt.path, attempt.body);
+      } catch (err) {
+        lastErr = err;
+        if (err.status && err.status !== 404 && !firstNon404Err) firstNon404Err = err;
+        if (err.status && err.status !== 404 && !isRetryableDecisionPayloadError(err)) throw err;
+      }
+    }
+
+    const sourceErr = firstNon404Err || lastErr;
+    const err = firstNon404Err || new Error('Backend chưa có API duyệt/từ chối yêu cầu xem phù hợp.');
+    err.status = sourceErr?.status;
+    err.details = sourceErr?.details;
+    err.path = sourceErr?.path;
+    err.tried = tried;
+    throw err;
+  }
+
+  function compactPayload(payload) {
+    return Object.fromEntries(Object.entries(payload).filter(([, value]) =>
+      value !== '' && value !== null && value !== undefined && !(Number.isNaN(value))
+    ));
+  }
+
+  function isRetryableDecisionPayloadError(err) {
+    const text = [
+      err.message,
+      err.details?.message,
+      ...(Array.isArray(err.details?.message) ? err.details.message : []),
+      ...(Array.isArray(err.details?.errors) ? err.details.errors.map(e => e.message || e) : []),
+    ].filter(Boolean).join(' ');
+    return /decisionNote|rejectReason|rejectionReason|reason|note|should not exist|should not be empty/i.test(text);
+  }
+
+  async function decideRequest(request, status, note, approvedDuration, btn) {
+    const requestId = getRequestId(request);
+    const documentId = getDocumentIdFromRequest(request);
+    if (!requestId || !documentId) {
+      Toast.error('Không xác định được mã yêu cầu hoặc mã tài liệu.');
+      return;
+    }
+    if (status === 'rejected' && !String(note || '').trim()) {
+      Toast.warning('Vui lòng nhập lý do từ chối.');
+      const idx = requests.findIndex(item => getRequestId(item) === requestId);
+      document.querySelector(`[data-note="${idx}"]`)?.focus();
+      return;
+    }
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.classList.add('loading');
+    showDecisionError('');
+    try {
+      await submitDecision(documentId, requestId, status, note, approvedDuration);
+      Toast.success(status === 'approved' ? 'Đã duyệt yêu cầu.' : 'Đã từ chối yêu cầu.');
+      requests = requests.filter(item => getRequestId(item) !== requestId);
+      renderTable();
+    } catch (err) {
+      console.error('[View request decision] Failed:', {
+        request,
+        requestId,
+        documentId,
+        failedPath: err.path,
+        tried: err.tried,
+        status,
+        decisionNote: note,
+        approvedDuration,
+        details: err.details,
+        message: err.message,
+      });
+      showDecisionError(err.tried
+        ? `${err.message} Đã thử ${err.tried.length} endpoint. Mở Console để xem danh sách chi tiết.`
+        : (err.message || 'Không cập nhật được yêu cầu.'));
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
+  }
+
+  document.getElementById('request-list').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const idx = parseInt(btn.dataset.idx, 10);
+    const request = requests[idx];
+    if (!request) return;
+    const note = document.querySelector(`[data-note="${idx}"]`)?.value.trim() || '';
+    const approvedDuration = document.querySelector(`[data-approved-duration="${idx}"]`)?.value || '';
+    decideRequest(request, btn.dataset.action, note, approvedDuration, btn);
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const isAdmin = Auth.isAdmin();
+    renderBreadcrumb([
+      { label: isAdmin ? 'Admin' : 'Trưởng khoa', href: isAdmin ? 'admin/dashboard.html' : 'dept-head/dashboard.html' },
+      { label: 'Yêu cầu xem' }
+    ]);
+    loadRequests();
+  });
+</script>
+</body>
+</html>
+

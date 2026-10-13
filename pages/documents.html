@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tài liệu — BV Hữu Nghị</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <script src="../assets/js/vendor/pdf.min.js"></script>
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+  <style>
+    .view-only-modal {
+      width: min(1180px, calc(100vw - 32px));
+      max-width: 1180px;
+      height: min(88vh, 920px);
+      padding: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .view-only-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--gray-200);
+      background: var(--white);
+    }
+    .view-only-title {
+      min-width: 0;
+      font-weight: 700;
+      color: var(--navy);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .view-only-body {
+      flex: 1;
+      overflow: auto;
+      background: #2b2b2b;
+      padding: 24px 14px;
+    }
+    .view-only-pages {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+    .view-only-pages canvas {
+      max-width: 100%;
+      height: auto;
+      background: #fff;
+      box-shadow: 0 10px 30px rgba(0,0,0,.28);
+      user-select: none;
+    }
+    .view-only-message {
+      min-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      text-align: center;
+      padding: 28px;
+      font-size: .92rem;
+    }
+    .request-duration-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 150px;
+      gap: 12px;
+      align-items: start;
+    }
+    @media (max-width: 560px) {
+      .request-duration-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <nav class="sidebar"></nav>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">
+        Vietnam-HuuNghi Hospital
+      </p>
+    </div>
+
+    <div class="card" style="padding:20px;margin-bottom:20px">
+      <div class="search-bar">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="form-control" type="search" id="kw-input" placeholder="Tìm theo tiêu đề, tên file, khoa..." autocomplete="off" style="border:none;box-shadow:none;padding-left:42px" />
+      </div>
+    </div>
+
+    <div id="result-count" style="font-size:.82rem;color:var(--gray-600);margin-bottom:12px"></div>
+    <div id="doc-list"></div>
+  </main>
+</div>
+
+<div class="modal-overlay" id="modal-request-view">
+  <div class="modal" style="max-width:520px">
+    <button class="modal-close" data-modal-close="modal-request-view">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="modal-title">Yêu cầu xem tài liệu</h3>
+    <p class="modal-subtitle" id="request-doc-title"></p>
+    <div class="request-duration-grid">
+      <div class="form-group">
+        <label class="form-label">Lý do cần xem *</label>
+        <textarea class="form-control" id="request-reason" rows="4" placeholder="Nhập lý do phục vụ công việc..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Thời hạn đề xuất</label>
+        <select class="form-control" id="request-duration">
+          <option value="1">1 ngày</option>
+          <option value="3">3 ngày</option>
+          <option value="7" selected>7 ngày</option>
+          <option value="14">14 ngày</option>
+          <option value="30">30 ngày</option>
+        </select>
+      </div>
+    </div>
+    <div id="request-error" style="display:none;margin-top:-6px;margin-bottom:12px;padding:10px 12px;
+      border-left:3px solid var(--stamp-deny);background:rgba(163,59,59,.08);
+      color:var(--stamp-deny);border-radius:var(--radius-sm);font-size:.82rem"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-request-view">Hủy</button>
+      <button class="btn btn-primary" id="btn-submit-request">Gửi yêu cầu</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-view-only">
+  <div class="modal view-only-modal">
+    <div class="view-only-head">
+      <div class="view-only-title" id="view-only-title">Xem tài liệu</div>
+      <button class="modal-close" id="view-only-close" type="button" aria-label="Đóng">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="view-only-body" id="view-only-body">
+      <div class="view-only-message">Đang tải...</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container"></div>
+<script src="../assets/js/app.js?v=role-sync-12"></script>
+<script src="../assets/js/sidebar.js?v=role-sync-12"></script>
+<script>
+  Auth.require();
+
+  let allDocs = [];
+  let visibleDocs = [];
+  let requestingDoc = null;
+  let submittingRequest = false;
+  let currentViewBlobUrl = null;
+  const viewStatusByDocId = new Map();
+  const currentUser = Auth.getUser();
+
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '../assets/js/vendor/pdf.worker.min.js';
+  }
+
+  function normalizeList(res) {
+    return Array.isArray(res) ? res
+      : Array.isArray(res?.data) ? res.data
+      : Array.isArray(res?.documents) ? res.documents
+      : Array.isArray(res?.items) ? res.items
+      : [];
+  }
+
+  function normalizeText(value = '') {
+    return String(value)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  function getDocumentId(doc) {
+    const id = doc?.id || doc?._id || doc?.documentId || '';
+    if (typeof id === 'object' && id !== null) return id.$oid || id.toString?.() || '';
+    return String(id || '');
+  }
+
+  function normalizeId(value) {
+    if (!value) return '';
+    if (typeof value === 'object') return value.$oid || value.toString?.() || '';
+    return String(value);
+  }
+
+  function isOwnDocument(doc) {
+    const myIds = [
+      currentUser?.id,
+      currentUser?._id,
+      currentUser?.userId,
+      currentUser?.sub,
+    ].map(normalizeId).filter(Boolean);
+    const myEmail = String(currentUser?.email || '').toLowerCase();
+    const uploader = doc?.uploader || doc?.uploadedBy || doc?.owner || doc?.createdBy || doc?.user || {};
+    const docUserIds = [
+      doc?.uploaderId,
+      doc?.uploadedById,
+      doc?.ownerId,
+      doc?.createdById,
+      doc?.userId,
+      uploader?.id,
+      uploader?._id,
+      uploader?.userId,
+    ].map(normalizeId).filter(Boolean);
+    const docEmail = String(
+      doc?.uploaderEmail || doc?.uploadedByEmail || doc?.ownerEmail || uploader?.email || ''
+    ).toLowerCase();
+
+    return docUserIds.some(id => myIds.includes(id)) || (!!myEmail && docEmail === myEmail);
+  }
+
+  function normalizeViewStatus(res) {
+    let data = res?.data || res || {};
+    if (Array.isArray(data)) {
+      data = data.find(item => ['approved', 'active'].includes(String(item?.status || '').toLowerCase()))
+        || data.find(item => String(item?.status || '').toLowerCase() === 'pending')
+        || data[0]
+        || {};
+    }
+
+    const request = data.request || data.currentRequest || data.viewRequest || data.latestRequest || data;
+    let status = request.status || request.requestStatus || request.state || data.status || data.requestStatus || data.state || 'none';
+    if (data.canView === true || data.allowed === true || data.hasAccess === true || data.isApproved === true) {
+      status = 'approved';
+    }
+    if (data.canView === false && String(status).toLowerCase() === 'approved') {
+      status = 'expired';
+    }
+
+    return {
+      status,
+      requestId: normalizeId(request.id || request._id || request.requestId || data.id || data._id || data.requestId),
+      reason: request.reason || data.reason || request.requestReason || data.requestReason || '',
+      decisionNote: request.decisionNote || data.decisionNote || request.rejectReason || data.rejectReason || request.note || data.note || '',
+      requestedDuration: request.requestedDuration || data.requestedDuration || request.requestedDurationDays || data.requestedDurationDays || null,
+      approvedDuration: request.approvedDuration || data.approvedDuration || request.approvedDurationDays || data.approvedDurationDays || null,
+      expiresAt: request.expiresAt || data.expiresAt || request.expiredAt || data.expiredAt
+        || request.validUntil || data.validUntil || request.viewExpiresAt || data.viewExpiresAt
+        || request.approvedUntil || data.approvedUntil || null,
+      remainingText: request.remainingText || data.remainingText || request.timeRemaining || data.timeRemaining || '',
+      remainingSeconds: request.remainingSeconds ?? data.remainingSeconds ?? request.remainingTimeSeconds ?? data.remainingTimeSeconds ?? null,
+      remainingHours: request.remainingHours ?? data.remainingHours ?? request.remainingTimeHours ?? data.remainingTimeHours ?? null,
+      canExtend: request.canExtend ?? data.canExtend ?? request.allowExtend ?? data.allowExtend
+        ?? request.canRequestExtension ?? data.canRequestExtension ?? false,
+      extensionRequestId: request.extensionRequestId || data.extensionRequestId || request.currentExtensionRequestId || data.currentExtensionRequestId || '',
+      extensionCount: request.extensionCount ?? data.extensionCount ?? request.extendCount ?? data.extendCount ?? null,
+      maxExtensions: request.maxExtensions ?? data.maxExtensions ?? request.maxExtensionCount ?? data.maxExtensionCount ?? null,
+    };
+  }
+
+  function getRequestDocumentId(request) {
+    const doc = request.document || request.doc || {};
+    return getDocumentId(doc) || String(request.documentId || request.docId || '');
+  }
+
+  function normalizeRequestList(res) {
+    return Array.isArray(res) ? res
+      : Array.isArray(res?.data) ? res.data
+      : Array.isArray(res?.requests) ? res.requests
+      : Array.isArray(res?.items) ? res.items
+      : [];
+  }
+
+  async function loadViewStatusesFromRequests(docs) {
+    const endpoints = [
+      '/view-requests',
+      '/view-requests?status=pending',
+      '/view-requests?status=approved',
+      '/view-requests?status=rejected',
+    ];
+    const byDocId = new Map();
+
+    for (const endpoint of endpoints) {
+      try {
+        const list = normalizeRequestList(await api.get(endpoint));
+        list.forEach(item => {
+          const docId = getRequestDocumentId(item);
+          if (!docId || byDocId.has(docId)) return;
+          byDocId.set(docId, normalizeViewStatus(item));
+        });
+      } catch (err) {
+        if (!String(err.message || '').includes('404')) {
+          console.warn('[View requests fallback] Failed:', { endpoint, message: err.message });
+        }
+      }
+    }
+
+    docs.forEach(doc => {
+      const docId = getDocumentId(doc);
+      viewStatusByDocId.set(docId, byDocId.get(docId) || { status: 'none' });
+    });
+  }
+
+  async function loadViewStatuses(docs) {
+    viewStatusByDocId.clear();
+    const firstDocId = getDocumentId(docs[0]);
+    if (firstDocId) {
+      try {
+        const firstStatus = normalizeViewStatus(await api.get(`/documents/${firstDocId}/view-status`));
+        viewStatusByDocId.set(firstDocId, firstStatus);
+      } catch (err) {
+        if (String(err.message || '').includes('404')) {
+          console.warn('[View status] Endpoint missing, fallback to /view-requests.');
+          await loadViewStatusesFromRequests(docs);
+          return;
+        }
+        console.warn('[View status] Failed:', { documentId: firstDocId, message: err.message });
+        viewStatusByDocId.set(firstDocId, { status: 'none' });
+      }
+    }
+
+    const pairs = await Promise.all(docs.map(async doc => {
+      const docId = getDocumentId(doc);
+      if (viewStatusByDocId.has(docId)) return [docId, viewStatusByDocId.get(docId)];
+      if (!docId) return ['', { status: 'none' }];
+      try {
+        const status = normalizeViewStatus(await api.get(`/documents/${docId}/view-status`));
+        return [docId, status];
+      } catch (err) {
+        console.warn('[View status] Failed:', { documentId: docId, message: err.message });
+        return [docId, { status: 'none' }];
+      }
+    }));
+    pairs.forEach(([id, status]) => {
+      if (id) viewStatusByDocId.set(id, status);
+    });
+  }
+
+  async function loadDocs() {
+    document.getElementById('doc-list').innerHTML = skeletonTable(6);
+    try {
+      const res = await api.get('/documents/search?limit=10000&status=stored');
+      allDocs = normalizeList(res).filter(d => d.status === 'stored' || d.status === 'approved');
+      await loadViewStatuses(allDocs);
+      renderFiltered();
+    } catch (err) {
+      document.getElementById('doc-list').innerHTML = emptyStatePro(
+        '⚠', 'Không thể tải tài liệu', esc(err.message),
+        '<button class="btn btn-ghost btn-sm" id="btn-retry">Thử lại</button>'
+      );
+      document.getElementById('btn-retry')?.addEventListener('click', loadDocs);
+      Toast.error(err.message);
+    }
+  }
+
+  function renderFiltered() {
+    const kw = normalizeText(document.getElementById('kw-input').value);
+    visibleDocs = allDocs.filter(d => {
+      if (!kw) return true;
+      return normalizeText([
+        d.title, d.originalFilename, d.description, d.department?.name,
+        d.documentType?.name, d.documentType?.code
+      ].filter(Boolean).join(' ')).includes(kw);
+    });
+    renderTable(visibleDocs);
+  }
+
+  function renderTable(docs) {
+    document.getElementById('result-count').textContent = `Hiển thị ${docs.length} tài liệu`;
+    const container = document.getElementById('doc-list');
+    if (!docs.length) {
+      container.innerHTML = emptyStatePro('🔍', 'Không tìm thấy tài liệu', 'Thử từ khóa khác.');
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tài liệu</th><th>Khoa</th><th>Loại hồ sơ</th><th>Ngày lưu</th><th>Kích thước</th><th>Quyền xem</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${docs.map((d, i) => `
+              <tr data-idx="${i}">
+                <td>
+                  <div style="font-weight:600;font-size:.9rem">${esc(displayDocTitle(d))}</div>
+                  <div class="td-mono">${esc(displayDocFilename(d))}</div>
+                </td>
+                <td>${esc(d.department?.name || '—')}</td>
+                <td>${esc(d.documentType?.name || '—')}</td>
+                <td class="td-mono">${fmtDate(d.approvedAt || d.createdAt)}</td>
+                <td class="td-mono">${fmtSize(d)}</td>
+                <td>${renderViewAction(d, i)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  function renderViewAction(doc, idx) {
+    if (isOwnDocument(doc)) {
+      return `
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start">
+          <span style="font-size:.76rem;color:var(--stamp-ok);font-weight:600">Tài liệu của bạn</span>
+          <button class="btn btn-brass btn-sm" data-action="view" data-idx="${idx}">Xem tài liệu</button>
+        </div>`;
+    }
+
+    const docId = getDocumentId(doc);
+    const status = viewStatusByDocId.get(docId) || { status: 'none' };
+    const st = String(status.status || 'none').toLowerCase();
+    const expired = status.expiresAt && new Date(status.expiresAt) <= new Date();
+
+    if ((st === 'approved' || st === 'active') && !expired) {
+      const remaining = formatViewRemaining(status);
+      const extend = canShowExtend(status)
+        ? `<button class="btn btn-ghost btn-sm" data-action="extend" data-idx="${idx}">Xin gia hạn</button>`
+        : '';
+      return `
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start">
+          <span style="font-size:.76rem;color:var(--stamp-ok);font-weight:600">${esc(remaining)}</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-brass btn-sm" data-action="view" data-idx="${idx}">Xem tài liệu</button>
+            ${extend}
+          </div>
+        </div>`;
+    }
+    if (st === 'pending') {
+      return '<span class="badge badge-pending">Đang chờ duyệt</span>';
+    }
+    if (st === 'rejected' || st === 'expired' || expired) {
+      const note = status.decisionNote || (expired ? 'Quyền xem đã hết hạn.' : 'Yêu cầu đã bị từ chối.');
+      return `
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start">
+          <span style="font-size:.76rem;color:var(--stamp-deny);max-width:260px">${esc(note)}</span>
+          <button class="btn btn-ghost btn-sm" data-action="request" data-idx="${idx}">Gửi lại yêu cầu</button>
+        </div>`;
+    }
+    return `<button class="btn btn-primary btn-sm" data-action="request" data-idx="${idx}">Yêu cầu xem</button>`;
+  }
+
+  function formatViewRemaining(status) {
+    if (status.remainingText) return `Còn hạn xem: ${status.remainingText}`;
+    if (status.remainingSeconds != null) {
+      const seconds = Number(status.remainingSeconds);
+      if (Number.isFinite(seconds)) return `Còn hạn xem: ${formatDurationFromSeconds(seconds)}`;
+    }
+    if (status.remainingHours != null) {
+      const hours = Number(status.remainingHours);
+      if (Number.isFinite(hours)) return `Còn hạn xem: ${formatDurationFromSeconds(hours * 3600)}`;
+    }
+    if (status.expiresAt) return `Hạn xem đến: ${fmtDate(status.expiresAt)}`;
+    if (status.approvedDuration) return `Thời hạn xem: ${status.approvedDuration} ngày`;
+    return 'Đang còn hạn xem';
+  }
+
+  function canShowExtend(status) {
+    if (!status?.canExtend || !status.requestId) return false;
+    if (status.maxExtensions != null && status.extensionCount != null) {
+      return Number(status.extensionCount) < Number(status.maxExtensions);
+    }
+    return true;
+  }
+
+  function formatDurationFromSeconds(seconds) {
+    if (seconds <= 0) return 'sắp hết hạn';
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.ceil((seconds % 86400) / 3600);
+    if (days > 0) return hours > 0 ? `${days} ngày ${hours} giờ` : `${days} ngày`;
+    return `${Math.max(1, hours)} giờ`;
+  }
+
+  async function openApprovedDocument(doc) {
+    try {
+      const docId = getDocumentId(doc);
+      if (!docId) throw new Error('Không xác định được mã tài liệu.');
+      openViewOnlyModal(doc.title || doc.originalFilename || 'Xem tài liệu');
+      const token = Auth.getToken();
+      const endpoint = isOwnDocument(doc) ? 'download' : 'view';
+      const res = await fetch(`${API}/documents/${docId}/${endpoint}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${res.status}`);
+      }
+
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        const viewUrl = data.url || data.viewUrl || data.fileUrl || data.signedUrl;
+        if (!viewUrl) throw new Error(data.message || 'Không nhận được liên kết xem tài liệu');
+        await renderViewOnlyUrl(viewUrl, token, doc);
+        return;
+      }
+
+      const blob = await res.blob();
+      await renderViewOnlyBlob(blob, doc);
+    } catch (err) {
+      closeViewOnlyModal();
+      Toast.error('Không thể mở tài liệu: ' + err.message);
+    }
+  }
+
+  function openViewOnlyModal(title) {
+    document.getElementById('view-only-title').textContent = title;
+    document.getElementById('view-only-body').innerHTML = '<div class="view-only-message">Đang tải...</div>';
+    Modal.open('modal-view-only');
+  }
+
+  function closeViewOnlyModal() {
+    Modal.close('modal-view-only');
+    document.getElementById('view-only-body').innerHTML = '<div class="view-only-message">Đang tải...</div>';
+    if (currentViewBlobUrl) {
+      URL.revokeObjectURL(currentViewBlobUrl);
+      currentViewBlobUrl = null;
+    }
+  }
+
+  document.getElementById('view-only-close').addEventListener('click', closeViewOnlyModal);
+  document.getElementById('modal-view-only').addEventListener('click', e => {
+    if (e.target.id === 'modal-view-only') closeViewOnlyModal();
+  });
+  document.addEventListener('keydown', e => {
+    const isOpen = document.getElementById('modal-view-only').classList.contains('open');
+    if (!isOpen) return;
+    if (e.key === 'Escape') closeViewOnlyModal();
+    if ((e.ctrlKey || e.metaKey) && ['s', 'p'].includes(e.key.toLowerCase())) {
+      e.preventDefault();
+      Toast.warning('Tài liệu này chỉ được phép xem, không tải hoặc in.');
+    }
+  });
+
+  async function renderViewOnlyUrl(viewUrl, token, doc) {
+    const headers = {};
+    if (token && (viewUrl.startsWith(API) || viewUrl.startsWith('/'))) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    const res = await fetch(viewUrl.startsWith('/') ? API + viewUrl : viewUrl, { headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    await renderViewOnlyBlob(await res.blob(), doc);
+  }
+
+  async function renderViewOnlyBlob(blob, doc) {
+    const filename = doc.originalFilename || doc.title || '';
+    const type = (blob.type || '').toLowerCase();
+    const isPdf = type.includes('pdf') || /\.pdf($|\?)/i.test(filename);
+    const isImage = type.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(filename);
+
+    if (isPdf) {
+      await renderPdfCanvas(blob);
+      return;
+    }
+
+    if (isImage) {
+      if (currentViewBlobUrl) URL.revokeObjectURL(currentViewBlobUrl);
+      currentViewBlobUrl = URL.createObjectURL(blob);
+      document.getElementById('view-only-body').innerHTML = `
+        <div class="view-only-message">
+          <img src="${currentViewBlobUrl}" alt="${esc(filename || 'Tài liệu')}"
+            style="max-width:100%;max-height:100%;object-fit:contain;background:#fff" />
+        </div>`;
+      return;
+    }
+
+    document.getElementById('view-only-body').innerHTML =
+      '<div class="view-only-message">Định dạng này chưa hỗ trợ xem trực tiếp. Vui lòng liên hệ quản trị viên nếu cần truy cập nội dung.</div>';
+  }
+
+  async function renderPdfCanvas(blob) {
+    if (typeof pdfjsLib === 'undefined') {
+      throw new Error('PDF viewer chưa được tải.');
+    }
+
+    const body = document.getElementById('view-only-body');
+    body.innerHTML = '<div class="view-only-pages" id="view-only-pages"></div>';
+    const pagesEl = document.getElementById('view-only-pages');
+    const data = await blob.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data }).promise;
+    const maxWidth = Math.min(1040, Math.max(320, body.clientWidth - 42));
+
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const scale = Math.min(1.6, maxWidth / baseViewport.width);
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      canvas.setAttribute('aria-label', `Trang ${pageNum}`);
+      canvas.addEventListener('contextmenu', e => e.preventDefault());
+      pagesEl.appendChild(canvas);
+      await page.render({ canvasContext: context, viewport }).promise;
+    }
+  }
+
+  function openRequestModal(doc) {
+    requestingDoc = doc;
+    submittingRequest = false;
+    document.getElementById('request-doc-title').textContent = doc.title || doc.originalFilename || '';
+    document.getElementById('request-reason').value = '';
+    document.getElementById('request-duration').value = '7';
+    document.getElementById('request-error').style.display = 'none';
+    document.getElementById('request-error').textContent = '';
+    const submitBtn = document.getElementById('btn-submit-request');
+    submitBtn.disabled = false;
+    submitBtn.classList.remove('loading');
+    Modal.open('modal-request-view');
+    setTimeout(() => document.getElementById('request-reason').focus(), 0);
+  }
+
+  async function requestJson(method, path, body) {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = Auth.getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const res = await fetch(API + path, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(data.message || data.error || `HTTP ${res.status}`);
+      err.status = res.status;
+      err.details = data;
+      throw err;
+    }
+    return data;
+  }
+
+  async function createViewRequest(docId, reason, requestedDuration) {
+    if (!docId) throw new Error('Không xác định được mã tài liệu.');
+    return requestJson('POST', `/documents/${docId}/view-requests`, { reason, requestedDuration });
+  }
+
+  async function extendViewRequest(requestId) {
+    if (!requestId) throw new Error('Không xác định được mã yêu cầu xem.');
+    return requestJson('POST', `/view-requests/${requestId}/extend`);
+  }
+
+  document.getElementById('doc-list').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const doc = visibleDocs[parseInt(btn.dataset.idx, 10)];
+    if (!doc) return;
+    if (btn.dataset.action === 'view') openApprovedDocument(doc);
+    if (btn.dataset.action === 'request') openRequestModal(doc);
+    if (btn.dataset.action === 'extend') {
+      const status = viewStatusByDocId.get(getDocumentId(doc));
+      requestExtension(status, btn);
+    }
+  });
+
+  async function requestExtension(status, btn) {
+    if (!status?.requestId) {
+      Toast.warning('Không xác định được yêu cầu xem hiện tại.');
+      return;
+    }
+    btn.disabled = true;
+    btn.classList.add('loading');
+    try {
+      await extendViewRequest(status.requestId);
+      Toast.success('Đã gửi yêu cầu gia hạn.');
+      await loadDocs();
+    } catch (err) {
+      Toast.error(err.message || 'Không thể gửi yêu cầu gia hạn.');
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
+  }
+
+  document.getElementById('btn-submit-request').addEventListener('click', async function () {
+    if (!requestingDoc || submittingRequest) return;
+    const reason = document.getElementById('request-reason').value.trim();
+    if (!reason) {
+      Toast.warning('Vui lòng nhập lý do cần xem tài liệu.');
+      return;
+    }
+    const requestedDuration = Number(document.getElementById('request-duration').value);
+    submittingRequest = true;
+    this.disabled = true;
+    this.classList.add('loading');
+    try {
+      const docId = getDocumentId(requestingDoc);
+      await createViewRequest(docId, reason, requestedDuration);
+      viewStatusByDocId.set(docId, { status: 'pending', reason, requestedDuration });
+      Modal.close('modal-request-view');
+      renderTable(visibleDocs);
+      Toast.success('Đã gửi yêu cầu xem tài liệu.');
+    } catch (err) {
+      const errorBox = document.getElementById('request-error');
+      console.error('[View request] Failed:', {
+        document: requestingDoc,
+        documentId: getDocumentId(requestingDoc),
+        endpoint: `/documents/${getDocumentId(requestingDoc)}/view-requests`,
+        reason,
+        status: err.status,
+        details: err.details,
+        message: err.message,
+      });
+      errorBox.textContent = err.status >= 500
+        ? `Backend trả lỗi 500 khi tạo yêu cầu. Endpoint đã gọi: /documents/${getDocumentId(requestingDoc)}/view-requests.`
+        : (err.message || 'Không gửi được yêu cầu.');
+      errorBox.style.display = 'block';
+    } finally {
+      submittingRequest = false;
+      this.disabled = false;
+      this.classList.remove('loading');
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    renderBreadcrumb([{ label: 'Trang chủ', href: 'dashboard.html' }, { label: 'Tài liệu' }]);
+    document.getElementById('kw-input').addEventListener('input', debounce(renderFiltered, 300));
+    loadDocs();
+  });
+</script>
+</body>
+</html>

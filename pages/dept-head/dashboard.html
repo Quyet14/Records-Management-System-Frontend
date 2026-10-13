@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tổng quan — Trưởng Khoa</title>
+  <link rel="stylesheet" href="../../assets/css/style.css" />
+  <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+</head>
+<body>
+<div class="app-shell">
+
+  <nav class="sidebar"></nav>
+
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <main class="main-content">
+    <div class="page-header page-header-row">
+      <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
+      <p id="dept-desc" style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+    </div>
+      <a href="queue.html" class="btn btn-brass">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/></svg>
+        Hàng chờ duyệt
+      </a>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card stat-card--wait">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <span class="stat-label">Chờ duyệt</span>
+        <span class="stat-value" id="stat-pending" style="color:var(--stamp-wait)">—</span>
+        <span class="stat-sub">tài liệu</span>
+      </div>
+      <div class="stat-card stat-card--ok">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <span class="stat-label">Đã lưu trữ</span>
+        <span class="stat-value" id="stat-stored" style="color:var(--stamp-ok)">—</span>
+        <span class="stat-sub">tài liệu</span>
+      </div>
+      <div class="stat-card stat-card--deny">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+        <span class="stat-label">Từ chối</span>
+        <span class="stat-value" id="stat-rejected" style="color:var(--stamp-deny)">—</span>
+        <span class="stat-sub">tài liệu</span>
+      </div>
+      <div class="stat-card stat-card--brass">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+        <span class="stat-label">Thành viên</span>
+        <span class="stat-value" id="stat-members">—</span>
+        <span class="stat-sub">tài khoản</span>
+      </div>
+    </div>
+
+    <!-- Recent docs -->
+    <div class="section-tab">
+      <span class="section-tab-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Tài liệu gần đây
+      </span>
+      <span class="section-tab-line"></span>
+      <a href="documents.html" class="btn btn-ghost btn-sm">Xem tất cả</a>
+    </div>
+    <div class="card" id="recent-wrap">
+      <div class="empty-state"><h3>Đang tải…</h3></div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-container"></div>
+<script src="../../assets/js/app.js?v=role-sync-12"></script>
+<script src="../../assets/js/sidebar.js?v=role-sync-12"></script>
+<script>
+  Auth.requireDeptHead();
+
+
+  /* esc() — see app.js */
+
+  const me         = Auth.getUser();
+  const myDeptId   = me?.departmentId || me?.department?.id;
+  const myDeptName = me?.department?.name || 'Khoa của tôi';
+
+  document.getElementById('dept-desc').textContent  = `Quản lý tài liệu và thành viên của ${myDeptName}.`;
+
+  let _recentDocs = [];
+
+  async function loadStats() {
+    // Skeleton stats
+    ['stat-pending','stat-stored','stat-rejected','stat-members'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = '…'; el.classList.add('skeleton'); }
+    });
+    document.getElementById('recent-wrap').innerHTML =
+      `<div class="doc-grid">${skeletonCards(4)}</div>`;
+
+    const [docsResult, usersResult] = await Promise.allSettled([
+      api.get('/documents/search?limit=10000'),
+      api.get('/users?limit=10000')
+    ]);
+
+    // ── Docs ────────────────────────────────────────────────────
+    let docs = [];
+    if (docsResult.status === 'fulfilled') {
+      const res = docsResult.value;
+      if (Array.isArray(res))                docs = res;
+      else if (Array.isArray(res.data))      docs = res.data;
+      else if (Array.isArray(res.documents)) docs = res.documents;
+      else if (Array.isArray(res.items))     docs = res.items;
+    } else {
+      Toast.error('Không tải được tài liệu: ' + docsResult.reason?.message);
+    }
+
+    ['stat-pending','stat-stored','stat-rejected'].forEach(id =>
+      document.getElementById(id)?.classList.remove('skeleton'));
+    document.getElementById('stat-pending').textContent  = docs.filter(d => d.status === 'pending').length;
+    document.getElementById('stat-stored').textContent   = docs.filter(d => d.status === 'stored' || d.status === 'approved').length;
+    document.getElementById('stat-rejected').textContent = docs.filter(d => d.status === 'rejected').length;
+
+    // ── Members ──────────────────────────────────────────────────
+    document.getElementById('stat-members')?.classList.remove('skeleton');
+    if (usersResult.status === 'fulfilled') {
+      const allUsers = Array.isArray(usersResult.value) ? usersResult.value : (usersResult.value?.data || []);
+      const members  = myDeptId
+        ? allUsers.filter(u => u.departmentId === myDeptId || u.department?.id === myDeptId)
+        : allUsers;
+      document.getElementById('stat-members').textContent = members.length;
+    } else {
+      document.getElementById('stat-members').textContent = '—';
+    }
+
+    // ── Render recent docs ───────────────────────────────────────
+    _recentDocs = docs.slice(0, 6);
+    const wrap  = document.getElementById('recent-wrap');
+
+    // Banner cảnh báo chỉnh lý
+    renderRetentionBanner(docs, 'recent-wrap');
+
+    if (!_recentDocs.length) {
+      wrap.innerHTML = emptyStatePro('📄', 'Chưa có tài liệu nào', 'Khoa chưa có tài liệu nào được tải lên.');
+      return;
+    }
+
+    wrap.innerHTML = `
+      <div class="doc-grid" id="recent-grid">
+        ${_recentDocs.map((d, i) => `
+          <div class="doc-card" data-status="${esc(d.status)}" data-idx="${i}" style="cursor:pointer">
+            <div class="doc-card-header">
+              <div class="doc-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div class="doc-card-title">${esc(d.title || d.originalFilename)}</div>
+                <div style="font-size:.75rem;color:var(--gray-600)">${esc(d.uploader?.fullName || '')}</div>
+              </div>
+            </div>
+            <div class="doc-card-meta">
+              <span class="mono">${fmtDate(d.createdAt)}</span>
+              <span>${fmtSize(d)}</span>
+            </div>
+            <div class="doc-card-footer">
+              ${statusBadge(d.status)}
+              ${d.status === 'stored' || d.status === 'approved'
+                ? `<button class="btn btn-brass btn-sm" data-action="download" data-idx="${i}">↓ Tải về</button>`
+                : ''}
+            </div>
+          </div>`).join('')}
+      </div>`;
+
+    document.getElementById('recent-grid').addEventListener('click', e => {
+      const card = e.target.closest('.doc-card[data-idx]');
+      if (!card) return;
+      const d = _recentDocs[parseInt(card.dataset.idx, 10)];
+      if (!d) return;
+      const dlBtn = e.target.closest('[data-action="download"]');
+      if (dlBtn) { e.stopPropagation(); downloadFile(d.id, d.originalFilename || 'document.pdf'); return; }
+      previewFile(d.id, d.title || d.originalFilename);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', loadStats);
+</script>
+</body>
+</html>

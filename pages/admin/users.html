@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quản lý người dùng — BV Hữu Nghị</title>
+  <link rel="stylesheet" href="../../assets/css/style.css" />
+  <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Sidebar Admin -->
+  <nav class="sidebar"></nav>
+
+  <!-- Main -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <main class="main-content">
+    <div class="page-header page-header-row">
+      <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+    </div>
+      <button class="btn btn-brass" id="btn-add-user">+ Thêm người dùng</button>
+    </div>
+
+    <!-- Bộ lọc tìm kiếm -->
+    <div style="background:var(--white);border-radius:var(--radius-lg);padding:20px;margin-bottom:24px;box-shadow:var(--shadow-sm)">
+      <div style="display:grid;grid-template-columns:1fr 200px 200px 200px auto;gap:12px;align-items:end">
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Tìm kiếm</label>
+          <input class="form-control" type="text" id="search-input" placeholder="Tên, email, số điện thoại, CCCD..." />
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Khoa</label>
+          <select class="form-control" id="filter-dept">
+            <option value="">Tất cả</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Vai trò</label>
+          <select class="form-control" id="filter-role">
+            <option value="">Tất cả</option>
+            <option value="user">User</option>
+            <option value="department_head">Trưởng Khoa</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Trạng thái</label>
+          <select class="form-control" id="filter-status">
+            <option value="">Tất cả</option>
+            <option value="active">Hoạt động</option>
+            <option value="inactive">Vô hiệu</option>
+          </select>
+        </div>
+        <button class="btn btn-ghost" id="btn-clear-filters" style="height:42px">Xóa bộ lọc</button>
+      </div>
+    </div>
+
+    <div style="background:var(--white);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:16px;box-shadow:var(--shadow-sm);display:flex;justify-content:space-between;align-items:center">
+      <div style="color:var(--gray-600);font-size:.9rem">
+        Hiển thị <strong id="showing-count">0</strong> / <strong id="total-count">0</strong> người dùng
+      </div>
+      <div id="pagination-controls" style="display:flex;gap:8px;align-items:center"></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table-users">
+        <thead>
+          <tr>
+            <th>Người dùng</th>
+            <th>Email</th>
+            <th>Số điện thoại</th>
+            <th>CCCD/CMND</th>
+            <th>Ngày sinh</th>
+            <th>Khoa</th>
+            <th>Chức vụ</th>
+            <th>Trình độ</th>
+            <th>Vai trò</th>
+            <th>Ngày tạo</th>
+            <th>Trạng thái</th>
+            <th style="text-align:right">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="users-body">
+          <tr><td colspan="12" style="text-align:center;padding:32px;color:var(--gray-400)">Đang tải…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- Modal: Thêm người dùng -->
+<div class="modal-overlay" id="modal-add-user">
+  <div class="modal" style="max-width:700px">
+    <button class="modal-close" data-modal-close="modal-add-user">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="modal-title">Thêm người dùng mới</h3>
+    <p class="modal-subtitle">Tài khoản sẽ được kích hoạt ngay sau khi tạo.</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Họ và tên *</label>
+        <input class="form-control" type="text" id="new-fullname" placeholder="Nguyễn Văn A" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email *</label>
+        <input class="form-control" type="email" id="new-email" placeholder="nva@truong.edu.vn" />
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Mật khẩu *</label>
+        <input class="form-control" type="password" id="new-password" placeholder="Tối thiểu 6 ký tự" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Số điện thoại</label>
+        <input class="form-control" type="tel" id="new-phone" placeholder="0912345678" />
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Vai trò</label>
+        <select class="form-control" id="new-role">
+          <option value="user">Người dùng</option>
+          <option value="department_head">Trưởng Khoa</option>
+          <option value="admin">Quản trị viên</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Khoa</label>
+        <select class="form-control" id="new-dept">
+          <option value="">— Không phân khoa —</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Chức vụ</label>
+        <input class="form-control" type="text" id="new-position" placeholder="Bác sĩ, Y tá, Điều dưỡng..." />
+      </div>
+      <div class="form-group">
+        <label class="form-label">CCCD/CMND</label>
+        <input class="form-control" type="text" id="new-idcard" placeholder="079123456789" />
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Ngày sinh</label>
+        <input class="form-control" type="date" id="new-dob" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Trình độ</label>
+        <input class="form-control" type="text" id="new-education" placeholder="Đại học, Thạc sĩ, Tiến sĩ..." />
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-add-user">Huỷ</button>
+      <button class="btn btn-primary" id="btn-save-user">Tạo tài khoản</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Xem chi tiết người dùng -->
+<div class="modal-overlay" id="modal-view-user">
+  <div class="modal" style="max-width:600px">
+    <button class="modal-close" data-modal-close="modal-view-user">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="modal-title">Thông tin nhân viên</h3>
+    
+    <div style="display:flex;align-items:center;gap:16px;margin:24px 0;padding:20px;background:var(--gray-50);border-radius:var(--radius)">
+      <div id="view-avatar" style="width:64px;height:64px;border-radius:50%;background:var(--brass);
+        display:flex;align-items:center;justify-content:center;color:var(--white);
+        font-family:'Fraunces',serif;font-weight:700;font-size:1.5rem;flex-shrink:0">
+        U
+      </div>
+      <div style="flex:1">
+        <h4 id="view-fullname" style="margin:0 0 4px;font-size:1.1rem;color:var(--navy)">—</h4>
+        <p id="view-email" style="margin:0;font-size:.85rem;color:var(--gray-500);font-family:'IBM Plex Mono',monospace">—</p>
+      </div>
+    </div>
+
+    <div style="display:grid;gap:16px">
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">Số điện thoại:</span>
+        <span id="view-phone" style="color:var(--gray-800)">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">CCCD/CMND:</span>
+        <span id="view-idcard" style="color:var(--gray-800);font-family:'IBM Plex Mono',monospace">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">Ngày sinh:</span>
+        <span id="view-dob" style="color:var(--gray-800);font-family:'IBM Plex Mono',monospace">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">Khoa:</span>
+        <span id="view-department" style="color:var(--gray-800)">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">Chức vụ:</span>
+        <span id="view-position" style="color:var(--gray-800)">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">Trình độ:</span>
+        <span id="view-education" style="color:var(--gray-800)">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">Vai trò:</span>
+        <span id="view-role"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">Trạng thái:</span>
+        <span id="view-status"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">Ngày tạo:</span>
+        <span id="view-created" style="color:var(--gray-800);font-family:'IBM Plex Mono',monospace">—</span>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-view-user">Đóng</button>
+      <button class="btn btn-primary" id="btn-open-edit-from-view">Chỉnh sửa</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Đổi quyền -->
+<div class="modal-overlay" id="modal-change-role">
+  <div class="modal" style="max-width:700px">
+    <button class="modal-close" data-modal-close="modal-change-role">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="modal-title">Chỉnh sửa thông tin nhân viên</h3>
+    <p class="modal-subtitle" id="change-role-username"></p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Họ và tên</label>
+        <input class="form-control" type="text" id="edit-fullname" placeholder="Nguyễn Văn A" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-control" type="email" id="edit-email" placeholder="nva@truong.edu.vn" />
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Số điện thoại</label>
+        <input class="form-control" type="tel" id="edit-phone" placeholder="0912345678" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">CCCD/CMND</label>
+        <input class="form-control" type="text" id="edit-idcard" placeholder="079123456789" />
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Khoa / Đơn vị</label>
+        <select class="form-control" id="edit-dept">
+          <option value="">— Không phân khoa —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Chức vụ</label>
+        <input class="form-control" type="text" id="edit-position" placeholder="Bác sĩ, Y tá, Điều dưỡng..." />
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Ngày sinh</label>
+        <input class="form-control" type="date" id="edit-dob" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Trình độ</label>
+        <input class="form-control" type="text" id="edit-education" placeholder="Đại học, Thạc sĩ, Tiến sĩ..." />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Vai trò</label>
+      <select class="form-control" id="change-role-select">
+        <option value="user">User — Người dùng thường</option>
+        <option value="department_head">Trưởng Khoa — Quản lý khoa mình</option>
+        <option value="admin">Admin — Toàn quyền</option>
+      </select>
+    </div>
+
+    <div style="background:rgba(185,138,46,.08);border-radius:var(--radius);padding:12px;font-size:.82rem;color:var(--stamp-wait);margin-bottom:16px">
+      ⚠ Trưởng Khoa có thể duyệt tài liệu và quản lý thành viên trong khoa của họ.
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-change-role">Huỷ</button>
+      <button class="btn btn-primary" id="btn-save-role">Lưu thay đổi</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container"></div>
+<script src="../../assets/js/app.js?v=role-sync-12"></script>
+<script src="../../assets/js/sidebar.js?v=role-sync-12"></script>
+<script>
+  Auth.requireAdmin();
+
+
+  /* esc() — see app.js */
+
+  let _allUsers = [];
+  let _filteredUsers = [];
+  let _changeRoleUserId = null;
+  let _currentViewUser = null;
+  let _currentPage = 1;
+  const _pageSize = 50; // Hiển thị 50 user mỗi trang
+
+  function userIdOf(user) {
+    return String(user?.id || user?._id || user?.userId || '');
+  }
+
+  function mergeUserLocal(userId, patch) {
+    const id = String(userId || '');
+    if (!id) return null;
+    let merged = null;
+    const mergeInto = (u) => {
+      if (userIdOf(u) !== id) return u;
+      merged = { ...u, ...patch };
+      return merged;
+    };
+    _allUsers = _allUsers.map(mergeInto);
+    _filteredUsers = _filteredUsers.map(mergeInto);
+    if (_currentViewUser && userIdOf(_currentViewUser) === id) {
+      _currentViewUser = { ..._currentViewUser, ...patch };
+    }
+    return merged;
+  }
+
+  /* ── Load departments (dùng chung cho cả 2 modal + filter) ───────────── */
+  async function loadDepartmentsIntoSelect(selId, currentDeptId = '') {
+    try {
+      const res  = await api.get('/departments?limit=10000');
+      const list = Array.isArray(res) ? res : (res.data || []);
+      const sel  = document.getElementById(selId);
+      
+      if (selId === 'filter-dept') {
+        sel.innerHTML = '<option value="">Tất cả</option>';
+      } else {
+        sel.innerHTML = '<option value="">— Không phân khoa —</option>';
+      }
+      
+      list.forEach(d => {
+        const o = document.createElement('option');
+        o.value = d.id; o.textContent = d.name;
+        sel.appendChild(o);
+      });
+      if (currentDeptId) sel.value = currentDeptId;
+      return Promise.resolve();
+    } catch(e) {
+      return Promise.reject(e);
+    }
+  }
+
+  /* ── Load users ─────────────────────────────────────────────── */
+  async function loadUsers() {
+    const tbody = document.getElementById('users-body');
+    tbody.innerHTML = skeletonTable(5).match(/<tbody>([\s\S]*)<\/tbody>/)?.[1]
+      || '<tr><td colspan="12" style="text-align:center;padding:32px;color:var(--gray-400)">Đang tải…</td></tr>';
+
+    try {
+      const res   = await api.get(`/users?limit=10000&_=${Date.now()}`);
+      _allUsers   = Array.isArray(res) ? res : (res.data || res.items || []);
+      
+      // Debug: kiểm tra dữ liệu trả về
+      if (_allUsers.length > 0) {
+        console.log('[Users] Sample user data:', _allUsers[0]);
+        console.log('[Users] Available fields:', Object.keys(_allUsers[0]));
+        console.log('[Users] First 3 users - checking position & qualification:');
+        _allUsers.slice(0, 3).forEach((u, i) => {
+          console.log(`  ${i+1}. ${u.fullName}:`);
+          console.log(`     position = "${u.position}"`);
+          console.log(`     qualification = "${u.qualification}"`);
+        });
+      }
+
+      // Áp dụng filter
+      applyFilters();
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:32px;color:var(--stamp-deny)">${esc(err.message)}</td></tr>`;
+      Toast.error(err.message);
+    }
+  }
+
+  /* ── Áp dụng bộ lọc ──────────────────────────────────────────── */
+  function applyFilters() {
+    const searchText = document.getElementById('search-input').value.toLowerCase().trim();
+    const filterDept = document.getElementById('filter-dept').value;
+    const filterRole = document.getElementById('filter-role').value;
+    const filterStatus = document.getElementById('filter-status').value;
+
+    // Lưu vào localStorage
+    localStorage.setItem('users_filter_search', searchText);
+    localStorage.setItem('users_filter_dept', filterDept);
+    localStorage.setItem('users_filter_role', filterRole);
+    localStorage.setItem('users_filter_status', filterStatus);
+
+    _filteredUsers = _allUsers.filter(u => {
+      // Tìm kiếm text
+      if (searchText) {
+        const matchText = 
+          (u.fullName || '').toLowerCase().includes(searchText) ||
+          (u.email || '').toLowerCase().includes(searchText) ||
+          (u.phone || u.phoneNumber || '').toLowerCase().includes(searchText) ||
+          (u.cccd || u.idCard || '').toLowerCase().includes(searchText) ||
+          (u.position || '').toLowerCase().includes(searchText);
+        if (!matchText) return false;
+      }
+
+      // Lọc theo khoa
+      if (filterDept) {
+        const userDeptId = u.departmentId || u.department?.id;
+        if (userDeptId !== filterDept) return false;
+      }
+
+      // Lọc theo vai trò
+      if (filterRole && u.role !== filterRole) return false;
+
+      // Lọc theo trạng thái
+      if (filterStatus === 'active' && !u.isActive) return false;
+      if (filterStatus === 'inactive' && u.isActive) return false;
+
+      return true;
+    });
+
+    _currentPage = 1; // Reset về trang 1 khi filter
+    renderUsers();
+    renderPagination();
+  }
+
+  /* ── Render pagination ───────────────────────────────────────── */
+  function renderPagination() {
+    const totalPages = Math.ceil(_filteredUsers.length / _pageSize);
+    const container = document.getElementById('pagination-controls');
+    
+    if (totalPages <= 1) {
+      container.innerHTML = '';
+      return;
+    }
+
+    let html = '';
+    
+    // Previous button
+    html += `<button class="btn btn-ghost btn-sm" ${_currentPage === 1 ? 'disabled' : ''} onclick="changePage(${_currentPage - 1})">‹</button>`;
+    
+    // Page numbers
+    const maxButtons = 5;
+    let startPage = Math.max(1, _currentPage - Math.floor(maxButtons / 2));
+    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+    
+    if (endPage - startPage < maxButtons - 1) {
+      startPage = Math.max(1, endPage - maxButtons + 1);
+    }
+    
+    if (startPage > 1) {
+      html += `<button class="btn btn-ghost btn-sm" onclick="changePage(1)">1</button>`;
+      if (startPage > 2) html += `<span style="padding:0 8px">...</span>`;
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      html += `<button class="btn ${i === _currentPage ? 'btn-primary' : 'btn-ghost'} btn-sm" onclick="changePage(${i})">${i}</button>`;
+    }
+    
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) html += `<span style="padding:0 8px">...</span>`;
+      html += `<button class="btn btn-ghost btn-sm" onclick="changePage(${totalPages})">${totalPages}</button>`;
+    }
+    
+    // Next button
+    html += `<button class="btn btn-ghost btn-sm" ${_currentPage === totalPages ? 'disabled' : ''} onclick="changePage(${_currentPage + 1})">›</button>`;
+    
+    container.innerHTML = html;
+  }
+
+  /* ── Change page ─────────────────────────────────────────────── */
+  window.changePage = function(page) {
+    const totalPages = Math.ceil(_filteredUsers.length / _pageSize);
+    if (page < 1 || page > totalPages) return;
+    _currentPage = page;
+    renderUsers();
+    renderPagination();
+    // Scroll to top
+    document.querySelector('.main-content').scrollTop = 0;
+  };
+
+  /* ── Khôi phục bộ lọc từ localStorage ────────────────────────── */
+  function restoreFilters() {
+    const savedSearch = localStorage.getItem('users_filter_search');
+    const savedDept = localStorage.getItem('users_filter_dept');
+    const savedRole = localStorage.getItem('users_filter_role');
+    const savedStatus = localStorage.getItem('users_filter_status');
+
+    if (savedSearch) document.getElementById('search-input').value = savedSearch;
+    if (savedDept) document.getElementById('filter-dept').value = savedDept;
+    if (savedRole) document.getElementById('filter-role').value = savedRole;
+    if (savedStatus) document.getElementById('filter-status').value = savedStatus;
+  }
+
+  /* ── Render danh sách người dùng ─────────────────────────────── */
+  function renderUsers() {
+    const tbody = document.getElementById('users-body');
+    
+    document.getElementById('total-count').textContent = _allUsers.length;
+    
+    // Tính toán pagination
+    const startIdx = (_currentPage - 1) * _pageSize;
+    const endIdx = startIdx + _pageSize;
+    const pageUsers = _filteredUsers.slice(startIdx, endIdx);
+    
+    document.getElementById('showing-count').textContent = `${startIdx + 1}-${Math.min(endIdx, _filteredUsers.length)} trong ${_filteredUsers.length}`;
+
+    if (!pageUsers.length) {
+      tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:32px;color:var(--gray-400)">
+        ${_allUsers.length === 0 ? 'Chưa có người dùng nào.' : 'Không tìm thấy người dùng phù hợp.'}
+      </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = pageUsers.map((u, i) => {
+      const actualIdx = startIdx + i; // Index thực trong _filteredUsers
+      
+      // === FIX: Swap position và qualification nếu bị sai ===
+      let position = u.position || '';
+      let qualification = u.qualification || u.educationLevel || u.education || u.degree || '';
+      
+      // Debug log cho user đầu tiên
+      if (i === 0) {
+        console.log('[Render] Original:', { name: u.fullName, position: u.position, qualification: u.qualification });
+      }
+      
+      // Normalize để so sánh (lowercase, trim, remove extra spaces)
+      const normalizeText = (text) => text.toLowerCase().trim().replace(/\s+/g, ' ');
+      
+      // Detect nếu position chứa từ khoá trình độ
+      const educationKeywords = ['cao đẳng', 'đại học', 'thạc sĩ', 'tiến sĩ', 'cử nhân', 'kỹ sư', 'bác sĩ nội trú', 'chuyên khoa'];
+      const positionNorm = normalizeText(position);
+      const qualificationNorm = normalizeText(qualification);
+      const hasEducationInPosition = educationKeywords.some(kw => positionNorm.includes(kw));
+      const hasEducationInQualification = educationKeywords.some(kw => qualificationNorm.includes(kw));
+      
+      // Case 1: Position có trình độ, qualification trống → swap
+      if (hasEducationInPosition && !qualification) {
+        [position, qualification] = ['', position];
+      }
+      // Case 2: Position và Qualification giống nhau (so sánh sau normalize) → clear position
+      else if (position && qualification && positionNorm === qualificationNorm) {
+        position = '';
+      }
+      // Case 3: Cả 2 đều là trình độ nhưng khác nhau → giữ qualification, clear position
+      else if (hasEducationInPosition && hasEducationInQualification && positionNorm !== qualificationNorm) {
+        position = '';
+      }
+      
+      // Debug log sau khi swap
+      if (i === 0) {
+        console.log('[Render] After swap:', { position, qualification });
+      }
+      // === END FIX ===
+      
+      const roleColor = u.role === 'admin' ? 'var(--brass)'
+                      : u.role === 'department_head' ? 'var(--stamp-ok)'
+                      : 'var(--navy)';
+      const roleBadge = u.role === 'admin' ? 'badge-stored'
+                      : u.role === 'department_head' ? 'badge-approved'
+                      : 'badge-pending';
+      const roleLabel = u.role === 'admin' ? 'Admin'
+                      : u.role === 'department_head' ? 'Trưởng Khoa'
+                      : 'User';
+      return `
+        <tr data-idx="${actualIdx}" id="user-row-${esc(u.id)}" style="cursor:pointer" class="row-hover">
+          <td data-action="view-detail" data-idx="${actualIdx}">
+            <div class="user-cell">
+              <div class="user-avatar" style="background:${roleColor}">
+                ${esc((u.fullName?.[0] || 'U').toUpperCase())}
+              </div>
+              <div class="user-info">
+                <div class="user-name">${esc(u.fullName || '—')}</div>
+                ${position ? `<div class="user-position">${esc(position)}</div>` : ''}
+              </div>
+            </div>
+          </td>
+          <td class="td-mono" data-action="view-detail" data-idx="${actualIdx}">${esc(u.email)}</td>
+          <td data-action="view-detail" data-idx="${actualIdx}">${esc(u.phone || u.phoneNumber || '—')}</td>
+          <td data-action="view-detail" data-idx="${actualIdx}">${esc(u.cccd || u.idCard || '—')}</td>
+          <td data-action="view-detail" data-idx="${actualIdx}">${u.dateOfBirth ? fmtDate(u.dateOfBirth) : '—'}</td>
+          <td data-action="view-detail" data-idx="${actualIdx}">${esc(u.department?.name || '—')}</td>
+          <td data-action="view-detail" data-idx="${actualIdx}">${position ? esc(position) : ''}</td>
+          <td data-action="view-detail" data-idx="${actualIdx}">${qualification ? esc(qualification) : '—'}</td>
+          <td data-action="view-detail" data-idx="${actualIdx}"><span class="badge ${roleBadge}">${roleLabel}</span></td>
+          <td data-action="view-detail" data-idx="${actualIdx}">${fmtDate(u.createdAt)}</td>
+          <td data-action="view-detail" data-idx="${actualIdx}"><span class="badge ${u.isActive ? 'badge-approved' : 'badge-rejected'}">${u.isActive ? 'Hoạt động' : 'Vô hiệu'}</span></td>
+          <td style="text-align:right">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+              <button class="btn btn-ghost btn-sm" data-action="toggle-active" data-idx="${actualIdx}" title="${u.isActive ? 'Vô hiệu hoá' : 'Kích hoạt'}">
+                ${u.isActive ? '🔒' : '✅'}
+              </button>
+              <button class="btn btn-ghost btn-sm" data-action="change-role" data-idx="${actualIdx}" title="Chỉnh sửa">
+                ✏️
+              </button>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+
+    // Event delegation cho cả bảng (chỉ add listener một lần)
+    if (!tbody.dataset.hasListener) {
+      tbody.addEventListener('click', handleTableClick);
+      tbody.dataset.hasListener = 'true';
+    }
+  }
+
+  /* ── Handle table click (tách ra để tối ưu) ──────────────────── */
+  function handleTableClick(e) {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const u = _filteredUsers[parseInt(btn.dataset.idx, 10)];
+    if (!u) return;
+    if (btn.dataset.action === 'toggle-active') {
+      e.stopPropagation();
+      toggleActive(u.id, u.isActive, btn);
+    }
+    if (btn.dataset.action === 'change-role') {
+      e.stopPropagation();
+      openChangeRole(u.id, u.role, u.fullName || u.email, u);
+    }
+    if (btn.dataset.action === 'view-detail') {
+      openViewDetail(u);
+    }
+  }
+
+  async function toggleActive(id, current, btn) {
+    btn?.classList.add('loading');
+    try {
+      await api.patch(`/users/${id}/active`, { isActive: !current });
+      Toast.success(current ? 'Đã vô hiệu hoá tài khoản.' : 'Đã kích hoạt tài khoản.');
+      loadUsers();
+    } catch (err) {
+      Toast.error(err.message);
+    } finally {
+      btn?.classList.remove('loading');
+    }
+  }
+
+  function openChangeRole(id, currentRole, name, userObj) {
+    _changeRoleUserId = id;
+    _currentViewUser = userObj;
+    
+    // === FIX: Swap position và qualification nếu bị sai ===
+    let position = userObj?.position || '';
+    let qualification = userObj?.qualification || userObj?.educationLevel || userObj?.education || '';
+    
+    const educationKeywords = ['cao đẳng', 'đại học', 'thạc sĩ', 'tiến sĩ', 'cử nhân', 'kỹ sư', 'bác sĩ nội trú', 'chuyên khoa'];
+    const positionLower = position.toLowerCase();
+    const qualificationLower = qualification.toLowerCase();
+    const hasEducationInPosition = educationKeywords.some(kw => positionLower.includes(kw));
+    const hasEducationInQualification = educationKeywords.some(kw => qualificationLower.includes(kw));
+    
+    if (hasEducationInPosition) {
+      if (!qualification) {
+        [position, qualification] = ['', position];
+      } else if (position.toLowerCase() === qualification.toLowerCase()) {
+        position = '';
+      } else if (hasEducationInQualification) {
+        position = '';
+      }
+    }
+    // === END FIX ===
+    
+    document.getElementById('change-role-username').textContent = 'Tài khoản: ' + name;
+    document.getElementById('change-role-select').value = currentRole;
+    document.getElementById('edit-fullname').value = userObj?.fullName || '';
+    document.getElementById('edit-email').value = userObj?.email || '';
+    document.getElementById('edit-phone').value = userObj?.phone || userObj?.phoneNumber || '';
+    document.getElementById('edit-idcard').value = userObj?.cccd || userObj?.idCard || '';
+    document.getElementById('edit-position').value = position;
+    document.getElementById('edit-dob').value = userObj?.dateOfBirth ? userObj.dateOfBirth.split('T')[0] : '';
+    document.getElementById('edit-education').value = qualification;
+
+    const currentDeptId = userObj?.departmentId || userObj?.department?.id || '';
+    loadDepartmentsIntoSelect('edit-dept', currentDeptId);
+    Modal.open('modal-change-role');
+  }
+
+  /* ── Xem chi tiết người dùng ────────────────────────────────── */
+  function openViewDetail(userObj) {
+    _currentViewUser = userObj;
+    
+    // Debug: Log để xem dữ liệu thực tế
+    console.log('[View Detail] User data:', userObj);
+    console.log('[View Detail] All fields:', Object.keys(userObj));
+    
+    // === FIX: Swap position và qualification nếu bị sai ===
+    let position = userObj.position || '';
+    let qualification = userObj.qualification || userObj.educationLevel || userObj.education || userObj.degree || '';
+    
+    const normalizeText = (text) => text.toLowerCase().trim().replace(/\s+/g, ' ');
+    const educationKeywords = ['cao đẳng', 'đại học', 'thạc sĩ', 'tiến sĩ', 'cử nhân', 'kỹ sư', 'bác sĩ nội trú', 'chuyên khoa'];
+    const positionNorm = normalizeText(position);
+    const qualificationNorm = normalizeText(qualification);
+    const hasEducationInPosition = educationKeywords.some(kw => positionNorm.includes(kw));
+    const hasEducationInQualification = educationKeywords.some(kw => qualificationNorm.includes(kw));
+    
+    if (hasEducationInPosition && !qualification) {
+      [position, qualification] = ['', position];
+    } else if (position && qualification && positionNorm === qualificationNorm) {
+      position = '';
+    } else if (hasEducationInPosition && hasEducationInQualification && positionNorm !== qualificationNorm) {
+      position = '';
+    }
+    // === END FIX ===
+    
+    const roleColor = userObj.role === 'admin' ? 'var(--brass)'
+                    : userObj.role === 'department_head' ? 'var(--stamp-ok)'
+                    : 'var(--navy)';
+    const roleBadge = userObj.role === 'admin' ? 'badge-stored'
+                    : userObj.role === 'department_head' ? 'badge-approved'
+                    : 'badge-pending';
+    const roleLabel = userObj.role === 'admin' ? 'Admin'
+                    : userObj.role === 'department_head' ? 'Trưởng Khoa'
+                    : 'User';
+
+    document.getElementById('view-avatar').textContent = (userObj.fullName?.[0] || 'U').toUpperCase();
+    document.getElementById('view-avatar').style.background = roleColor;
+    document.getElementById('view-fullname').textContent = userObj.fullName || '—';
+    document.getElementById('view-email').textContent = userObj.email || '—';
+    document.getElementById('view-phone').textContent = userObj.phone || userObj.phoneNumber || '—';
+    
+    // Backend dùng field 'cccd' thay vì 'idCard'
+    const idCard = userObj.cccd || userObj.idCard || userObj.idCardNumber || userObj.citizenId || userObj.nationalId;
+    document.getElementById('view-idcard').textContent = idCard || '—';
+    
+    document.getElementById('view-dob').textContent = userObj.dateOfBirth ? fmtDate(userObj.dateOfBirth) : '—';
+    document.getElementById('view-department').textContent = userObj.department?.name || '—';
+    document.getElementById('view-position').textContent = position || '';
+    
+    // Backend chưa có field educationLevel → Có rồi, tên là 'qualification'!
+    document.getElementById('view-education').textContent = qualification || '—';
+    
+    document.getElementById('view-role').innerHTML = `<span class="badge ${roleBadge}">${roleLabel}</span>`;
+    document.getElementById('view-status').innerHTML = `<span class="badge ${userObj.isActive ? 'badge-approved' : 'badge-rejected'}">${userObj.isActive ? 'Hoạt động' : 'Vô hiệu'}</span>`;
+    document.getElementById('view-created').textContent = fmtDate(userObj.createdAt);
+
+    Modal.open('modal-view-user');
+  }
+
+  /* ── Mở modal edit từ modal view ────────────────────────────── */
+  document.getElementById('btn-open-edit-from-view').addEventListener('click', () => {
+    if (!_currentViewUser) return;
+    Modal.close('modal-view-user');
+    openChangeRole(_currentViewUser.id, _currentViewUser.role, _currentViewUser.fullName || _currentViewUser.email, _currentViewUser);
+  });
+
+  /* ── Lưu quyền ──────────────────────────────────────────────── */
+  document.getElementById('btn-save-role').addEventListener('click', async function () {
+    if (!_changeRoleUserId) return;
+    const newRole       = document.getElementById('change-role-select').value;
+    const deptId        = document.getElementById('edit-dept').value;
+
+    if (newRole === 'department_head' && !deptId) {
+      Toast.warning('Trưởng Khoa phải được gán vào một khoa cụ thể.');
+      return;
+    }
+    
+    this.classList.add('loading');
+    
+    // Endpoint /users/:id/role CHỈ chấp nhận role và departmentId
+    const body = { role: newRole };
+    if (deptId) body.departmentId = deptId;
+    
+    try {
+      // Cập nhật role trước
+      await api.patch(`/users/${_changeRoleUserId}/role`, body);
+      
+      // Sau đó cập nhật thông tin cá nhân (nếu có endpoint khác)
+      const fullName      = document.getElementById('edit-fullname').value.trim();
+      const email         = document.getElementById('edit-email').value.trim();
+      const phone         = document.getElementById('edit-phone').value.trim();
+      const cccd          = document.getElementById('edit-idcard').value.trim();
+      const position      = document.getElementById('edit-position').value.trim();
+      const dateOfBirth   = document.getElementById('edit-dob').value;
+      const qualification = document.getElementById('edit-education').value.trim();
+      
+      // Thử cập nhật thông tin qua endpoint /users/:id
+      const updateBody = {};
+      if (fullName) updateBody.fullName = fullName;
+      if (email) updateBody.email = email;
+      if (phone) updateBody.phone = phone;
+      if (cccd) updateBody.cccd = cccd;
+      if (position) updateBody.position = position;
+      if (dateOfBirth) updateBody.dateOfBirth = dateOfBirth;
+      if (qualification) updateBody.qualification = qualification;
+      
+      if (Object.keys(updateBody).length > 0) {
+        try {
+          await api.patch(`/users/${_changeRoleUserId}`, updateBody);
+        } catch (e) {
+          console.warn('Update user info failed:', e);
+          // Không hiển thị lỗi nếu endpoint không tồn tại
+        }
+      }
+
+      const deptSelect = document.getElementById('edit-dept');
+      const departmentName = deptSelect?.selectedOptions?.[0]?.textContent?.trim() || '';
+      const localPatch = {
+        ...updateBody,
+        role: newRole,
+        departmentId: deptId || null,
+        department: deptId ? { id: deptId, name: departmentName } : null
+      };
+      const updatedLocalUser = mergeUserLocal(_changeRoleUserId, localPatch);
+      if (updatedLocalUser) {
+        renderUsers();
+        renderPagination();
+      }
+      if (typeof AuthRoleChannel !== 'undefined') {
+        AuthRoleChannel.notify({ userId: _changeRoleUserId, role: newRole });
+      }
+      
+      Modal.close('modal-change-role');
+      Toast.success('Đã cập nhật thông tin nhân viên!');
+      loadUsers();
+    } catch(err) {
+      Toast.error(err.message);
+    } finally {
+      this.classList.remove('loading');
+    }
+  });
+
+  /* ── Thêm người dùng ────────────────────────────────────────── */
+  document.getElementById('btn-add-user').addEventListener('click', () => {
+    Modal.open('modal-add-user');
+  });
+
+  document.getElementById('btn-save-user').addEventListener('click', async function () {
+    const fullName      = document.getElementById('new-fullname').value.trim();
+    const email         = document.getElementById('new-email').value.trim();
+    const password      = document.getElementById('new-password').value;
+    const role          = document.getElementById('new-role').value;
+    const deptId        = document.getElementById('new-dept').value;
+    const phone         = document.getElementById('new-phone').value.trim();
+    const cccd          = document.getElementById('new-idcard').value.trim();
+    const position      = document.getElementById('new-position').value.trim();
+    const dateOfBirth   = document.getElementById('new-dob').value;
+    const qualification = document.getElementById('new-education').value.trim();
+
+    if (!fullName || !email || !password) {
+      Toast.warning('Vui lòng điền đủ họ tên, email và mật khẩu.'); return;
+    }
+    if (password.length < 6) {
+      Toast.warning('Mật khẩu tối thiểu 6 ký tự.'); return;
+    }
+    this.classList.add('loading');
+    try {
+      const body = { fullName, email, password, role };
+      if (deptId) body.departmentId = deptId;
+
+      const createdUser = await api.post('/users', body);
+      localStorage.setItem(`lths_new_account_${email.trim().toLowerCase()}`, '1');
+      const createdUserId = createdUser?.id || createdUser?.data?.id || createdUser?.user?.id;
+      const profileBody = {};
+      if (phone) profileBody.phone = phone;
+      if (cccd) profileBody.cccd = cccd;
+      if (position) profileBody.position = position;
+      if (dateOfBirth) profileBody.dateOfBirth = dateOfBirth;
+      if (qualification) profileBody.qualification = qualification;
+
+      let profileUpdateError = null;
+      if (Object.keys(profileBody).length > 0) {
+        if (createdUserId) {
+          try {
+            await api.patch(`/users/${createdUserId}`, profileBody);
+          } catch (error) {
+            profileUpdateError = error;
+            console.warn('Profile update failed after user creation:', error);
+          }
+        } else {
+          profileUpdateError = new Error('Không nhận được ID người dùng mới.');
+        }
+      }
+
+      Modal.close('modal-add-user');
+      if (profileUpdateError) {
+        Toast.warning('Tạo tài khoản thành công nhưng chưa lưu đủ thông tin hồ sơ.');
+      } else {
+        Toast.success('Tạo tài khoản thành công!');
+      }
+      ['new-fullname','new-email','new-password','new-phone','new-idcard','new-position','new-dob','new-education'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      loadUsers();
+    } catch (err) {
+      Toast.error(err.message);
+    } finally {
+      this.classList.remove('loading');
+    }
+  });
+
+  /* ── Init ───────────────────────────────────────────────────── */
+  document.addEventListener('DOMContentLoaded', () => {
+    loadDepartmentsIntoSelect('new-dept');
+    loadDepartmentsIntoSelect('filter-dept').then(() => {
+      // Khôi phục bộ lọc sau khi load departments xong
+      restoreFilters();
+    });
+    loadUsers();
+
+    // Tìm kiếm realtime
+    document.getElementById('search-input').addEventListener('input', applyFilters);
+    document.getElementById('filter-dept').addEventListener('change', applyFilters);
+    document.getElementById('filter-role').addEventListener('change', applyFilters);
+    document.getElementById('filter-status').addEventListener('change', applyFilters);
+
+    // Xóa bộ lọc
+    document.getElementById('btn-clear-filters').addEventListener('click', () => {
+      document.getElementById('search-input').value = '';
+      document.getElementById('filter-dept').value = '';
+      document.getElementById('filter-role').value = '';
+      document.getElementById('filter-status').value = '';
+      
+      // Xóa localStorage
+      localStorage.removeItem('users_filter_search');
+      localStorage.removeItem('users_filter_dept');
+      localStorage.removeItem('users_filter_role');
+      localStorage.removeItem('users_filter_status');
+      
+      applyFilters();
+    });
+  });
+</script>
+</body>
+</html>

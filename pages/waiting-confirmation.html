@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head><meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chờ xác nhận email</title>
+  <link rel="stylesheet" href="../assets/css/style.css?v=auth3" />
+  <link rel="stylesheet" href="../assets/css/auth-pages.css?v=3" />
+  <style>.status{margin:24px 0;color:var(--navy);font-size:.9rem}</style>
+</head>
+<body class="auth-page">
+  <main class="auth-wrap">
+    <section class="auth-art">
+      <img class="auth-stamp" src="../assets/images/logo.png" alt="Logo Bệnh viện Hữu Nghị" />
+      <h1>BỆNH VIỆN HỮU NGHỊ<br>Hệ thống lưu trữ tài liệu</h1>
+      <p>Vietnam-HuuNghi Hospital<br>Document Archive System</p>
+      <div class="auth-lines">
+        <div class="auth-line">
+
+        </div><div class="auth-line">
+          
+        </div><div class="auth-line">
+
+        </div>
+      </div>
+    </section>
+    <section class="auth-panel">
+      <h2>Xác nhận email</h2>
+      <p class="sub">Vui lòng kiểm tra email và bấm link xác nhận để hoàn tất đăng nhập.</p>
+      <div class="status" id="status">Đang chờ xác nhận...</div>
+      <button class="btn btn-primary auth-btn" id="resend" type="button">Gửi lại</button>
+      <a class="auth-link" href="login.html">Quay lại đăng nhập</a>
+    </section>
+  </main>
+<script src="../assets/js/app.js?v=role-sync-12"></script>
+<script src="../assets/js/auth-flow.js"></script>
+<script>
+  let pendingId=new URLSearchParams(location.search).get('pending_login_id') || sessionStorage.getItem('lths_pending_login_id'); let timer;
+  sessionStorage.setItem('lths_pending_login_id',pendingId || ''); const status=document.getElementById('status');
+  async function check(){ if(!pendingId)return; try { const res=await api.get(`/auth/login-status/${encodeURIComponent(pendingId)}`); if(res.confirmed){clearInterval(timer); const login=await api.post('/auth/complete-login',{pending_login_id:pendingId}); sessionStorage.removeItem('lths_pending_login_id'); authRedirect(login); } } catch(err){ console.warn('Login confirmation check failed',err); } }
+  check(); timer=setInterval(check,2000);
+  document.getElementById('resend').addEventListener('click',async function(){ this.disabled=true; try { const res=await api.post('/auth/resend-confirmation',{pending_login_id:pendingId}); if(res.pending_login_id){pendingId=res.pending_login_id;sessionStorage.setItem('lths_pending_login_id',pendingId);} status.textContent='Email xác nhận mới đã được gửi.'; } catch(err){ status.textContent=authErrorMessage(err); } finally { this.disabled=false; } });
+</script>
+</body>
+</html>

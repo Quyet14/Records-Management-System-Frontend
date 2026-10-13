@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hàng chờ duyệt — Trưởng Khoa</title>
+  <link rel="stylesheet" href="../../assets/css/style.css" />
+  <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+  <style>
+    .queue-card { background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:20px 24px;display:flex;align-items:center;gap:20px;box-shadow:var(--shadow-sm);transition:box-shadow var(--transition);border-left:4px solid var(--stamp-wait);cursor:pointer; }
+    .queue-card:hover { box-shadow:var(--shadow-md); }
+    .queue-card-body { flex:1; }
+    .queue-card-title { font-family:var(--font-ui) !important;font-size:1.05rem;font-weight:600;margin-bottom:4px; }
+    .queue-card-meta  { font-size:.8rem;color:var(--gray-600);display:flex;gap:14px;flex-wrap:wrap; }
+    .queue-card-actions { display:flex;gap:8px;flex-shrink:0; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+  <nav class="sidebar"></nav>
+
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <main class="main-content">
+    <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+    </div>
+
+    <div class="section-tab">
+      <span class="section-tab-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/></svg>
+        Tài liệu chờ xử lý
+      </span>
+      <span class="section-tab-line"></span>
+    </div>
+    <div id="queue-list" style="display:flex;flex-direction:column;gap:12px">
+      <div class="empty-state"><h3>Đang tải…</h3></div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal: Duyệt -->
+<div class="modal-overlay" id="modal-approve">
+  <div class="modal">
+    <button class="modal-close" data-modal-close="modal-approve"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <h3 class="modal-title">Xác nhận duyệt tài liệu</h3>
+    <p class="modal-subtitle" id="approve-doc-name">—</p>
+    <div class="modal-stamp-center">
+      <div class="stamp stamp-approved stamp-lg" id="approve-stamp">ĐÃ<br>DUYỆT</div>
+    </div>
+    <p style="font-size:.85rem;color:var(--gray-600);text-align:center">Tài liệu sẽ được chuyển vào kho lưu trữ chính thức.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-approve">Huỷ</button>
+      <button class="btn btn-approve" id="btn-confirm-approve">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Xác nhận duyệt
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Từ chối -->
+<div class="modal-overlay" id="modal-reject">
+  <div class="modal">
+    <button class="modal-close" data-modal-close="modal-reject"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <h3 class="modal-title">Từ chối tài liệu</h3>
+    <p class="modal-subtitle" id="reject-doc-name">—</p>
+    <div class="modal-stamp-center">
+      <div class="stamp stamp-rejected stamp-lg">TỪ<br>CHỐI</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Lý do từ chối <span style="color:var(--stamp-deny)">*</span></label>
+      <textarea class="form-control" id="reject-reason" placeholder="Nêu lý do để người tải lên biết cần chỉnh sửa gì…"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-reject">Huỷ</button>
+      <button class="btn btn-reject" id="btn-confirm-reject">Xác nhận từ chối</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container"></div>
+<script src="../../assets/js/app.js?v=role-sync-12"></script>
+<script src="../../assets/js/sidebar.js?v=role-sync-12"></script>
+<script>
+  Auth.requireDeptHead();
+
+
+  /* esc() — see app.js */
+
+  const me       = Auth.getUser();
+  const myDeptId = me?.departmentId || me?.department?.id;
+
+  let _queueDocs   = [];
+  let _pendingDocId = null;
+
+  async function loadQueue() {
+    const container = document.getElementById('queue-list');
+    // Skeleton
+    container.innerHTML = Array(3).fill(0).map(() => `
+      <div class="queue-card" style="pointer-events:none">
+        <div class="skeleton-avatar" style="width:52px;height:52px;border-radius:50%;flex-shrink:0"></div>
+        <div class="queue-card-body">
+          <div class="skeleton-line title" style="width:55%"></div>
+          <div class="skeleton-line short" style="width:70%;height:10px"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <div class="skeleton-line" style="width:72px;height:32px;border-radius:8px;margin:0"></div>
+          <div class="skeleton-line" style="width:72px;height:32px;border-radius:8px;margin:0"></div>
+        </div>
+      </div>`).join('');
+
+    try {
+      const res  = await api.get('/documents/pending');
+      const list = Array.isArray(res) ? res : (res.data || res.items || []);
+      _queueDocs = list;
+
+      if (!list.length) {
+        container.innerHTML = emptyStatePro(
+          '✅', 'Hàng chờ trống',
+          'Không có tài liệu nào chờ duyệt.'
+        );
+        return;
+      }
+
+      container.innerHTML = list.map((d, i) => `
+        <div class="queue-card" data-idx="${i}" id="card-${esc(d.id)}" style="cursor:pointer">
+          <div style="flex-shrink:0">${stampHtml('pending', 'stamp-sm')}</div>
+          <div class="queue-card-body">
+            <div class="queue-card-title">${esc(d.title || d.originalFilename)}</div>
+            <div class="queue-card-meta">
+              <span>👤 ${esc(d.uploader?.fullName || d.uploader?.email || '—')}</span>
+              <span>📅 ${fmtDate(d.createdAt)}</span>
+              <span class="mono">${fmtSize(d)}</span>
+            </div>
+          </div>
+          <div class="queue-card-actions">
+            <button class="btn btn-reject btn-sm"  data-action="reject"  data-idx="${i}">Từ chối</button>
+            <button class="btn btn-approve btn-sm" data-action="approve" data-idx="${i}">✓ Duyệt</button>
+          </div>
+        </div>`).join('');
+
+      // Event delegation
+      container.addEventListener('click', e => {
+        const actionBtn = e.target.closest('[data-action]');
+        const card      = e.target.closest('.queue-card[data-idx]');
+        if (!card) return;
+        const d = _queueDocs[parseInt(card.dataset.idx, 10)];
+        if (!d) return;
+        if (actionBtn) {
+          e.stopPropagation();
+          if (actionBtn.dataset.action === 'approve') openApprove(d.id, d.title || d.originalFilename);
+          if (actionBtn.dataset.action === 'reject')  openReject(d.id, d.title || d.originalFilename);
+          return;
+        }
+        previewFile(d.id, d.title || d.originalFilename);
+      });
+
+    } catch(err) {
+      container.innerHTML = emptyStatePro('⚠️', 'Không thể tải hàng chờ', esc(err.message),
+        `<button class="btn btn-ghost btn-sm" id="btn-retry">Thử lại</button>`);
+      document.getElementById('btn-retry')?.addEventListener('click', loadQueue);
+      Toast.error(err.message);
+    }
+  }
+
+  /* ── Mở modal ───────────────────────────────────────────────── */
+  function openApprove(id, name) {
+    _pendingDocId = id;
+    document.getElementById('approve-doc-name').textContent = name;
+    Modal.open('modal-approve');
+    setTimeout(() => animateStamp(document.getElementById('approve-stamp')), 100);
+  }
+
+  function openReject(id, name) {
+    _pendingDocId = id;
+    document.getElementById('reject-doc-name').textContent = name;
+    document.getElementById('reject-reason').value = '';
+    Modal.open('modal-reject');
+    setTimeout(() => document.getElementById('reject-reason')?.focus(), 150);
+  }
+
+  /* ── Xoá card và cập nhật trạng thái ───────────────────────── */
+  function removeCard(docId) {
+    document.getElementById(`card-${docId}`)?.remove();
+    if (!document.querySelectorAll('.queue-card').length) {
+      document.getElementById('queue-list').innerHTML = emptyStatePro(
+        '✅', 'Hàng chờ trống', 'Tất cả tài liệu đã được xử lý.'
+      );
+    }
+  }
+
+  /* ── Confirm Duyệt ──────────────────────────────────────────── */
+  document.getElementById('btn-confirm-approve').addEventListener('click', async function () {
+    if (!_pendingDocId) return;
+    this.classList.add('loading');
+    try {
+      await api.patch(`/documents/${_pendingDocId}/approve`);
+      Modal.close('modal-approve');
+      Toast.success('Tài liệu đã được duyệt!');
+      removeCard(_pendingDocId);
+      _pendingDocId = null;
+    } catch(err) {
+      Toast.error(err.message);
+    } finally {
+      this.classList.remove('loading');
+    }
+  });
+
+  /* ── Confirm Từ chối ────────────────────────────────────────── */
+  document.getElementById('btn-confirm-reject').addEventListener('click', async function () {
+    const reason = document.getElementById('reject-reason').value.trim();
+    if (!reason) {
+      Toast.warning('Vui lòng nhập lý do.');
+      document.getElementById('reject-reason').focus();
+      return;
+    }
+    if (!_pendingDocId) return;
+    this.classList.add('loading');
+    try {
+      await submitDocumentReject(_pendingDocId, reason);
+      Modal.close('modal-reject');
+      Toast.warning('Tài liệu đã bị từ chối.');
+      removeCard(_pendingDocId);
+      _pendingDocId = null;
+    } catch(err) {
+      Toast.error(err.message);
+    } finally {
+      this.classList.remove('loading');
+    }
+  });
+
+  /* ── Phím tắt Ctrl+Enter submit từ chối ────────────────────── */
+  document.getElementById('reject-reason').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      document.getElementById('btn-confirm-reject').click();
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', loadQueue);
+</script>
+</body>
+</html>

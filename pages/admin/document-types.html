@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Danh mục loại hồ sơ — BV Hữu Nghị</title>
+  <link rel="stylesheet" href="../../assets/css/style.css" />
+  <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+  <style>
+    .dt-table-wrap { overflow-x: auto; }
+    .retention-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 10px; border-radius: 99px;
+      font-size: .72rem; font-weight: 700; white-space: nowrap;
+    }
+    .retention-permanent { background: rgba(47,111,78,.12); color: var(--stamp-ok); }
+    .retention-years     { background: rgba(27,42,74,.08);  color: var(--navy); }
+    .retention-long      { background: rgba(163,59,59,.10); color: var(--stamp-deny); }
+
+    .value-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 99px;
+      font-size: .7rem; font-weight: 700;
+    }
+    .value-permanent { background: rgba(47,111,78,.12); color: var(--stamp-ok); }
+    .value-limited   { background: rgba(185,138,46,.12); color: var(--stamp-wait); }
+
+    .seed-notice {
+      background: linear-gradient(135deg, rgba(156,107,46,.08), rgba(27,42,74,.05));
+      border: 1px solid rgba(156,107,46,.2);
+      border-radius: var(--radius-lg);
+      padding: 14px 18px;
+      font-size: .84rem;
+      color: var(--navy);
+      margin-bottom: 20px;
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .seed-notice svg { flex-shrink: 0; color: var(--brass); margin-top: 1px; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <nav class="sidebar"></nav>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <main class="main-content">
+    <div class="page-header page-header-row">
+      <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+    </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" id="btn-seed">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+          Nạp dữ liệu mẫu (23 mục)
+        </button>
+        <button class="btn btn-brass" id="btn-add-type">+ Thêm loại hồ sơ</button>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:20px">
+      <div class="stat-card stat-card--ok">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <span class="stat-label">Lưu trữ vĩnh viễn</span>
+        <span class="stat-value" id="stat-permanent">—</span>
+      </div>
+      <div class="stat-card stat-card--wait">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <span class="stat-label">Có thời hạn</span>
+        <span class="stat-value" id="stat-limited">—</span>
+      </div>
+      <div class="stat-card stat-card--brass">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <span class="stat-label">Tổng loại hồ sơ</span>
+        <span class="stat-value" id="stat-total">—</span>
+      </div>
+    </div>
+
+    <!-- Thông báo TT33 -->
+    <div class="seed-notice">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div>
+        <strong>Lưu ý pháp lý:</strong> Hồ sơ chưa có trong danh mục không được đặt thời hạn thấp hơn nhóm hồ sơ tương đương gần nhất.
+        Giá trị "Vĩnh viễn" lưu cờ <code>isPermanent=true</code>. Riêng "Sổ sức khỏe điện tử" tính hạn từ ngày người bệnh qua đời, không phải ngày hình thành.
+        Hạn chót chỉnh lý hồ sơ trước 01/7/2025 là <strong>01/7/2030</strong>.
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="filter-bar" style="margin-bottom:16px">
+      <div class="search-bar" style="max-width:320px">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="form-control" type="search" id="kw-dt" placeholder="Tìm tên loại hồ sơ, mã…" autocomplete="off" />
+      </div>
+      <select class="form-control" id="filter-value" style="max-width:180px">
+        <option value="">Tất cả mức giá trị</option>
+        <option value="permanent">Vĩnh viễn</option>
+        <option value="limited">Có thời hạn</option>
+      </select>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap dt-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:80px">Mã</th>
+            <th>Tên loại hồ sơ</th>
+            <th style="width:160px">Thời hạn lưu trữ</th>
+            <th style="width:140px">Mức giá trị</th>
+            <th style="width:200px">Ghi chú</th>
+            <th style="width:90px"></th>
+          </tr>
+        </thead>
+        <tbody id="dt-tbody">
+          <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--gray-400)">Đang tải…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="dt-result-count" style="font-size:.8rem;color:var(--gray-400);margin-top:10px;text-align:right"></div>
+  </main>
+</div>
+
+<!-- Modal: Thêm / Sửa loại hồ sơ -->
+<div class="modal-overlay" id="modal-dt">
+  <div class="modal" style="max-width:540px">
+    <button class="modal-close" data-modal-close="modal-dt">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="modal-title" id="modal-dt-title">Thêm loại hồ sơ mới</h3>
+    <p class="modal-subtitle">Theo Thông tư 33/2025/TT-BYT và Luật Lưu trữ 33/2024/QH15.</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Tên loại hồ sơ <span style="color:var(--stamp-deny)">*</span></label>
+        <input class="form-control" type="text" id="dt-name" placeholder="VD: Hồ sơ bệnh án nội trú" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mã loại hồ sơ</label>
+        <input class="form-control" type="text" id="dt-code" placeholder="VD: HS-001" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mức giá trị mặc định <span style="color:var(--stamp-deny)">*</span></label>
+        <select class="form-control" id="dt-value-type">
+          <option value="limited">Có thời hạn</option>
+          <option value="permanent">Vĩnh viễn</option>
+        </select>
+      </div>
+
+      <!-- Phần thời hạn — ẩn khi chọn Vĩnh viễn -->
+      <div class="form-group" id="dt-years-group">
+        <label class="form-label">Thời hạn lưu trữ (năm) <span style="color:var(--stamp-deny)">*</span></label>
+        <input class="form-control" type="number" id="dt-years" min="1" max="100"
+          placeholder="VD: 10" />
+      </div>
+      <div class="form-group" id="dt-basis-group">
+        <label class="form-label">Mốc tính thời hạn</label>
+        <select class="form-control" id="dt-retention-basis">
+          <option value="document_date">Từ ngày hình thành tài liệu</option>
+          <option value="document_date">Từ khi kết thúc công việc</option>
+          <option value="patient_death_date">Từ ngày người bệnh qua đời</option>
+          <option value="permanent">Vĩnh viễn (không áp dụng thời hạn)</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Ghi chú</label>
+        <textarea class="form-control" id="dt-note" rows="2"
+          placeholder="Ghi chú thêm về loại hồ sơ, các trường hợp đặc biệt…"></textarea>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-dt">Huỷ</button>
+      <button class="btn btn-primary" id="btn-save-dt">Lưu loại hồ sơ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Xác nhận xoá -->
+<div class="modal-overlay" id="modal-dt-delete">
+  <div class="modal" style="max-width:420px">
+    <button class="modal-close" data-modal-close="modal-dt-delete">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="modal-title" style="color:var(--stamp-deny)">Xoá loại hồ sơ</h3>
+    <p class="modal-subtitle" id="dt-delete-name">—</p>
+    <p style="font-size:.85rem;background:var(--stamp-deny-light);padding:12px;border-radius:var(--radius);color:var(--stamp-deny);margin-bottom:4px">
+      ⚠ Chỉ xoá được nếu chưa có tài liệu nào thuộc loại hồ sơ này. Hành động không thể hoàn tác.
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-dt-delete">Huỷ</button>
+      <button class="btn btn-reject" id="btn-confirm-dt-delete">Xác nhận xoá</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container"></div>
+<script src="../../assets/js/app.js?v=role-sync-12"></script>
+<script src="../../assets/js/sidebar.js?v=role-sync-12"></script>
+<script>
+  Auth.requireAdmin();
+
+  /* ── Seed data — 23 mục TT33/2025/TT-BYT ──────────────────── */
+  const SEED_DATA = [
+    { code:'HS-001', name:'Hồ sơ bệnh án nội trú, ngoại trú',                              retentionYears:10,  isPermanent:false, retentionBasis:'document_date',      note:'Loại phổ biến nhất' },
+    { code:'HS-002', name:'Hồ sơ bệnh án tử vong',                                         retentionYears:30,  isPermanent:false, retentionBasis:'document_date',      note:'' },
+    { code:'HS-003', name:'Hồ sơ bệnh án tâm thần / tai nạn lao động / tai nạn giao thông',retentionYears:20,  isPermanent:false, retentionBasis:'document_date',      note:'' },
+    { code:'HS-004', name:'Hồ sơ bệnh án điều trị ghép mô, tạng, phẫu thuật thẩm mỹ',     retentionYears:20,  isPermanent:false, retentionBasis:'document_date',      note:'' },
+    { code:'HS-005', name:'Sổ, sách phục vụ công tác khám chữa bệnh tại bệnh viện/cơ sở y tế', retentionYears:5, isPermanent:false, retentionBasis:'document_date',   note:'' },
+    { code:'HS-006', name:'Giấy khám sức khỏe (đi học, đi làm…)',                          retentionYears:2,   isPermanent:false, retentionBasis:'document_date',      note:'Thời hạn ngắn nhất trong danh mục' },
+    { code:'HS-007', name:'Sổ sức khỏe điện tử',                                           retentionYears:10,  isPermanent:false, retentionBasis:'patient_death_date', note:'Tính từ ngày người bệnh qua đời' },
+    { code:'HS-008', name:'Hồ sơ giải quyết sự cố y khoa',                                 retentionYears:null,isPermanent:true,  retentionBasis:'permanent',          note:'' },
+    { code:'HS-009', name:'Hồ sơ giám định pháp y',                                        retentionYears:70,  isPermanent:false, retentionBasis:'document_date',      note:'Thời hạn dài nhất (trừ vĩnh viễn)' },
+    { code:'HS-010', name:'Hồ sơ giám định y khoa / giám định pháp y tâm thần',            retentionYears:70,  isPermanent:false, retentionBasis:'document_date',      note:'' },
+    { code:'HS-011', name:'Hồ sơ công bố cơ sở đủ điều kiện khám sức khỏe',               retentionYears:10,  isPermanent:false, retentionBasis:'document_date',      note:'' },
+    { code:'HS-012', name:'Hồ sơ kiểm tra, giám sát cơ sở khám sức khỏe',                 retentionYears:10,  isPermanent:false, retentionBasis:'document_date',      note:'' },
+    { code:'HS-013', name:'Hồ sơ cấp/thu hồi giấy phép hành nghề khám chữa bệnh',         retentionYears:20,  isPermanent:false, retentionBasis:'document_date',      note:'Áp dụng cả cơ sở và cá nhân' },
+    { code:'HS-014', name:'Hồ sơ kiểm tra, đánh giá, công nhận chất lượng bệnh viện',      retentionYears:20,  isPermanent:false, retentionBasis:'document_date',      note:'' },
+    { code:'HS-015', name:'Hồ sơ chăm sóc sức khỏe cán bộ trung, cao cấp',                retentionYears:null,isPermanent:true,  retentionBasis:'permanent',          note:'' },
+    { code:'HS-016', name:'Hồ sơ tiếp nhận, chăm sóc nạn nhân bạo lực gia đình',          retentionYears:20,  isPermanent:false, retentionBasis:'document_date',      note:'' },
+    { code:'HS-017', name:'Hồ sơ về chăm sóc sức khỏe người cao tuổi',                    retentionYears:20,  isPermanent:false, retentionBasis:'document_date',      note:'' },
+    { code:'HS-018', name:'Báo cáo tổng kết công tác chuyên môn hằng năm',                 retentionYears:null,isPermanent:true,  retentionBasis:'permanent',          note:'Nhóm hồ sơ hành chính chung' },
+    { code:'HS-019', name:'Báo cáo sơ kết 6 tháng, 9 tháng',                              retentionYears:20,  isPermanent:false, retentionBasis:'document_date',      note:'' },
+    { code:'HS-020', name:'Báo cáo chuyên đề, tháng, quý',                                 retentionYears:5,   isPermanent:false, retentionBasis:'document_date',      note:'' },
+    { code:'HS-021', name:'Hồ sơ hội nghị, hội thảo chuyên môn nghiệp vụ',                retentionYears:10,  isPermanent:false, retentionBasis:'document_date',      note:'' },
+    { code:'HS-022', name:'Hồ sơ đề án, dự án ngành y tế — đã phê duyệt',                 retentionYears:null,isPermanent:true,  retentionBasis:'permanent',          note:'' },
+    { code:'HS-023', name:'Hồ sơ đề án, dự án ngành y tế — không phê duyệt',              retentionYears:10,  isPermanent:false, retentionBasis:'document_date',      note:'' },
+  ];
+
+  /* ── State ──────────────────────────────────────────────────── */
+  let _allTypes   = [];
+  let _editId     = null;
+  let _deleteId   = null;
+
+  /* ── Load ───────────────────────────────────────────────────── */
+  async function loadTypes() {
+    try {
+      const res  = await api.get('/document-types');
+      _allTypes  = Array.isArray(res) ? res : (res.data || []);
+      renderTypes(_allTypes);
+    } catch (err) {
+      document.getElementById('dt-tbody').innerHTML =
+        `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--gray-400)">
+          ${esc(err.message)}
+          <br><button class="btn btn-ghost btn-sm" style="margin-top:8px" id="btn-retry-dt">Thử lại</button>
+        </td></tr>`;
+      document.getElementById('btn-retry-dt')?.addEventListener('click', loadTypes);
+    }
+  }
+
+  /* ── Render ─────────────────────────────────────────────────── */
+  function renderTypes(list) {
+    const permanent = list.filter(t => t.isPermanent).length;
+    const limited   = list.filter(t => !t.isPermanent).length;
+    document.getElementById('stat-total').textContent     = list.length;
+    document.getElementById('stat-permanent').textContent = permanent;
+    document.getElementById('stat-limited').textContent   = limited;
+    document.getElementById('dt-result-count').textContent =
+      list.length ? `${list.length} loại hồ sơ` : '';
+
+    if (!list.length) {
+      document.getElementById('dt-tbody').innerHTML =
+        `<tr><td colspan="6" style="text-align:center;padding:48px;color:var(--gray-400)">
+          Chưa có loại hồ sơ nào. Nhấn <strong>"Nạp dữ liệu mẫu"</strong> để thêm 23 mục từ TT33/2025/TT-BYT.
+        </td></tr>`;
+      return;
+    }
+
+    document.getElementById('dt-tbody').innerHTML = list.map((t, i) => {
+      const retPill = t.isPermanent
+        ? `<span class="retention-pill retention-permanent">♾ Vĩnh viễn</span>`
+        : `<span class="retention-pill ${t.retentionYears >= 50 ? 'retention-long' : 'retention-years'}">
+            ${t.retentionYears} năm
+           </span>`;
+      const valBadge = t.isPermanent
+        ? `<span class="value-badge value-permanent">Vĩnh viễn</span>`
+        : `<span class="value-badge value-limited">Có thời hạn</span>`;
+      const basisLabel = {
+        document_date:     'Từ ngày hình thành',
+        patient_death_date:'Từ ngày người bệnh mất',
+        permanent:         'Vĩnh viễn',
+      }[t.retentionBasis] || '—';
+
+      return `
+        <tr data-idx="${i}">
+          <td class="td-mono" style="font-size:.75rem">${esc(t.code || '—')}</td>
+          <td>
+            <div style="font-weight:600;font-size:.88rem">${esc(t.name)}</div>
+            <div style="font-size:.72rem;color:var(--gray-600);margin-top:2px">${esc(basisLabel)}</div>
+          </td>
+          <td>${retPill}</td>
+          <td>${valBadge}</td>
+          <td style="font-size:.78rem;color:var(--gray-600)">${esc(t.note || '—')}</td>
+          <td>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-sm" data-action="edit"   data-idx="${i}" title="Sửa">✏</button>
+              <button class="btn btn-ghost btn-sm" data-action="delete" data-idx="${i}"
+                title="Xoá" style="color:var(--stamp-deny)">✕</button>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+
+    // Event delegation
+    document.getElementById('dt-tbody').addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const t = list[parseInt(btn.dataset.idx, 10)];
+      if (!t) return;
+      if (btn.dataset.action === 'edit')   openEdit(t);
+      if (btn.dataset.action === 'delete') openDelete(t);
+    });
+  }
+
+  /* ── Filter ─────────────────────────────────────────────────── */
+  function normalizeText(value = '') {
+    return String(value)
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  function filterTypes() {
+    const kw  = normalizeText(document.getElementById('kw-dt').value);
+    const val = document.getElementById('filter-value').value;
+    let list  = _allTypes;
+
+    if (kw) {
+      list = list.filter(t =>
+        normalizeText(t.name).includes(kw) ||
+        normalizeText(t.code || '').includes(kw)
+      );
+    }
+
+    if (val === 'permanent') list = list.filter(t => t.isPermanent);
+    if (val === 'limited')   list = list.filter(t => !t.isPermanent);
+
+    renderTypes(list);
+  }
+
+  /* ── Open modal ─────────────────────────────────────────────── */
+  function openAdd() {
+    _editId = null;
+    document.getElementById('modal-dt-title').textContent = 'Thêm loại hồ sơ mới';
+    document.getElementById('dt-code').value          = '';
+    document.getElementById('dt-name').value          = '';
+    document.getElementById('dt-value-type').value    = 'limited';
+    document.getElementById('dt-years').value         = '';
+    document.getElementById('dt-retention-basis').value = 'creation';
+    document.getElementById('dt-note').value          = '';
+    toggleYearsGroup('limited');
+    Modal.open('modal-dt');
+    setTimeout(() => document.getElementById('dt-name')?.focus(), 150);
+  }
+
+  function openEdit(t) {
+    _editId = t.id;
+    document.getElementById('modal-dt-title').textContent = 'Sửa loại hồ sơ';
+    document.getElementById('dt-code').value          = t.code || '';
+    document.getElementById('dt-name').value          = t.name || '';
+    document.getElementById('dt-value-type').value    = t.isPermanent ? 'permanent' : 'limited';
+    document.getElementById('dt-years').value         = t.retentionYears || '';
+    document.getElementById('dt-retention-basis').value = t.retentionBasis || 'document_date';
+    document.getElementById('dt-note').value          = t.note || '';
+    toggleYearsGroup(t.isPermanent ? 'permanent' : 'limited');
+    Modal.open('modal-dt');
+  }
+
+  function openDelete(t) {
+    _deleteId = t.id;
+    document.getElementById('dt-delete-name').textContent = `"${t.name}"`;
+    Modal.open('modal-dt-delete');
+  }
+
+  /* ── Toggle years group ─────────────────────────────────────── */
+  function toggleYearsGroup(val) {
+    const show = val === 'limited';
+    document.getElementById('dt-years-group').style.display = show ? 'block' : 'none';
+    document.getElementById('dt-basis-group').style.display = 'block';
+  }
+
+  /* ── Save ───────────────────────────────────────────────────── */
+  document.getElementById('btn-save-dt').addEventListener('click', async function () {
+    const name        = document.getElementById('dt-name').value.trim();
+    const code        = document.getElementById('dt-code').value.trim();
+    const valueType   = document.getElementById('dt-value-type').value;
+    const isPermanent = valueType === 'permanent';
+    const years       = document.getElementById('dt-years').value;
+    const basis       = document.getElementById('dt-retention-basis').value;
+    const note        = document.getElementById('dt-note').value.trim();
+
+    if (!name) { Toast.warning('Vui lòng nhập tên loại hồ sơ.'); return; }
+    if (!isPermanent && (!years || parseInt(years) < 1)) {
+      Toast.warning('Vui lòng nhập thời hạn lưu trữ hợp lệ (≥ 1 năm).'); return;
+    }
+
+    const body = {
+      name,
+      code: code || undefined,
+      isPermanent,
+      retentionBasis: isPermanent ? 'permanent' : basis,
+      note: note || undefined,
+    };
+    // Chỉ gửi retentionYears nếu KHÔNG phải vĩnh viễn
+    if (!isPermanent) {
+      body.retentionYears = parseInt(years);
+    }
+
+    this.classList.add('loading');
+    try {
+      if (_editId) {
+        await api.patch(`/document-types/${_editId}`, body);
+        Toast.success('Đã cập nhật loại hồ sơ!');
+      } else {
+        await api.post('/document-types', body);
+        Toast.success('Đã thêm loại hồ sơ!');
+      }
+      Modal.close('modal-dt');
+      loadTypes();
+    } catch (err) {
+      Toast.error(err.message);
+    } finally {
+      this.classList.remove('loading');
+    }
+  });
+
+  /* ── Delete ─────────────────────────────────────────────────── */
+  document.getElementById('btn-confirm-dt-delete').addEventListener('click', async function () {
+    if (!_deleteId) return;
+    this.classList.add('loading');
+    try {
+      await api.del(`/document-types/${_deleteId}`);
+      Modal.close('modal-dt-delete');
+      Toast.success('Đã xoá loại hồ sơ.');
+      loadTypes();
+    } catch (err) {
+      Toast.error(err.message);
+    } finally {
+      this.classList.remove('loading');
+    }
+  });
+
+  /* ── Seed 23 mục TT33 ───────────────────────────────────────── */
+  document.getElementById('btn-seed').addEventListener('click', async function () {
+    if (!confirm(`Nạp ${SEED_DATA.length} loại hồ sơ từ TT33/2025/TT-BYT?\nNếu mã đã tồn tại sẽ được bỏ qua.`)) return;
+    this.classList.add('loading');
+    let ok = 0, skip = 0;
+    for (const item of SEED_DATA) {
+      try {
+        await api.post('/document-types', {
+          name:           item.name,
+          code:           item.code,
+          isPermanent:    item.isPermanent,
+          retentionYears: item.retentionYears,
+          retentionBasis: item.retentionBasis,
+          note:           item.note,
+        });
+        ok++;
+      } catch { skip++; }
+    }
+    this.classList.remove('loading');
+    Toast.success(`Đã nạp ${ok} mục${skip ? `, bỏ qua ${skip} mục đã tồn tại` : ''}.`);
+    loadTypes();
+  });
+
+  /* ── Init ───────────────────────────────────────────────────── */
+  document.addEventListener('DOMContentLoaded', () => {
+    loadTypes();
+
+    document.getElementById('btn-add-type').addEventListener('click', openAdd);
+
+    document.getElementById('dt-value-type').addEventListener('change', e => {
+      toggleYearsGroup(e.target.value);
+    });
+
+    const debounced = debounce(filterTypes, 300);
+    document.getElementById('kw-dt').addEventListener('input', debounced);
+    document.getElementById('filter-value').addEventListener('change', filterTypes);
+  });
+</script>
+</body>
+</html>

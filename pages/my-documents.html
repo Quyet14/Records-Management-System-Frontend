@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tài liệu của tôi — BV Hữu Nghị</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Sidebar -->
+  <nav class="sidebar"></nav>
+
+  <!-- Main -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <main class="main-content">
+    <div class="page-header" style="margin-bottom:24px">
+      <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+    </div>
+      <a href="upload.html" class="btn btn-brass" style="display:inline-flex;align-items:center;gap:8px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+        Tải lên
+      </a>
+    </div>
+
+    <!-- Stats cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px">
+      <div class="card" style="padding:20px;background:linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);color:white;border:none">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:48px;height:48px;background:rgba(255,255,255,.2);border-radius:12px;display:flex;align-items:center;justify-content:center">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+          </div>
+          <div>
+            <div style="font-size:.75rem;opacity:.8;margin-bottom:4px">TỔNG FILE</div>
+            <div style="font-size:1.5rem;font-weight:700" id="stat-total">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="padding:20px;background:linear-gradient(135deg, #059669 0%, #10b981 100%);color:white;border:none">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:48px;height:48px;background:rgba(255,255,255,.2);border-radius:12px;display:flex;align-items:center;justify-content:center">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </div>
+          <div>
+            <div style="font-size:.75rem;opacity:.8;margin-bottom:4px">DUNG LƯỢNG</div>
+            <div style="font-size:1.5rem;font-weight:700" id="stat-size">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="padding:20px;background:linear-gradient(135deg, #dc2626 0%, #f97316 100%);color:white;border:none">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:48px;height:48px;background:rgba(255,255,255,.2);border-radius:12px;display:flex;align-items:center;justify-content:center">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div>
+            <div style="font-size:.75rem;opacity:.8;margin-bottom:4px">MỚI NHẤT</div>
+            <div style="font-size:1rem;font-weight:600;line-height:1.3" id="stat-latest">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search bar -->
+    <div style="background:var(--white);padding:20px;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);margin-bottom:20px">
+      <div class="search-bar">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="form-control" type="search" id="kw-input" placeholder="Tìm tiêu đề, tên file..." autocomplete="off" />
+      </div>
+      <div class="advanced-search-panel">
+        <div class="advanced-search-field">
+          <label class="form-label" for="date-from-filter">Từ ngày</label>
+          <input class="form-control" type="date" id="date-from-filter" />
+        </div>
+        <div class="advanced-search-field">
+          <label class="form-label" for="date-to-filter">Đến ngày</label>
+          <input class="form-control" type="date" id="date-to-filter" />
+        </div>
+        <button class="btn btn-ghost advanced-search-clear" type="button" id="btn-clear-advanced-search">
+          Xoá lọc
+        </button>
+      </div>
+    </div>
+
+    <!-- Status tabs lọc nhanh -->
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px">
+      <button class="filter-tab active" data-status="" style="transition:all 0.2s ease;border-radius:24px;padding:10px 18px;display:inline-flex;align-items:center;justify-content:center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;flex-shrink:0"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18M3 15h18M15 3v18"/></svg>
+        <span>Tất cả</span>
+        <span class="badge" id="tab-count-all" style="margin-left:8px">0</span>
+      </button>
+      <button class="filter-tab" data-status="pending" style="transition:all 0.2s ease;border-radius:24px;padding:10px 18px;display:inline-flex;align-items:center;justify-content:center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>Chờ duyệt</span>
+        <span class="badge" id="tab-count-pending" style="margin-left:8px;background:rgba(255,193,7,.15);color:#f59e0b">0</span>
+      </button>
+      <button class="filter-tab" data-status="stored" style="transition:all 0.2s ease;border-radius:24px;padding:10px 18px;display:inline-flex;align-items:center;justify-content:center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Đã duyệt</span>
+        <span class="badge" id="tab-count-stored" style="margin-left:8px;background:rgba(34,197,94,.15);color:#22c55e">0</span>
+      </button>
+      <button class="filter-tab" data-status="rejected" style="transition:all 0.2s ease;border-radius:24px;padding:10px 18px;display:inline-flex;align-items:center;justify-content:center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;flex-shrink:0"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <span>Từ chối</span>
+        <span class="badge" id="tab-count-rejected" style="margin-left:8px;background:rgba(239,68,68,.15);color:#ef4444">0</span>
+      </button>
+      <button class="filter-tab visibility-tab" type="button" data-visibility="public">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;flex-shrink:0"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M2 12h20M12 2c3 3 3 17 0 20M12 2c-3 3-3 17 0 20"/></svg>
+        <span>Công khai</span>
+        <span class="badge visibility-tab-badge visibility-tab-badge--public" id="visibility-count-public">0</span>
+      </button>
+      <button class="filter-tab visibility-tab" type="button" data-visibility="department">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;flex-shrink:0"><path d="M3 21h18"/><path d="M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16"/><path d="M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1"/></svg>
+        <span>Nội bộ</span>
+        <span class="badge visibility-tab-badge visibility-tab-badge--department" id="visibility-count-department">0</span>
+      </button>
+    </div>
+
+    <!-- Results -->
+    <div id="result-count" style="font-size:.82rem;color:var(--gray-600);margin-bottom:12px"></div>
+    <div id="doc-list"></div>
+    <!-- Infinite scroll sentinel (thay pagination) -->
+    <div class="load-more-sentinel" id="load-sentinel">
+      <div class="spinner-sm"></div>
+      <span>Cuộn để tải thêm</span>
+    </div>
+  </main>
+</div>
+
+<!-- Detail modal -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal">
+    <button class="modal-close" data-modal-close="modal-detail">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div id="modal-detail-content"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-document">
+  <div class="modal" style="max-width:760px;max-height:90vh;overflow:auto">
+    <button class="modal-close" data-modal-close="modal-edit-document">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="modal-title">Chỉnh sửa thông tin hồ sơ</h3>
+    <p class="modal-subtitle">Cập nhật các thông tin hồ sơ theo dữ liệu backend mới.</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Tiêu đề tài liệu</label>
+        <input class="form-control" id="edit-doc-title" type="text" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Số ký hiệu</label>
+        <input class="form-control" id="edit-doc-reference-no" type="text" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Số văn bản</label>
+        <input class="form-control" id="edit-doc-document-number" type="text" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Đơn vị ban hành</label>
+        <input class="form-control" id="edit-doc-issuing-unit" type="text" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Ban tổ chức trưng cầu</label>
+        <input class="form-control" id="edit-doc-organizing-body" type="text" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Ngày đến</label>
+        <input class="form-control" id="edit-doc-received-date" type="date" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Ngày hình thành</label>
+        <input class="form-control" id="edit-doc-issued-date" type="date" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Độ mật</label>
+        <select class="form-control" id="edit-doc-security-level">
+          <option value="">— Chọn độ mật —</option>
+          <option value="Thường">Thường</option>
+          <option value="Mật">Mật</option>
+          <option value="Tối mật">Tối mật</option>
+          <option value="Tuyệt mật">Tuyệt mật</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Người soạn thảo</label>
+        <input class="form-control" id="edit-doc-author-name" type="text" />
+      </div>
+
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Loại hồ sơ</label>
+        <select class="form-control" id="edit-doc-type"></select>
+      </div>
+
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Khoa</label>
+        <select class="form-control" id="edit-doc-department"></select>
+      </div>
+
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Mô tả</label>
+        <textarea class="form-control" id="edit-doc-description" rows="3"></textarea>
+      </div>
+
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="form-label">Trích yếu / tóm tắt</label>
+        <textarea class="form-control" id="edit-doc-summary" rows="3"></textarea>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-edit-document">Huỷ</button>
+      <button class="btn btn-primary" id="btn-save-document-edit">Lưu thay đổi</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container"></div>
+<script src="../assets/js/app.js?v=role-sync-12"></script>
+<script src="../assets/js/sidebar.js?v=role-sync-12"></script>
+<script>
+  Auth.require();
+
+  /* ── State ──────────────────────────────────────────────────── */
+  const limit        = 20;          // số doc mỗi lần load (infinite scroll)
+  let   _page        = 1;
+  let   _hasMore     = true;
+  let   _loading     = false;
+  let   _currentDocs = [];          // tất cả docs đã load (append mode)
+  let   _activeTab   = '';          // '' | 'pending' | 'stored' | 'rejected'
+  let   _activeVisibility = '';
+  let   _allDocs     = [];          // snapshot đầy đủ để đếm tab badge
+  let   _viewStatuses = new Map();
+
+  /* ── Load departments ───────────────────────────────────────── */
+  function loadDepartments() {
+    api.get('/departments?limit=10000').then(res => {
+      const raw = Array.isArray(res) ? res : (res.data || []);
+      const sel = document.getElementById('dept-filter');
+      raw.forEach(d => {
+        const o = document.createElement('option');
+        o.value = d.id; o.textContent = d.name;
+        sel.appendChild(o);
+      });
+    }).catch(() => {});
+  }
+
+  function normalizeText(value = '') {
+    return String(value)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  function getDocumentBasisDate(doc) {
+    return doc.documentDate || doc.issuedDate || doc.createdAt || doc.uploadedAt || '';
+  }
+
+  function getDocumentVisibility(doc) {
+    const value = normalizeText(doc.visibility || doc.accessLevel || doc.scope || doc.permission || '');
+    if (['department', 'internal', 'noi bo', 'private'].includes(value)) return 'department';
+    if (['public', 'cong khai'].includes(value)) return 'public';
+    return 'public';
+  }
+
+  function toDateOnly(value) {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
+
+  function applyAdvancedFilters(docs) {
+    const fromDate = toDateOnly(document.getElementById('date-from-filter')?.value);
+    const toDate = toDateOnly(document.getElementById('date-to-filter')?.value);
+    let filtered = docs;
+
+    if (_activeVisibility) {
+      filtered = filtered.filter(d => getDocumentVisibility(d) === _activeVisibility);
+    }
+
+    if (!fromDate && !toDate) return filtered;
+
+    return filtered.filter(d => {
+      const docDate = toDateOnly(getDocumentBasisDate(d));
+      if (!docDate) return false;
+      if (fromDate && docDate < fromDate) return false;
+      if (toDate && docDate > toDate) return false;
+      return true;
+    });
+  }
+
+  /* ── Build query params ─────────────────────────────────────── */
+  function buildParams(p = 1) {
+    const params = new URLSearchParams();
+    const kw = document.getElementById('kw-input').value.trim();
+
+    if (kw)         params.set('keyword', kw);
+    if (_activeTab) params.set('status', _activeTab);
+    params.set('page', p);
+    params.set('limit', limit);
+    return params;
+  }
+
+  /* ── Load trang đầu (reset) ─────────────────────────────────── */
+  async function loadDocs(resetScroll = true) {
+    if (_loading) return;
+    _loading  = true;
+    _page     = 1;
+    _hasMore  = true;
+
+    if (resetScroll) {
+      _currentDocs = [];
+      document.getElementById('doc-list').innerHTML = skeletonTable(6);
+      document.getElementById('result-count').textContent = '';
+    }
+
+    setSentinel('loading');
+
+    try {
+      const res  = await api.get('/documents/search?' + buildParams(1));
+      let docs = normalizeRes(res);
+      const total = (typeof res.total === 'number') ? res.total : docs.length;
+      const kw = normalizeText(document.getElementById('kw-input').value);
+
+      if (kw) {
+        docs = docs.filter(d => {
+          const title = normalizeText(d.title || d.originalFilename);
+          const filename = normalizeText(d.originalFilename || '');
+          const description = normalizeText(d.description || '');
+          const doctypeName = normalizeText(d.documentType?.name || '');
+          const doctypeCode = normalizeText(d.documentType?.code || '');
+          return title.includes(kw) || filename.includes(kw) || description.includes(kw) || doctypeName.includes(kw) || doctypeCode.includes(kw);
+        });
+      }
+
+      docs = applyAdvancedFilters(docs);
+
+      // Đếm badge tab từ tổng toàn bộ (gọi riêng không phụ thuộc filter)
+      if (_allDocs.length) updateTabCounts(_allDocs);
+
+      _currentDocs = docs;
+      _viewStatuses = await loadViewStatusMap(_currentDocs.filter(d => d.status === 'stored' || d.status === 'approved'));
+      _hasMore     = docs.length >= limit;
+      _page        = 1;
+
+      renderTable(_currentDocs, total);
+      updateStats(docs); // Update stats cards
+      setSentinel(_hasMore ? 'idle' : 'end');
+      // Banner cảnh báo chỉnh lý tài liệu trước 01/7/2025
+      renderRetentionBanner(_currentDocs, 'doc-list');
+    } catch (err) {
+      document.getElementById('doc-list').innerHTML = emptyStatePro(
+        '⚠️', 'Không thể tải dữ liệu', esc(err.message),
+        `<button class="btn btn-ghost btn-sm" id="btn-retry-docs">Thử lại</button>`
+      );
+      setTimeout(() => document.getElementById('btn-retry-docs')
+        ?.addEventListener('click', loadDocs), 0);
+      Toast.error(err.message);
+      setSentinel('end');
+    } finally {
+      _loading = false;
+    }
+  }
+
+  /* ── Load trang tiếp (append — infinite scroll) ─────────────── */
+  async function loadMore() {
+    if (_loading || !_hasMore) return;
+    _loading = true;
+    setSentinel('loading');
+
+    try {
+      const nextPage = _page + 1;
+      const res  = await api.get('/documents/search?' + buildParams(nextPage));
+      let docs = normalizeRes(res);
+      docs = applyAdvancedFilters(docs);
+
+      if (!docs.length) {
+        _hasMore = false;
+        setSentinel('end');
+        return;
+      }
+
+      _page = nextPage;
+      _currentDocs = [..._currentDocs, ...docs];
+      const nextStatuses = await loadViewStatusMap(docs.filter(d => d.status === 'stored' || d.status === 'approved'));
+      nextStatuses.forEach((status, id) => _viewStatuses.set(id, status));
+      _hasMore = docs.length >= limit;
+
+      // Append rows vào bảng hiện có
+      const tbody = document.getElementById('doc-tbody');
+      if (tbody) {
+        const offset = _currentDocs.length - docs.length;
+        tbody.insertAdjacentHTML('beforeend', docs.map((d, i) => rowHtml(d, offset + i)).join(''));
+        document.getElementById('result-count').textContent =
+          `Hiển thị ${_currentDocs.length} tài liệu`;
+      } else {
+        // Bảng chưa có — render lại
+        renderTable(_currentDocs, _currentDocs.length);
+      }
+
+      setSentinel(_hasMore ? 'idle' : 'end');
+    } catch (err) {
+      Toast.error(err.message);
+      setSentinel('idle');
+    } finally {
+      _loading = false;
+    }
+  }
+
+  /* ── Helpers ────────────────────────────────────────────────── */
+  function normalizeRes(res) {
+    if (Array.isArray(res))                return res;
+    if (Array.isArray(res.data))           return res.data;
+    if (Array.isArray(res.documents))      return res.documents;
+    if (Array.isArray(res.items))          return res.items;
+    return [];
+  }
+
+  function setSentinel(state) {
+    const el = document.getElementById('load-sentinel');
+    if (!el) return;
+    el.className = 'load-more-sentinel' + (state === 'loading' ? ' loading' : state === 'end' ? ' end' : '');
+    el.querySelector('span').textContent =
+      state === 'end'     ? '— Đã hiển thị tất cả —'
+    : state === 'loading' ? ''
+    : 'Cuộn để tải thêm';
+  }
+
+  function updateTabCounts(docs) {
+    // Luôn đếm từ tập docs đầy đủ (không filter) để badge luôn chính xác
+    const all      = docs.length;
+    const pending  = docs.filter(d => d.status === 'pending').length;
+    const stored   = docs.filter(d => d.status === 'stored' || d.status === 'approved').length;
+    const rejected = docs.filter(d => d.status === 'rejected').length;
+    const publicDocs = docs.filter(d => getDocumentVisibility(d) === 'public').length;
+    const departmentDocs = docs.filter(d => getDocumentVisibility(d) === 'department').length;
+    const tabAll = document.getElementById('tab-count-all');
+    const tabPend = document.getElementById('tab-count-pending');
+    const tabStore = document.getElementById('tab-count-stored');
+    const tabRej = document.getElementById('tab-count-rejected');
+    const visibilityPublic = document.getElementById('visibility-count-public');
+    const visibilityDepartment = document.getElementById('visibility-count-department');
+    if (tabAll)   tabAll.textContent   = all;
+    if (tabPend)  tabPend.textContent  = pending;
+    if (tabStore) tabStore.textContent = stored;
+    if (tabRej)   tabRej.textContent   = rejected;
+    if (visibilityPublic) visibilityPublic.textContent = publicDocs;
+    if (visibilityDepartment) visibilityDepartment.textContent = departmentDocs;
+  }
+
+  /* ── Update stats cards ─────────────────────────────────────── */
+  function updateStats(docs) {
+    const totalEl = document.getElementById('stat-total');
+    const sizeEl = document.getElementById('stat-size');
+    const latestEl = document.getElementById('stat-latest');
+    
+    if (totalEl) totalEl.textContent = docs.length;
+    
+    if (sizeEl) {
+      const totalSize = docs.reduce((sum, d) => sum + (getFileSizeBytes(d) || 0), 0);
+      console.log('[Stats] Calculating total size:', {
+        docsCount: docs.length,
+        totalSize,
+        sampleDoc: docs[0],
+        fileSizeBytes: getFileSizeBytes(docs[0])
+      });
+      sizeEl.textContent = totalSize > 0 ? fmtSize(totalSize) : '0 B';
+    }
+    
+    if (latestEl && docs.length > 0) {
+      // Sort by createdAt descending
+      const sorted = [...docs].sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      );
+      const latest = sorted[0];
+      latestEl.textContent = fmtDate(latest.createdAt);
+    } else if (latestEl) {
+      latestEl.textContent = '—';
+    }
+  }
+
+  /* ── Render bảng đầy đủ ─────────────────────────────────────── */
+  function renderTable(docs, total) {
+    const container = document.getElementById('doc-list');
+    document.getElementById('result-count').textContent =
+      `Hiển thị ${docs.length}${total > docs.length ? ' / ' + total : ''} tài liệu`;
+
+    if (!docs.length) {
+      container.innerHTML = emptyStatePro(
+        '🔍', 'Không tìm thấy tài liệu',
+        'Thử từ khoá khác hoặc chọn tab khác.',
+        `<button class="btn btn-ghost btn-sm" id="btn-reset-filter">Xoá bộ lọc</button>`
+      );
+      document.getElementById('btn-reset-filter')?.addEventListener('click', resetFilters);
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tài liệu</th>
+              <th>Khoa</th>
+              <th>Ngày gửi</th>
+              <th>Kích thước</th>
+              <th>Trạng thái</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="doc-tbody">
+            ${docs.map((d, i) => rowHtml(d, i)).join('')}
+          </tbody>
+        </table>
+      </div>`;
+
+    // Event delegation được gắn vĩnh viễn trong initTableDelegation() — không gắn lại ở đây
+  }
+
+  /* ── HTML một row ───────────────────────────────────────────── */
+  function rowHtml(d, i) {
+    const rejectReason = getRejectReason(d);
+    const displayTitle = displayDocTitle(d);
+    const displayFilename = displayDocFilename(d);
+    return `
+      <tr data-idx="${i}" data-status="${esc(d.status)}" style="cursor:pointer">
+        <td>
+          <div style="font-weight:600;font-size:.9rem">${esc(displayTitle)}</div>
+          <div class="td-mono">${esc(displayFilename)}</div>
+          ${d.status === 'rejected' && rejectReason ? `
+          <div class="rejection-note-inline">
+            <strong>Lý do từ chối:</strong> ${esc(rejectReason)}
+          </div>` : ''}
+        </td>
+        <td>${esc(d.department?.name || '—')}</td>
+        <td class="td-mono">${fmtDate(d.createdAt)}</td>
+        <td class="td-mono">${fmtSize(d)}</td>
+        <td>${statusBadge(d.status)}</td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost btn-sm" data-action="detail"   data-idx="${i}">Chi tiết</button>
+            ${d.status === 'stored' || d.status === 'approved'
+              ? `<button class="btn btn-brass btn-sm" data-action="view" data-idx="${i}">Xem tài liệu</button>`
+              : ''}
+          </div>
+        </td>
+      </tr>`;
+  }
+
+  /* ── Table click handler ────────────────────────────────────── */
+  // Gắn vĩnh viễn lên #doc-list (container cố định) thay vì gắn/re-gắn mỗi lần render
+  function initTableDelegation() {
+    document.getElementById('doc-list').addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      const row = e.target.closest('tr[data-idx]');
+      if (!row) return;
+      const d = _currentDocs[parseInt(row.dataset.idx, 10)];
+      if (!d) return;
+      if (btn) {
+        e.stopPropagation();
+        if (btn.dataset.action === 'detail')   { showDetail(d); return; }
+        if (btn.dataset.action === 'view') {
+          previewFile(getDocumentId(d), d.title || d.originalFilename, { endpoint: 'download' });
+          return;
+        }
+      }
+      if (e.target.closest('a[href="documents.html"]')) return;
+      showDetail(d);
+    });
+  }
+
+  /* ── Detail modal ───────────────────────────────────────────── */
+  function showDetail(d) {
+    const canReplace = d.status === 'pending' || d.status === 'rejected';
+    const rejectReason = getRejectReason(d);
+
+    // Cập nhật URL ?doc=id để có thể share
+    const url = new URL(window.location.href);
+    url.searchParams.set('doc', d.id);
+    history.replaceState(null, '', url);
+
+    document.getElementById('modal-detail-content').innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:20px;margin-bottom:20px">
+        <div>${stampHtml(d.status, 'stamp-sm')}</div>
+        <div style="flex:1;min-width:0">
+          <h2 class="modal-title">${esc(displayDocTitle(d))}</h2>
+          <p class="modal-subtitle">${esc(d.description || 'Không có mô tả.')}</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:.88rem">
+        <div><span style="color:var(--gray-600)">Tên file:</span><br>
+          <span class="mono">${esc(displayDocFilename(d))}</span></div>
+        <div><span style="color:var(--gray-600)">Kích thước:</span><br>
+          ${fmtSize(d)}</div>
+        <div><span style="color:var(--gray-600)">Khoa:</span><br>
+          ${esc(d.department?.name || '—')}</div>
+        <div><span style="color:var(--gray-600)">Ngày gửi:</span><br>
+          ${fmtDate(d.createdAt)}</div>
+        ${d.approvedAt ? `
+        <div><span style="color:var(--gray-600)">Ngày duyệt:</span><br>
+          ${fmtDate(d.approvedAt)}</div>` : ''}
+        ${d.issuedDate ? `
+        <div><span style="color:var(--gray-600)">Ngày hình thành:</span><br>
+          ${fmtDate(d.issuedDate)}</div>` : ''}
+        ${d.receivedDate ? `<div><span style="color:var(--gray-600)">Ngày đến:</span><br>${fmtDate(d.receivedDate)}</div>` : ''}
+        ${d.securityLevel ? `<div><span style="color:var(--gray-600)">Độ mật:</span><br>${esc(d.securityLevel)}</div>` : ''}
+        ${d.authorName ? `<div><span style="color:var(--gray-600)">Người soạn thảo:</span><br>${esc(d.authorName)}</div>` : ''}
+        ${/* SHA256 checksum - hidden */ ''}
+        ${rejectReason ? `
+        <div style="grid-column:1/-1;background:rgba(163,59,59,.08);border-radius:8px;padding:10px">
+          <span style="color:var(--stamp-deny);font-weight:600">Lý do từ chối:</span><br>
+          ${esc(rejectReason)}
+        </div>` : ''}
+      </div>
+
+      ${(d.referenceNo || d.issuingUnit || d.organizingBody || d.documentNumber || d.summary || d.description) ? `
+      <div style="margin-top:16px;padding:12px 14px;background:rgba(27,42,74,.04);border:1px solid var(--gray-200);border-radius:var(--radius-lg)">
+        <div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-600);margin-bottom:10px">📄 Thông tin hồ sơ</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.84rem">
+          ${d.referenceNo ? `<div><span style="color:var(--gray-600);font-size:.75rem">Số ký hiệu:</span><br><span style="font-weight:600">${esc(d.referenceNo)}</span></div>` : ''}
+          ${d.documentNumber ? `<div><span style="color:var(--gray-600);font-size:.75rem">Số văn bản:</span><br><span style="font-weight:600">${esc(d.documentNumber)}</span></div>` : ''}
+          ${d.issuingUnit ? `<div><span style="color:var(--gray-600);font-size:.75rem">Đơn vị ban hành:</span><br>${esc(d.issuingUnit)}</div>` : ''}
+          ${d.organizingBody ? `<div><span style="color:var(--gray-600);font-size:.75rem">Ban tổ chức trưng cầu:</span><br>${esc(d.organizingBody)}</div>` : ''}
+          ${d.summary ? `<div style="grid-column:1/-1"><span style="color:var(--gray-600);font-size:.75rem">Trích yếu / tóm tắt:</span><br>${esc(d.summary)}</div>` : ''}
+          ${d.description && !d.summary ? `<div style="grid-column:1/-1"><span style="color:var(--gray-600);font-size:.75rem">Mô tả:</span><br>${esc(d.description)}</div>` : ''}
+        </div>
+      </div>` : ''}
+
+      <!-- Thông tin lưu trữ pháp lý -->
+      ${(d.documentType || d.valueType || d.retentionExpiry) ? `
+      <div style="margin-top:14px;padding:12px 14px;background:rgba(27,42,74,.04);
+        border:1px solid var(--gray-200);border-radius:var(--radius-lg)">
+        <div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+          color:var(--gray-600);margin-bottom:10px">📋 Thông tin lưu trữ (TT 33/2025/TT-BYT)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.84rem">
+          ${d.documentType ? `
+          <div>
+            <span style="color:var(--gray-600);font-size:.75rem">Loại hồ sơ:</span><br>
+            <span style="font-weight:600">${esc(d.documentType?.code ? `[${d.documentType.code}] ` : '')}${esc(d.documentType?.name || '—')}</span>
+          </div>` : ''}
+          ${d.valueType ? `
+          <div>
+            <span style="color:var(--gray-600);font-size:.75rem">Mức giá trị:</span><br>
+            ${d.valueType === 'permanent' || d.documentType?.isPermanent
+              ? `<span class="badge badge-approved" style="font-size:.72rem">♾ Vĩnh viễn</span>`
+              : `<span class="badge badge-pending"  style="font-size:.72rem">⏳ Có thời hạn</span>`}
+          </div>` : ''}
+          ${d.retentionExpiry ? `
+          <div>
+            <span style="color:var(--gray-600);font-size:.75rem">Hạn lưu trữ đến:</span><br>
+            <span style="font-weight:600;color:${
+              new Date(d.retentionExpiry) < new Date(Date.now() + 365*86400000)
+                ? 'var(--stamp-deny)' : 'var(--navy)'
+            }">${fmtDate(d.retentionExpiry)}</span>
+          </div>` : ''}
+          ${d.reviewStatus ? `
+          <div>
+            <span style="color:var(--gray-600);font-size:.75rem">Trạng thái chỉnh lý:</span><br>
+            ${d.reviewStatus === 'completed'
+              ? `<span class="badge badge-approved" style="font-size:.72rem">✓ Đã chỉnh lý</span>`
+              : `<span class="badge badge-pending"  style="font-size:.72rem">⏳ Chưa chỉnh lý</span>`}
+          </div>` : ''}
+        </div>
+      </div>` : ''}
+
+      <!-- Tabs -->
+      <div style="margin-top:20px;border-top:1px solid var(--gray-200);padding-top:16px">
+        <div style="display:flex;gap:0;border-bottom:1px solid var(--gray-200);margin-bottom:12px" role="tablist">
+          <button role="tab" aria-selected="true" id="tab-comments" data-tab="comments"
+            style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:600;font-size:.82rem;color:var(--navy);border-bottom:2px solid var(--brass);margin-bottom:-1px">
+            💬 Ghi chú
+          </button>
+          <button role="tab" aria-selected="false" id="tab-versions" data-tab="versions"
+            style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:600;font-size:.82rem;color:var(--gray-600);border-bottom:2px solid transparent;margin-bottom:-1px">
+            📋 Phiên bản
+          </button>
+        </div>
+
+        <div id="panel-comments" role="tabpanel">
+          <div id="comments-list" style="max-height:160px;overflow-y:auto;margin-bottom:10px">
+            <div style="font-size:.8rem;color:var(--gray-400)">Đang tải…</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input class="form-control" type="text" id="comment-input"
+              placeholder="Nhập ghi chú…" style="flex:1;font-size:.85rem" />
+            <button class="btn btn-primary btn-sm" id="btn-send-comment">Gửi</button>
+          </div>
+        </div>
+
+        <div id="panel-versions" role="tabpanel" style="display:none">
+          ${canReplace ? `
+          <div style="margin-bottom:12px">
+            <label class="form-label">Thay thế bằng file mới (PDF, tối đa 500 MB)</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="file" id="replace-file" accept=".pdf,application/pdf"
+                style="font-size:.82rem;flex:1" />
+              <button class="btn btn-brass btn-sm" id="btn-replace-file">↑ Thay thế</button>
+            </div>
+          </div>` : ''}
+          <div id="versions-list" style="max-height:200px;overflow-y:auto">
+            <div style="font-size:.8rem;color:var(--gray-400)">Đang tải lịch sử…</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost btn-sm" id="btn-share-doc" title="Chia sẻ link">
+          🔗 Chia sẻ
+        </button>
+        <button class="btn btn-ghost btn-sm" id="btn-edit-doc" title="Sửa thông tin">
+          ✏ Sửa
+        </button>
+        ${d.status === 'stored' || d.status === 'approved'
+          ? `<button class="btn btn-brass" id="btn-view-doc" type="button">Xem tài liệu</button>`
+          : ''}
+        <button class="btn btn-ghost" data-modal-close="modal-detail">Đóng</button>
+      </div>`;
+
+    // Gắn listeners
+    document.querySelector('[role="tablist"]').addEventListener('click', e => {
+      const btn = e.target.closest('[data-tab]');
+      if (btn) switchDetailTab(btn.dataset.tab, d.id);
+    });
+    document.getElementById('comment-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') submitComment(d.id);
+    });
+    document.getElementById('btn-send-comment').addEventListener('click', () => submitComment(d.id));
+    // SHA256 copy button - hidden
+    // document.getElementById('btn-copy-sha')?.addEventListener('click', () => {
+    //   copyToClipboard(d.sha256Checksum, 'Đã sao chép SHA256!');
+    // });
+    document.getElementById('btn-share-doc').addEventListener('click', () => shareDocLink(d.id));
+    document.getElementById('btn-view-doc')?.addEventListener('click', () => {
+      previewFile(getDocumentId(d), d.title || d.originalFilename, { endpoint: 'download' });
+    });
+    document.getElementById('btn-edit-doc')?.addEventListener('click', () => openEditDocumentModal(d));
+    document.getElementById('btn-replace-file')?.addEventListener('click', () => replaceFile(d.id));
+    document.querySelectorAll('#modal-detail [data-modal-close]').forEach(btn => {
+      btn.onclick = () => {
+        Modal.close(btn.dataset.modalClose);
+        // Xóa ?doc= khỏi URL khi đóng
+        const u = new URL(window.location.href);
+        u.searchParams.delete('doc');
+        history.replaceState(null, '', u);
+      };
+    });
+
+    Modal.open('modal-detail');
+    loadComments(d.id);
+  }
+
+  /* ── Tab switcher ───────────────────────────────────────────── */
+  function switchDetailTab(tab, docId) {
+    const isComments = tab === 'comments';
+    document.getElementById('panel-comments').style.display = isComments ? 'block' : 'none';
+    document.getElementById('panel-versions').style.display = isComments ? 'none'  : 'block';
+    const tC = document.getElementById('tab-comments');
+    const tV = document.getElementById('tab-versions');
+    tC.style.borderBottomColor = isComments ? 'var(--brass)' : 'transparent';
+    tC.style.color             = isComments ? 'var(--navy)'  : 'var(--gray-600)';
+    tC.setAttribute('aria-selected', isComments);
+    tV.style.borderBottomColor = isComments ? 'transparent'  : 'var(--brass)';
+    tV.style.color             = isComments ? 'var(--gray-600)' : 'var(--navy)';
+    tV.setAttribute('aria-selected', !isComments);
+    if (!isComments) loadVersions(docId);
+  }
+
+  async function loadEditOptions() {
+    try {
+      const [typesRes, deptRes] = await Promise.all([
+        api.get('/document-types'),
+        api.get('/departments?limit=10000')
+      ]);
+
+      const types = Array.isArray(typesRes) ? typesRes : (typesRes.data || []);
+      const depts = Array.isArray(deptRes) ? deptRes : (deptRes.data || []);
+
+      const typeSelect = document.getElementById('edit-doc-type');
+      const deptSelect = document.getElementById('edit-doc-department');
+      if (typeSelect) {
+        typeSelect.innerHTML = '<option value="">— Chọn loại hồ sơ —</option>' +
+          types.map(t => `<option value="${esc(t.id)}">${esc(t.code ? `[${t.code}] ` : '')}${esc(t.name)}</option>`).join('');
+      }
+      if (deptSelect) {
+        deptSelect.innerHTML = '<option value="">— Chọn khoa —</option>' +
+          depts.map(d => `<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('');
+      }
+    } catch (err) {
+      console.warn('[Edit doc] Failed to load options:', err);
+    }
+  }
+
+  function openEditDocumentModal(doc) {
+    const titleEl = document.getElementById('edit-doc-title');
+    const referenceNoEl = document.getElementById('edit-doc-reference-no');
+    const documentNumberEl = document.getElementById('edit-doc-document-number');
+    const issuingUnitEl = document.getElementById('edit-doc-issuing-unit');
+    const organizingBodyEl = document.getElementById('edit-doc-organizing-body');
+    const receivedDateEl = document.getElementById('edit-doc-received-date');
+    const issuedDateEl = document.getElementById('edit-doc-issued-date');
+    const securityLevelEl = document.getElementById('edit-doc-security-level');
+    const authorNameEl = document.getElementById('edit-doc-author-name');
+    const summaryEl = document.getElementById('edit-doc-summary');
+    const descriptionEl = document.getElementById('edit-doc-description');
+    const typeEl = document.getElementById('edit-doc-type');
+    const deptEl = document.getElementById('edit-doc-department');
+
+    if (titleEl) titleEl.value = doc.title || doc.originalFilename || '';
+    if (referenceNoEl) referenceNoEl.value = doc.referenceNo || '';
+    if (documentNumberEl) documentNumberEl.value = doc.documentNumber || '';
+    if (issuingUnitEl) issuingUnitEl.value = doc.issuingUnit || '';
+    if (organizingBodyEl) organizingBodyEl.value = doc.organizingBody || '';
+    if (receivedDateEl) receivedDateEl.value = doc.receivedDate ? String(doc.receivedDate).slice(0, 10) : '';
+    if (issuedDateEl) issuedDateEl.value = doc.issuedDate ? String(doc.issuedDate).slice(0, 10) : '';
+    if (securityLevelEl) securityLevelEl.value = doc.securityLevel || '';
+    if (authorNameEl) authorNameEl.value = doc.authorName || '';
+    if (summaryEl) summaryEl.value = doc.summary || '';
+    if (descriptionEl) descriptionEl.value = doc.description || '';
+    if (typeEl) typeEl.value = doc.documentType?.id || doc.documentTypeId || '';
+    if (deptEl) deptEl.value = doc.department?.id || doc.departmentId || '';
+
+    document.getElementById('btn-save-document-edit').dataset.docId = doc.id;
+    Modal.open('modal-edit-document');
+  }
+
+  document.getElementById('btn-save-document-edit')?.addEventListener('click', async function () {
+    const docId = this.dataset.docId;
+    if (!docId) return;
+
+    const payload = {
+      title: document.getElementById('edit-doc-title').value.trim(),
+      summary: document.getElementById('edit-doc-summary').value.trim(),
+      referenceNo: document.getElementById('edit-doc-reference-no').value.trim(),
+      issuingUnit: document.getElementById('edit-doc-issuing-unit').value.trim(),
+      organizingBody: document.getElementById('edit-doc-organizing-body').value.trim(),
+      receivedDate: document.getElementById('edit-doc-received-date').value || null,
+      documentNumber: document.getElementById('edit-doc-document-number').value.trim(),
+      securityLevel: document.getElementById('edit-doc-security-level').value || null,
+      authorName: document.getElementById('edit-doc-author-name').value.trim(),
+      description: document.getElementById('edit-doc-description').value.trim(),
+      documentTypeId: document.getElementById('edit-doc-type').value || null,
+      departmentId: document.getElementById('edit-doc-department').value || null,
+      issuedDate: document.getElementById('edit-doc-issued-date').value || null,
+    };
+
+    if (!payload.title) {
+      Toast.warning('Vui lòng nhập tiêu đề tài liệu.');
+      return;
+    }
+
+    this.classList.add('loading');
+    try {
+      try {
+        await api.patch(`/documents/${docId}`, payload);
+      } catch (err1) {
+        await api.patch(`/documents/${docId}/metadata`, payload);
+      }
+      Toast.success('Đã cập nhật thông tin hồ sơ.');
+      Modal.close('modal-edit-document');
+      loadDocs();
+    } catch (err) {
+      Toast.error(err.message || 'Cập nhật thất bại.');
+    } finally {
+      this.classList.remove('loading');
+    }
+  });
+
+  /* ── Comments ───────────────────────────────────────────────── */
+  async function loadComments(docId) {
+    const el = document.getElementById('comments-list');
+    if (!el) return;
+    try {
+      const data = await api.get(`/documents/${docId}/comments`);
+      const list = Array.isArray(data) ? data : (data.data || []);
+      if (!list.length) {
+        el.innerHTML = '<div style="font-size:.8rem;color:var(--gray-400)">Chưa có ghi chú nào.</div>';
+        return;
+      }
+      el.innerHTML = list.map(c => `
+        <div style="padding:8px 10px;background:var(--gray-100);border-radius:8px;margin-bottom:6px">
+          <div style="font-size:.75rem;font-weight:600;color:var(--navy)">
+            ${esc(c.author?.fullName || c.author?.email || '—')}
+            <span style="color:var(--gray-400);font-weight:400">${fmtDate(c.createdAt)}</span>
+          </div>
+          <div style="font-size:.82rem;margin-top:3px">${esc(c.content)}</div>
+        </div>`).join('');
+      el.scrollTop = el.scrollHeight;
+    } catch (e) {
+      el.innerHTML = '<div style="font-size:.78rem;color:var(--gray-400)">Chưa hỗ trợ ghi chú.</div>';
+    }
+  }
+
+  async function submitComment(docId) {
+    const inp = document.getElementById('comment-input');
+    const text = inp?.value.trim();
+    if (!text) return;
+    const btn = document.getElementById('btn-send-comment');
+    btn.classList.add('loading');
+    try {
+      await api.post(`/documents/${docId}/comments`, { content: text });
+      inp.value = '';
+      loadComments(docId);
+    } catch (e) {
+      Toast.error('Không gửi được ghi chú: ' + e.message);
+    } finally {
+      btn.classList.remove('loading');
+    }
+  }
+
+  /* ── Versions ───────────────────────────────────────────────── */
+  async function loadVersions(docId) {
+    const el = document.getElementById('versions-list');
+    if (!el) return;
+    el.innerHTML = '<div style="font-size:.8rem;color:var(--gray-400)">Đang tải lịch sử…</div>';
+    try {
+      const data = await api.get(`/documents/${docId}/versions`);
+      const list = Array.isArray(data) ? data : (data.data || []);
+      if (!list.length) {
+        el.innerHTML = '<div style="font-size:.8rem;color:var(--gray-400)">Chỉ có 1 phiên bản.</div>';
+        return;
+      }
+      el.innerHTML = `
+        <div style="padding-left:20px">
+          ${list.map((v, i) => `
+            <div style="position:relative;margin-bottom:14px;padding-left:16px;
+              border-left:2px solid ${i === 0 ? 'var(--brass)' : 'var(--gray-200)'}">
+              <div style="position:absolute;left:-6px;top:4px;width:10px;height:10px;
+                border-radius:50%;background:${i === 0 ? 'var(--brass)' : 'var(--gray-400)'}"></div>
+              <div style="font-size:.82rem;font-weight:600;color:var(--navy)">
+                Phiên bản ${list.length - i}
+                ${i === 0 ? '<span style="color:var(--brass);font-size:.72rem">(mới nhất)</span>' : ''}
+              </div>
+              <div class="td-mono" style="font-size:.75rem">${esc(v.originalFilename || '—')}</div>
+              <div style="font-size:.72rem;color:var(--gray-600);margin-top:2px">
+                ${fmtDate(v.createdAt)} · ${fmtSize(v)}
+              </div>
+              ${v.status === 'stored' ? '' : ''}
+            </div>`).join('')}
+        </div>`;
+    } catch (e) {
+      el.innerHTML = '<div style="font-size:.78rem;color:var(--gray-400)">Chưa hỗ trợ lịch sử phiên bản.</div>';
+    }
+  }
+
+  async function replaceFile(docId) {
+    const inp  = document.getElementById('replace-file');
+    const file = inp?.files?.[0];
+    if (!file) { Toast.warning('Vui lòng chọn file PDF.'); return; }
+    if (!file.name.toLowerCase().endsWith('.pdf')) { Toast.error('Chỉ chấp nhận file PDF!'); return; }
+    if (file.size > 500 * 1024 * 1024) { Toast.error('File vượt quá 500 MB!'); return; }
+    const replaceBtn = document.getElementById('btn-replace-file');
+    replaceBtn?.classList.add('loading');
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      await api.upload(`/documents/${docId}/replace`, form);
+      Toast.success('Đã thay thế file thành công!');
+      inp.value = '';
+      loadVersions(docId);
+      loadDocs();
+    } catch (e) {
+      Toast.error('Thay thế thất bại: ' + e.message);
+    } finally {
+      replaceBtn?.classList.remove('loading');
+    }
+  }
+
+  /* ── Reset filters ──────────────────────────────────────────── */
+  /* ── Reset filters ──────────────────────────────────────────── */
+  function resetFilters() {
+    document.getElementById('kw-input').value = '';
+    document.getElementById('date-from-filter').value = '';
+    document.getElementById('date-to-filter').value = '';
+    _activeVisibility = '';
+    document.querySelectorAll('.visibility-tab').forEach(tab => tab.classList.remove('active'));
+    setActiveTab('');
+  }
+
+  /* ── Tab lọc nhanh ──────────────────────────────────────────── */
+  function setActiveTab(status) {
+    _activeTab = status;
+    document.querySelectorAll('.filter-tab[data-status]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.status === status);
+    });
+    loadDocs();
+  }
+
+  /* ── Infinite scroll ────────────────────────────────────────── */
+  function initInfiniteScroll() {
+    const sentinel = document.getElementById('load-sentinel');
+    if (!sentinel || !('IntersectionObserver' in window)) return;
+    new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) loadMore();
+    }, { rootMargin: '200px' }).observe(sentinel);
+  }
+
+  /* ── Init ───────────────────────────────────────────────────── */
+  document.addEventListener('DOMContentLoaded', () => {
+    renderBreadcrumb([
+      { label: 'Trang chủ', href: 'dashboard.html' },
+      { label: 'Tài liệu của tôi' }
+    ]);
+
+    loadDepartments();
+    initTableDelegation(); // Gắn event delegation một lần duy nhất
+
+    // Load tổng tất cả docs (backend tự scope theo role) để đếm badge tab & stats
+    api.get('/documents/search?limit=9999').then(res => {
+      _allDocs = Array.isArray(res) ? res
+               : Array.isArray(res.data) ? res.data
+               : Array.isArray(res.items) ? res.items : [];
+      updateTabCounts(_allDocs);
+      updateStats(_allDocs);
+    }).catch(() => {});
+
+    // Tìm kiếm real-time debounce 400ms
+    const debouncedLoad = debounce(() => loadDocs(), 400);
+    document.getElementById('kw-input').addEventListener('input', debouncedLoad);
+    ['date-from-filter', 'date-to-filter'].forEach(id => {
+      document.getElementById(id)?.addEventListener('change', () => loadDocs());
+    });
+    document.getElementById('btn-clear-advanced-search')?.addEventListener('click', resetFilters);
+
+    // Tab lọc nhanh
+    document.querySelectorAll('.filter-tab[data-status]').forEach(btn => {
+      btn.addEventListener('click', () => setActiveTab(btn.dataset.status));
+    });
+    document.querySelectorAll('.visibility-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        if (_activeVisibility === tab.dataset.visibility) {
+          _activeVisibility = '';
+          tab.classList.remove('active');
+          loadDocs();
+          return;
+        }
+        document.querySelectorAll('.visibility-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        _activeVisibility = tab.dataset.visibility;
+        loadDocs();
+      });
+    });
+
+    initInfiniteScroll();
+    loadDocs();
+
+    // Mở detail từ URL ?doc=id (share link)
+    const docId = new URLSearchParams(window.location.search).get('doc');
+    if (docId) {
+      // Chờ data load xong rồi mở
+      const unwatch = setInterval(() => {
+        if (!_loading && _currentDocs.length) {
+          clearInterval(unwatch);
+          const doc = _currentDocs.find(d => d.id === docId);
+          if (doc) showDetail(doc);
+        }
+      }, 100);
+      setTimeout(() => clearInterval(unwatch), 8000); // timeout 8s
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thành viên khoa — Trưởng Khoa</title>
+  <link rel="stylesheet" href="../../assets/css/style.css" />
+  <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+</head>
+<body>
+<div class="app-shell">
+
+  <nav class="sidebar"></nav>
+
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <main class="main-content">
+    <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Họ và tên</th>
+            <th>Email</th>
+            <th>Vai trò</th>
+            <th>Ngày tạo</th>
+            <th>Trạng thái</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="members-body">
+          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-400)">Đang tải…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- Modal: đổi trạng thái -->
+<div class="toast-container"></div>
+<script src="../../assets/js/app.js?v=role-sync-12"></script>
+<script src="../../assets/js/sidebar.js?v=role-sync-12"></script>
+<script>
+  Auth.requireDeptHead();
+
+
+  /* esc() — see app.js */
+
+  const me       = Auth.getUser();
+  const myDeptId = me?.departmentId || me?.department?.id || null;
+
+  const ROLE_LABEL = { user: 'User', department_head: 'Trưởng Khoa', admin: 'Admin' };
+  const ROLE_BADGE = { user: 'badge-pending', department_head: 'badge-stored', admin: 'badge-stored' };
+
+  let _members = [];
+
+  async function loadMembers() {
+    const tbody = document.getElementById('members-body');
+    tbody.innerHTML = skeletonTable(4).match(/<tbody>([\s\S]*)<\/tbody>/)?.[1]
+      || '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-400)">Đang tải…</td></tr>';
+
+    try {
+      const res      = await api.get('/users?limit=10000');
+      const allUsers = Array.isArray(res) ? res : (res.data || res.items || []);
+      _members       = myDeptId
+        ? allUsers.filter(u => (u.departmentId === myDeptId || u.department?.id === myDeptId) && u.id !== me.id)
+        : allUsers.filter(u => u.id !== me.id);
+
+      if (!_members.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-400)">Chưa có thành viên nào trong khoa.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = _members.map((u, i) => `
+        <tr data-idx="${i}" id="row-${esc(u.id)}">
+          <td>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:32px;height:32px;border-radius:50%;background:var(--navy);
+                display:flex;align-items:center;justify-content:center;color:#fff;
+                font-family:var(--font-ui) !important;font-weight:700;font-size:.85rem;flex-shrink:0">
+                ${esc((u.fullName?.[0] || 'U').toUpperCase())}
+              </div>
+              <div style="font-weight:600;font-size:.9rem">${esc(u.fullName || '—')}</div>
+            </div>
+          </td>
+          <td class="td-mono">${esc(u.email)}</td>
+          <td><span class="badge ${ROLE_BADGE[u.role] || 'badge-pending'}">${ROLE_LABEL[u.role] || esc(u.role)}</span></td>
+          <td class="td-mono">${fmtDate(u.createdAt)}</td>
+          <td><span class="badge ${u.isActive ? 'badge-approved' : 'badge-rejected'}">${u.isActive ? 'Hoạt động' : 'Vô hiệu'}</span></td>
+          <td>
+            <button class="btn btn-ghost btn-sm" data-action="toggle" data-idx="${i}">
+              ${u.isActive ? 'Vô hiệu hoá' : 'Kích hoạt'}
+            </button>
+          </td>
+        </tr>`).join('');
+
+      // Event delegation
+      tbody.addEventListener('click', e => {
+        const btn = e.target.closest('[data-action="toggle"]');
+        if (!btn) return;
+        const u = _members[parseInt(btn.dataset.idx, 10)];
+        if (u) toggleActive(u.id, u.isActive, btn);
+      });
+
+    } catch(err) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--stamp-deny)">${esc(err.message)}</td></tr>`;
+      Toast.error(err.message);
+    }
+  }
+
+  async function toggleActive(id, current, btn) {
+    btn?.classList.add('loading');
+    try {
+      await api.patch(`/users/${id}/active`, { isActive: !current });
+      Toast.success(current ? 'Đã vô hiệu hoá.' : 'Đã kích hoạt.');
+      loadMembers();
+    } catch(err) {
+      Toast.error(err.message);
+    } finally {
+      btn?.classList.remove('loading');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadMembers);
+</script>
+</body>
+</html>

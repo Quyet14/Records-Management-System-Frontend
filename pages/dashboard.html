@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Bệnh viện Hữu Nghị</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Sidebar -->
+  <nav class="sidebar"></nav>
+
+  <!-- Main -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <main class="main-content">
+    <div class="page-header page-header-row">
+      <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+    </div>
+      <a href="upload.html" class="btn btn-brass">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+        Tải lên tài liệu
+      </a>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card stat-card--brass">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <span class="stat-label">Tổng tài liệu</span>
+        <span class="stat-value" id="stat-total">—</span>
+        <span class="stat-sub">đã gửi lên</span>
+      </div>
+      <div class="stat-card stat-card--wait">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <span class="stat-label">Đang chờ duyệt</span>
+        <span class="stat-value" id="stat-pending" style="color:var(--stamp-wait)">—</span>
+        <span class="stat-sub">tài liệu</span>
+      </div>
+      <div class="stat-card stat-card--ok">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <span class="stat-label">Đã lưu trữ</span>
+        <span class="stat-value" id="stat-stored" style="color:var(--stamp-ok)">—</span>
+        <span class="stat-sub">tài liệu</span>
+      </div>
+      <div class="stat-card stat-card--deny">
+        <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+        <span class="stat-label">Bị từ chối</span>
+        <span class="stat-value" id="stat-rejected" style="color:var(--stamp-deny)">—</span>
+        <span class="stat-sub">tài liệu</span>
+      </div>
+    </div>
+
+    <!-- Recent documents -->
+    <div class="section-tab">
+      <span class="section-tab-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Tài liệu gần đây
+      </span>
+      <span class="section-tab-line"></span>
+      <a href="my-documents.html" class="btn btn-ghost btn-sm">Xem tất cả</a>
+    </div>
+    <div class="card">
+      <div id="recent-docs">
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <h3>Chưa có tài liệu</h3>
+          <p>Bạn chưa tải lên tài liệu nào.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-container"></div>
+<script src="../assets/js/app.js?v=role-sync-12"></script>
+<script src="../assets/js/sidebar.js?v=role-sync-12"></script>
+<script>
+  Auth.require();
+
+
+  /* esc() — see app.js */
+
+  async function loadDashboard() {
+    // Hiện skeleton trong khi chờ
+    const statsIds = ['stat-total','stat-pending','stat-stored','stat-rejected'];
+    statsIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = '…'; el.classList.add('skeleton'); }
+    });
+    document.getElementById('recent-docs').innerHTML = `<div class="doc-grid">${skeletonCards(4)}</div>`;
+
+    try {
+      const res = await api.get('/documents/search?limit=10000');
+
+      // Chuẩn hoá nhiều dạng response của API
+      let docs = [];
+      if (Array.isArray(res))                docs = res;
+      else if (Array.isArray(res.data))      docs = res.data;
+      else if (Array.isArray(res.documents)) docs = res.documents;
+      else if (Array.isArray(res.items))     docs = res.items;
+
+      statsIds.forEach(id => document.getElementById(id)?.classList.remove('skeleton'));
+
+      document.getElementById('stat-total').textContent    = docs.length;
+      document.getElementById('stat-pending').textContent  = docs.filter(d => d.status === 'pending').length;
+      document.getElementById('stat-stored').textContent   = docs.filter(d => d.status === 'stored' || d.status === 'approved').length;
+      document.getElementById('stat-rejected').textContent = docs.filter(d => d.status === 'rejected').length;
+
+      const recent = docs.slice(0, 8);
+      const viewStatusMap = await loadViewStatusMap(recent.filter(d => d.status === 'stored' || d.status === 'approved'));
+      const container = document.getElementById('recent-docs');
+
+      // Banner cảnh báo chỉnh lý tài liệu trước 01/7/2025
+      renderRetentionBanner(docs, 'recent-docs');
+
+      if (recent.length === 0) {
+        container.innerHTML = emptyStatePro(
+          '📄', 'Chưa có tài liệu nào',
+          'Bạn chưa tải lên tài liệu nào.',
+          `<a href="upload.html" class="btn btn-brass">↑ Tải lên ngay</a>`
+        );
+        return;
+      }
+
+      // Render cards — dùng data-id thay vì nhúng id vào onclick string
+      container.innerHTML = `
+        <div class="doc-grid" id="recent-doc-grid">
+          ${recent.map((d, i) => `
+            <div class="doc-card" data-status="${esc(d.status)}" data-idx="${i}"
+              style="cursor:${d.status === 'stored' ? 'pointer' : 'default'}">
+              <div class="doc-card-header">
+                <div class="doc-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                  </svg>
+                </div>
+                <div style="flex:1">
+                  <div class="doc-card-title">${esc(displayDocTitle(d))}</div>
+                </div>
+              </div>
+              <div class="doc-card-meta">
+                <span>${esc(d.department?.name || 'Chưa phân khoa')}</span>
+                <span class="mono">${fmtDate(d.createdAt)}</span>
+                <span>${fmtSize(d)}</span>
+              </div>
+              <div class="doc-card-footer">
+                ${statusBadge(d.status)}
+                ${d.status === 'stored' || d.status === 'approved'
+                  ? (canViewFromStatus(viewStatusMap.get(getDocumentId(d)))
+                    ? `<button class="btn btn-brass btn-sm" data-action="view" data-idx="${i}">Xem tài liệu</button>`
+                    : `<a class="btn btn-brass btn-sm" href="documents.html">Yêu cầu xem</a>`)
+                  : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>`;
+
+      // Gắn event listener an toàn thay vì onclick inline
+      document.getElementById('recent-doc-grid').addEventListener('click', e => {
+        const card = e.target.closest('.doc-card');
+        if (!card) return;
+        const d = recent[parseInt(card.dataset.idx, 10)];
+        if (!d) return;
+
+        const viewBtn = e.target.closest('[data-action="view"]');
+        if (viewBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const doc = recent[parseInt(viewBtn.dataset.idx, 10)];
+          if (doc) previewFile(getDocumentId(doc), doc.title || doc.originalFilename);
+          return;
+        }
+
+        const requestLink = e.target.closest('a[href="documents.html"]');
+        if (requestLink) e.stopPropagation();
+      });
+
+    } catch (err) {
+      statsIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.textContent = '—'; el.classList.remove('skeleton'); }
+      });
+      Toast.error('Không thể tải dữ liệu: ' + err.message);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadDashboard);
+</script>
+</body>
+</html>

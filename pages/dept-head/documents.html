@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tài liệu khoa — Trưởng Khoa</title>
+  <link rel="stylesheet" href="../../assets/css/style.css" />
+  <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+</head>
+<body>
+<div class="app-shell">
+
+  <nav class="sidebar"></nav>
+
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <main class="main-content">
+    <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+    </div>
+
+    <!-- Search bar -->
+    <div style="background:var(--white);padding:20px;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);margin-bottom:20px">
+      <div class="search-bar">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="form-control" type="search" id="kw-input" placeholder="Tìm tiêu đề, tên file..." />
+      </div>
+      <div class="advanced-search-panel">
+        <div class="advanced-search-field">
+          <label class="form-label" for="date-from-filter">Từ ngày</label>
+          <input class="form-control" type="date" id="date-from-filter" />
+        </div>
+        <div class="advanced-search-field">
+          <label class="form-label" for="date-to-filter">Đến ngày</label>
+          <input class="form-control" type="date" id="date-to-filter" />
+        </div>
+        <button class="btn btn-ghost advanced-search-clear" type="button" id="btn-clear-advanced-search">
+          Xoá lọc
+        </button>
+      </div>
+    </div>
+
+    <!-- Status tabs -->
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px">
+      <button class="filter-tab active" data-status="" style="transition:all 0.2s ease;border-radius:24px;padding:10px 18px;display:inline-flex;align-items:center;justify-content:center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;flex-shrink:0"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18M3 15h18M15 3v18"/></svg>
+        <span>Tất cả</span>
+        <span class="badge" id="tab-count-all" style="margin-left:8px">0</span>
+      </button>
+      <button class="filter-tab" data-status="pending" style="transition:all 0.2s ease;border-radius:24px;padding:10px 18px;display:inline-flex;align-items:center;justify-content:center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>Chờ duyệt</span>
+        <span class="badge" id="tab-count-pending" style="margin-left:8px;background:rgba(255,193,7,.15);color:#f59e0b">0</span>
+      </button>
+      <button class="filter-tab" data-status="stored" style="transition:all 0.2s ease;border-radius:24px;padding:10px 18px;display:inline-flex;align-items:center;justify-content:center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Lưu trữ</span>
+        <span class="badge" id="tab-count-stored" style="margin-left:8px;background:rgba(34,197,94,.15);color:#22c55e">0</span>
+      </button>
+      <button class="filter-tab" data-status="rejected" style="transition:all 0.2s ease;border-radius:24px;padding:10px 18px;display:inline-flex;align-items:center;justify-content:center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;flex-shrink:0"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <span>Từ chối</span>
+        <span class="badge" id="tab-count-rejected" style="margin-left:8px;background:rgba(239,68,68,.15);color:#ef4444">0</span>
+      </button>
+      <button class="filter-tab visibility-tab" type="button" data-visibility="public">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;flex-shrink:0"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M2 12h20M12 2c3 3 3 17 0 20M12 2c-3 3-3 17 0 20"/></svg>
+        <span>Công khai</span>
+        <span class="badge visibility-tab-badge visibility-tab-badge--public" id="visibility-count-public">0</span>
+      </button>
+      <button class="filter-tab visibility-tab" type="button" data-visibility="department">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;flex-shrink:0"><path d="M3 21h18"/><path d="M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16"/><path d="M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1"/></svg>
+        <span>Nội bộ</span>
+        <span class="badge visibility-tab-badge visibility-tab-badge--department" id="visibility-count-department">0</span>
+      </button>
+    </div>
+
+    <div id="result-count" style="font-size:.82rem;color:var(--gray-600);margin-bottom:12px"></div>
+    <div id="doc-list"></div>
+  </main>
+</div>
+
+<!-- Detail modal -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal">
+    <button class="modal-close" data-modal-close="modal-detail"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <div id="modal-detail-content"></div>
+  </div>
+</div>
+
+<!-- Modal: Gán loại hồ sơ -->
+<div class="modal-overlay" id="modal-assign-doctype">
+  <div class="modal" style="max-width:480px">
+    <button class="modal-close" data-modal-close="modal-assign-doctype">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="modal-title">Gán loại hồ sơ</h3>
+    <p class="modal-subtitle" id="assign-doctype-name"></p>
+    <p style="font-size:.8rem;color:var(--brass);margin-bottom:16px" id="assign-doctype-current"></p>
+    <div class="form-group">
+      <label class="form-label">Loại hồ sơ *</label>
+      <select class="form-control" id="assign-doctype-select">
+        <option value="">— Chọn loại hồ sơ —</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-assign-doctype">Huỷ</button>
+      <button class="btn btn-primary" id="btn-confirm-assign-doctype">Xác nhận gán loại hồ sơ</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container"></div>
+<script src="../../assets/js/app.js?v=role-sync-12"></script>
+<script src="../../assets/js/sidebar.js?v=role-sync-12"></script>
+<script>
+  Auth.requireDeptHead();
+
+
+  /* esc() — see app.js */
+
+  const me       = Auth.getUser();
+  const myDeptId = me?.departmentId || me?.department?.id;
+
+  /* ── Load & filter ──────────────────────────────────────────── */
+  let _allDocs = [];
+  let _activeStatus = '';
+  let _activeVisibility = '';
+  let _currentDocs = []; // Currently displayed docs
+
+  async function loadAll() {
+    try {
+      // Dept-head dùng /documents/search với departmentId của khoa mình
+      const res = await api.get('/documents/search?limit=10000');
+      _allDocs = Array.isArray(res) ? res : (res.data || res.documents || []);
+      updateTabCounts();
+      renderFiltered();
+    } catch (err) {
+      Toast.error('Lỗi tải dữ liệu: ' + err.message);
+    }
+  }
+
+  function updateTabCounts() {
+    const all = _allDocs.length;
+    const pending = _allDocs.filter(d => d.status === 'pending').length;
+    const stored = _allDocs.filter(d => d.status === 'stored' || d.status === 'approved').length;
+    const rejected = _allDocs.filter(d => d.status === 'rejected').length;
+    const publicDocs = _allDocs.filter(d => getDocumentVisibility(d) === 'public').length;
+    const departmentDocs = _allDocs.filter(d => getDocumentVisibility(d) === 'department').length;
+    
+    document.getElementById('tab-count-all').textContent = all;
+    document.getElementById('tab-count-pending').textContent = pending;
+    document.getElementById('tab-count-stored').textContent = stored;
+    document.getElementById('tab-count-rejected').textContent = rejected;
+    document.getElementById('visibility-count-public').textContent = publicDocs;
+    document.getElementById('visibility-count-department').textContent = departmentDocs;
+  }
+
+  function normalizeText(value = '') {
+    return String(value)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  function getDocumentVisibility(doc) {
+    const value = normalizeText(doc.visibility || doc.accessLevel || doc.scope || doc.permission || '');
+    if (['department', 'internal', 'noi bo', 'private'].includes(value)) return 'department';
+    if (['public', 'cong khai'].includes(value)) return 'public';
+    return 'public';
+  }
+
+  function getDocumentBasisDate(doc) {
+    return doc.documentDate || doc.issuedDate || doc.createdAt || doc.uploadedAt || '';
+  }
+
+  function toDateOnly(value) {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
+
+  function renderFiltered() {
+    const kw = normalizeText(document.getElementById('kw-input').value);
+    const fromDate = toDateOnly(document.getElementById('date-from-filter').value);
+    const toDate = toDateOnly(document.getElementById('date-to-filter').value);
+    let filtered = _allDocs;
+
+    // Filter by status tab
+    if (_activeStatus) {
+      if (_activeStatus === 'stored') {
+        filtered = filtered.filter(d => d.status === 'stored' || d.status === 'approved');
+      } else {
+        filtered = filtered.filter(d => d.status === _activeStatus);
+      }
+    }
+
+    // Filter by keyword
+    if (kw) {
+      filtered = filtered.filter(d => {
+        const title = normalizeText(d.title || d.originalFilename);
+        const filename = normalizeText(d.originalFilename || '');
+        const description = normalizeText(d.description || '');
+        const doctypeName = normalizeText(d.documentType?.name || '');
+        const doctypeCode = normalizeText(d.documentType?.code || '');
+        return title.includes(kw) || filename.includes(kw) || description.includes(kw) || doctypeName.includes(kw) || doctypeCode.includes(kw);
+      });
+    }
+
+    if (_activeVisibility) {
+      filtered = filtered.filter(d => getDocumentVisibility(d) === _activeVisibility);
+    }
+
+    if (fromDate || toDate) {
+      filtered = filtered.filter(d => {
+        const docDate = toDateOnly(getDocumentBasisDate(d));
+        if (!docDate) return false;
+        if (fromDate && docDate < fromDate) return false;
+        if (toDate && docDate > toDate) return false;
+        return true;
+      });
+    }
+
+    renderTable(filtered);
+  }
+
+  function renderTable(docs) {
+    _currentDocs = docs;
+    document.getElementById('result-count').textContent = `Hiển thị ${docs.length} tài liệu`;
+
+    const container = document.getElementById('doc-list');
+    if (!docs.length) {
+      container.innerHTML = emptyStatePro('🔍', 'Không tìm thấy tài liệu', 'Thử từ khoá khác hoặc chọn tab khác.');
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Tài liệu</th><th>Phạm vi</th><th>Người gửi</th><th>Ngày tài liệu</th><th>Kích thước</th><th>Trạng thái</th><th></th></tr>
+          </thead>
+          <tbody id="doc-tbody">
+            ${docs.map((d, i) => `
+              <tr data-idx="${i}" style="cursor:pointer">
+                <td>
+                  <div style="font-weight:600;font-size:.9rem">${esc(displayDocTitle(d))}</div>
+                  <div class="td-mono">${esc(displayDocFilename(d))}</div>
+                </td>
+                <td>${visibilityBadge(d)}</td>
+                <td>
+                  <div style="font-size:.88rem;font-weight:500">${esc(d.uploader?.fullName || '—')}</div>
+                  <div class="td-mono" style="font-size:.72rem">${esc(d.uploader?.email || '')}</div>
+                </td>
+                <td class="td-mono">${fmtDate(getDocumentBasisDate(d))}</td>
+                <td class="td-mono">${fmtSize(d)}</td>
+                <td>${statusBadge(d.status)}</td>
+                <td>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    <button class="btn btn-ghost btn-sm" data-action="detail"   data-idx="${i}">Chi tiết</button>
+                    <button class="btn btn-ghost btn-sm" data-action="assign-doctype" data-idx="${i}"
+                      title="Gán loại hồ sơ" style="background:${d.documentType ? 'transparent' : 'rgba(174,174,154,.1)'}">
+                      ${d.documentType ? '📋' : '📝'}
+                    </button>
+                    ${d.status === 'stored' || d.status === 'approved'
+                      ? `<button class="btn btn-brass btn-sm" data-action="download" data-idx="${i}">↓</button>`
+                      : ''}
+                  </div>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  function visibilityBadge(d) {
+    const visibility = getDocumentVisibility(d);
+    if (visibility === 'department') {
+      return '<span class="badge visibility-badge visibility-badge--department">Nội bộ</span>';
+    }
+    return '<span class="badge visibility-badge visibility-badge--public">Công khai</span>';
+  }
+
+  // Event delegation — attach once
+  function attachTableEvents() {
+    document.getElementById('doc-list').addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      const row = e.target.closest('tr[data-idx]');
+      if (!row) return;
+      const d = _currentDocs[parseInt(row.dataset.idx, 10)];
+      if (!d) return;
+      if (btn) {
+        e.stopPropagation();
+        if (btn.dataset.action === 'detail')         { showDetail(d); return; }
+        if (btn.dataset.action === 'assign-doctype') { openAssignDoctype(d); return; }
+        if (btn.dataset.action === 'download')       { downloadFile(d.id, d.originalFilename || 'document.pdf'); return; }
+      }
+      previewFile(d.id, d.title || d.originalFilename);
+    });
+  }
+
+  /* ── Detail modal ───────────────────────────────────────────── */
+  async function markAsReviewed(docId) {
+    const btn = document.getElementById('btn-mark-reviewed');
+    if (!btn) return;
+    btn.classList.add('loading');
+    try {
+      // Try different endpoints/field names
+      try {
+        await api.patch(`/documents/${docId}/review-status`, { status: 'completed' });
+      } catch (e1) {
+        try {
+          await api.patch(`/documents/${docId}`, { reviewStatus: 'completed' });
+        } catch (e2) {
+          await api.post(`/documents/${docId}/mark-reviewed`);
+        }
+      }
+      Toast.success('Đã đánh dấu hoàn tất chỉnh lý!');
+      Modal.close('modal-detail');
+      loadAll(); // Refresh data
+    } catch (e) {
+      Toast.error('Lỗi: ' + e.message);
+      console.error('[Mark reviewed] Error:', e);
+    } finally {
+      btn.classList.remove('loading');
+    }
+  }
+
+  async function loadComments(docId) {
+    const el = document.getElementById('comments-list');
+    if (!el) return;
+    try {
+      const data = await api.get(`/documents/${docId}/comments`);
+      const list = Array.isArray(data) ? data : (data.data || []);
+      if (!list.length) {
+        el.innerHTML = '<div style="font-size:.8rem;color:var(--gray-400)">Chưa có ghi chú nào.</div>';
+        return;
+      }
+      el.innerHTML = list.map(c => `
+        <div style="padding:8px 10px;background:var(--gray-100);border-radius:8px;margin-bottom:6px">
+          <div style="font-size:.75rem;font-weight:600;color:var(--navy)">
+            ${esc(c.author?.fullName || c.author?.email || '—')}
+            <span style="color:var(--gray-400);font-weight:400">${fmtDate(c.createdAt)}</span>
+          </div>
+          <div style="font-size:.82rem;margin-top:3px">${esc(c.content)}</div>
+        </div>`).join('');
+      el.scrollTop = el.scrollHeight;
+    } catch(e) {
+      el.innerHTML = '<div style="font-size:.78rem;color:var(--gray-400)">Chưa hỗ trợ ghi chú.</div>';
+    }
+  }
+
+  async function submitComment(docId) {
+    const inp = document.getElementById('comment-input');
+    const text = inp?.value.trim();
+    if (!text) return;
+    const btn = document.getElementById('btn-send-comment');
+    btn?.classList.add('loading');
+    try {
+      await api.post(`/documents/${docId}/comments`, { content: text });
+      inp.value = '';
+      loadComments(docId);
+    } catch(e) {
+      Toast.error('Không gửi được: ' + e.message);
+    } finally {
+      btn?.classList.remove('loading');
+    }
+  }
+
+  async function loadVersions(docId) {
+    const el = document.getElementById('versions-list');
+    if (!el) return;
+    el.dataset.loaded = 'true';
+    el.innerHTML = '<div style="font-size:.8rem;color:var(--gray-400)">Đang tải lịch sử…</div>';
+    try {
+      const data = await api.get(`/documents/${docId}/versions`);
+      const list = Array.isArray(data) ? data : (data.data || []);
+      if (!list.length) {
+        el.innerHTML = '<div style="font-size:.8rem;color:var(--gray-400)">Chỉ có 1 phiên bản.</div>';
+        return;
+      }
+      el.innerHTML = `
+        <div style="padding-left:20px">
+          ${list.map((v, i) => `
+            <div style="position:relative;margin-bottom:14px;padding-left:16px;
+              border-left:2px solid ${i === 0 ? 'var(--brass)' : 'var(--gray-200)'}">
+              <div style="position:absolute;left:-6px;top:4px;width:10px;height:10px;
+                border-radius:50%;background:${i === 0 ? 'var(--brass)' : 'var(--gray-400)'}"></div>
+              <div style="font-size:.82rem;font-weight:600;color:var(--navy)">
+                Phiên bản ${list.length - i}
+                ${i === 0 ? '<span style="color:var(--brass);font-size:.72rem">(mới nhất)</span>' : ''}
+              </div>
+              <div class="td-mono" style="font-size:.75rem">${esc(v.originalFilename || '—')}</div>
+              <div style="font-size:.72rem;color:var(--gray-600);margin-top:2px">
+                ${fmtDate(v.createdAt)} · ${fmtSize(v)}
+              </div>
+              ${v.status === 'stored'
+                ? `<button class="btn btn-ghost btn-sm" style="margin-top:4px;font-size:.72rem"
+                    data-action="dl-version" data-id="${esc(v.id)}"
+                    data-name="${esc(v.originalFilename || 'document.pdf')}">↓ Tải bản này</button>`
+                : ''}
+            </div>`).join('')}
+        </div>`;
+      el.addEventListener('click', e => {
+        const btn = e.target.closest('[data-action="dl-version"]');
+        if (btn) downloadFile(btn.dataset.id, btn.dataset.name);
+      });
+    } catch (e) {
+      el.innerHTML = '<div style="font-size:.78rem;color:var(--gray-400)">Chưa hỗ trợ lịch sử phiên bản.</div>';
+    }
+  }
+
+  function showDetail(d) {
+    const rejectReason = getRejectReason(d);
+    document.getElementById('modal-detail-content').innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:20px;margin-bottom:20px">
+        <div>${stampHtml(d.status, 'stamp-sm')}</div>
+        <div style="flex:1;min-width:0">
+          <h2 class="modal-title">${esc(displayDocTitle(d))}</h2>
+          <p class="modal-subtitle">${esc(d.description || 'Không có mô tả.')}</p>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:.88rem">
+        <div><span style="color:var(--gray-600)">Người gửi:</span><br>
+          <b>${esc(d.uploader?.fullName || '—')}</b><br>
+          <span class="mono" style="font-size:.75rem">${esc(d.uploader?.email || '')}</span></div>
+        <div><span style="color:var(--gray-600)">Kích thước:</span><br>${fmtSize(d)}</div>
+        <div><span style="color:var(--gray-600)">Ngày gửi:</span><br>${fmtDate(d.createdAt)}</div>
+        <div><span style="color:var(--gray-600)">Phạm vi:</span><br>${visibilityBadge(d)}</div>
+        ${d.approvedAt ? `<div><span style="color:var(--gray-600)">Ngày duyệt:</span><br>${fmtDate(d.approvedAt)}</div>` : ''}
+        ${(d.documentDate || d.issuedDate) ? `<div><span style="color:var(--gray-600)">Ngày hình thành:</span><br>${fmtDate(d.documentDate || d.issuedDate)}</div>` : ''}
+        ${d.receivedDate ? `<div><span style="color:var(--gray-600)">Ngày đến:</span><br>${fmtDate(d.receivedDate)}</div>` : ''}
+        ${d.securityLevel ? `<div><span style="color:var(--gray-600)">Độ mật:</span><br>${esc(d.securityLevel)}</div>` : ''}
+        ${d.authorName ? `<div><span style="color:var(--gray-600)">Người soạn thảo:</span><br>${esc(d.authorName)}</div>` : ''}
+        ${rejectReason ? `
+        <div style="grid-column:1/-1;background:rgba(163,59,59,.08);border-radius:8px;padding:10px">
+          <span style="color:var(--stamp-deny);font-weight:600">Lý do từ chối:</span><br>
+          ${esc(rejectReason)}
+        </div>` : ''}
+      </div>
+
+      ${(d.referenceNo || d.issuingUnit || d.organizingBody || d.documentNumber || d.summary || d.description) ? `
+      <div style="margin-top:16px;padding:12px 14px;background:rgba(27,42,74,.04);border:1px solid var(--gray-200);border-radius:var(--radius-lg)">
+        <div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-600);margin-bottom:10px">📄 Thông tin hồ sơ</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.84rem">
+          ${d.referenceNo ? `<div><span style="color:var(--gray-600);font-size:.75rem">Số ký hiệu:</span><br><span style="font-weight:600">${esc(d.referenceNo)}</span></div>` : ''}
+          ${d.documentNumber ? `<div><span style="color:var(--gray-600);font-size:.75rem">Số văn bản:</span><br><span style="font-weight:600">${esc(d.documentNumber)}</span></div>` : ''}
+          ${d.issuingUnit ? `<div><span style="color:var(--gray-600);font-size:.75rem">Đơn vị ban hành:</span><br>${esc(d.issuingUnit)}</div>` : ''}
+          ${d.organizingBody ? `<div><span style="color:var(--gray-600);font-size:.75rem">Ban tổ chức trưng cầu:</span><br>${esc(d.organizingBody)}</div>` : ''}
+          ${d.summary ? `<div style="grid-column:1/-1"><span style="color:var(--gray-600);font-size:.75rem">Trích yếu / tóm tắt:</span><br>${esc(d.summary)}</div>` : ''}
+          ${d.description && !d.summary ? `<div style="grid-column:1/-1"><span style="color:var(--gray-600);font-size:.75rem">Mô tả:</span><br>${esc(d.description)}</div>` : ''}
+        </div>
+      </div>` : ''}
+
+      <!-- Thông tin lưu trữ pháp lý -->
+      ${(d.documentType || d.valueType || d.retentionExpiry || d.reviewStatus) ? `
+      <div style="margin-top:14px;padding:12px 14px;background:rgba(27,42,74,.04);
+        border:1px solid var(--gray-200);border-radius:var(--radius-lg)">
+        <div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+          color:var(--gray-600);margin-bottom:10px">📋 Thông tin lưu trữ (TT 33/2025/TT-BYT)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.84rem">
+          ${d.documentType ? `
+          <div>
+            <span style="color:var(--gray-600);font-size:.75rem">Loại hồ sơ:</span><br>
+            <span style="font-weight:600">${esc(d.documentType?.code ? `[${d.documentType.code}] ` : '')}${esc(d.documentType?.name || '—')}</span>
+          </div>` : ''}
+          ${d.valueType ? `
+          <div>
+            <span style="color:var(--gray-600);font-size:.75rem">Mức giá trị:</span><br>
+            ${d.valueType === 'permanent' || d.documentType?.isPermanent
+              ? `<span class="badge badge-approved" style="font-size:.72rem">♾ Vĩnh viễn</span>`
+              : `<span class="badge badge-pending"  style="font-size:.72rem">⏳ Có thời hạn</span>`}
+          </div>` : ''}
+          ${d.retentionExpiry ? `
+          <div>
+            <span style="color:var(--gray-600);font-size:.75rem">Hạn lưu trữ đến:</span><br>
+            <span style="font-weight:600;color:${
+              new Date(d.retentionExpiry) < new Date(Date.now() + 365*86400000)
+                ? 'var(--stamp-deny)' : 'var(--navy)'
+            }">${fmtDate(d.retentionExpiry)}</span>
+          </div>` : ''}
+          ${d.reviewStatus ? `
+          <div style="grid-column:1/-1">
+            <span style="color:var(--gray-600);font-size:.75rem">Trạng thái chỉnh lý:</span><br>
+            ${d.reviewStatus === 'completed'
+              ? `<span class="badge badge-approved" style="font-size:.72rem">✓ Đã chỉnh lý</span>`
+              : `<span class="badge badge-pending" style="font-size:.72rem">⏳ Chưa chỉnh lý</span>
+                 ${d.status === 'stored' ? `<button class="btn btn-ghost btn-sm" id="btn-mark-reviewed" style="margin-left:8px;font-size:.72rem">✓ Đánh dấu đã chỉnh lý</button>` : ''}`}
+          </div>` : ''}
+        </div>
+      </div>` : ''}
+
+      <!-- Tabs: Ghi chú / Phiên bản -->
+      <div style="margin-top:20px;border-top:1px solid var(--gray-200);padding-top:16px">
+        <div style="display:flex;gap:0;border-bottom:1px solid var(--gray-200);margin-bottom:12px" role="tablist">
+          <button role="tab" aria-selected="true" id="tab-comments" data-tab="comments"
+            style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:600;font-size:.82rem;color:var(--navy);border-bottom:2px solid var(--brass);margin-bottom:-1px">
+            💬 Ghi chú
+          </button>
+          <button role="tab" aria-selected="false" id="tab-versions" data-tab="versions"
+            style="padding:8px 16px;border:none;background:none;cursor:pointer;font-weight:600;font-size:.82rem;color:var(--gray-600);border-bottom:2px solid transparent;margin-bottom:-1px">
+            📋 Phiên bản
+          </button>
+        </div>
+
+        <div id="panel-comments" role="tabpanel">
+          <div id="comments-list" style="max-height:160px;overflow-y:auto;margin-bottom:10px">
+            <div style="font-size:.8rem;color:var(--gray-400)">Đang tải ghi chú…</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input class="form-control" type="text" id="comment-input"
+              placeholder="Nhập ghi chú…" style="flex:1;font-size:.85rem" />
+            <button class="btn btn-primary btn-sm" id="btn-send-comment">Gửi</button>
+          </div>
+        </div>
+
+        <div id="panel-versions" role="tabpanel" style="display:none">
+          <div id="versions-list" style="font-size:.8rem;color:var(--gray-400)">Đang tải phiên bản…</div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        ${d.status === 'stored' || d.status === 'approved'
+          ? `<button class="btn btn-brass" id="btn-modal-dl">↓ Tải về PDF</button>`
+          : ''}
+        <button class="btn btn-ghost" data-modal-close="modal-detail">Đóng</button>
+      </div>`;
+
+    // Gắn listeners — không onclick inline
+    // Tab switching
+    document.querySelectorAll('#modal-detail [role="tab"]').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('#modal-detail [role="tab"]').forEach(t => {
+          t.setAttribute('aria-selected', 'false');
+          t.style.color = 'var(--gray-600)';
+          t.style.borderBottomColor = 'transparent';
+        });
+        tab.setAttribute('aria-selected', 'true');
+        tab.style.color = 'var(--navy)';
+        tab.style.borderBottomColor = 'var(--brass)';
+
+        const target = tab.dataset.tab;
+        document.querySelectorAll('#modal-detail [role="tabpanel"]').forEach(p => {
+          p.style.display = 'none';
+        });
+        document.getElementById(`panel-${target}`).style.display = 'block';
+        
+        if (target === 'versions' && !document.getElementById('versions-list').dataset.loaded) {
+          loadVersions(d.id);
+        }
+        if (target === 'comments' && !document.getElementById('comments-list').dataset.loaded) {
+          loadComments(d.id);
+          document.getElementById('comments-list').dataset.loaded = 'true';
+        }
+      });
+    });
+
+    // Load comments immediately when modal opens
+    loadComments(d.id);
+    document.getElementById('comments-list').dataset.loaded = 'true';
+
+    // Comment input handlers
+    document.getElementById('comment-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') submitComment(d.id);
+    });
+    document.getElementById('btn-send-comment').addEventListener('click', () => submitComment(d.id));
+    
+    // Mark as reviewed button
+    document.getElementById('btn-mark-reviewed')?.addEventListener('click', async () => {
+      await markAsReviewed(d.id);
+    });
+
+    document.getElementById('btn-modal-dl')?.addEventListener('click', () => {
+      downloadFile(d.id, d.originalFilename || 'document.pdf');
+    });
+    document.querySelectorAll('#modal-detail [data-modal-close]').forEach(btn => {
+      btn.onclick = () => {
+        if (new URLSearchParams(window.location.search).get('return') === 'queue') {
+          window.location.href = './queue.html';
+          return;
+        }
+        Modal.close(btn.dataset.modalClose);
+      };
+    });
+
+    Modal.open('modal-detail');
+  }
+
+  function openDocumentFromUrl() {
+    const documentId = new URLSearchParams(window.location.search).get('doc');
+    if (!documentId) return;
+    const document = _currentDocs.find(item => item.id === documentId);
+    if (document) showDetail(document);
+  }
+
+  /* ── Gán loại hồ sơ ──────────────────────────────────────────── */
+  let _assignDoctypeDocId = null;
+
+  function loadDocumentTypes() {
+    api.get('/document-types').then(res => {
+      const types = Array.isArray(res) ? res : (res.data || []);
+      const sel = document.getElementById('assign-doctype-select');
+      types.forEach(t => {
+        const o = document.createElement('option');
+        o.value = t.id;
+        o.textContent = t.name + (t.code ? ` [${t.code}]` : '');
+        sel.appendChild(o);
+      });
+    }).catch(() => {});
+  }
+
+  function openAssignDoctype(d) {
+    _assignDoctypeDocId = d.id;
+    const name = d.title || d.originalFilename;
+    document.getElementById('assign-doctype-name').textContent = name.length > 80 ? name.slice(0, 77) + '…' : name;
+    document.getElementById('assign-doctype-current').textContent = d.documentType
+      ? `Loại hiện tại: ${d.documentType.name}`
+      : 'Chưa phân loại';
+    
+    // Pre-select current document type
+    const sel = document.getElementById('assign-doctype-select');
+    sel.value = d.documentType?.id || '';
+    
+    Modal.open('modal-assign-doctype');
+  }
+
+  /* ── Init ───────────────────────────────────────────────────── */
+  document.addEventListener('DOMContentLoaded', () => {
+    attachTableEvents(); // Attach once
+    loadAll().then(openDocumentFromUrl);
+    loadDocumentTypes(); // Load document types for assign modal
+
+    // Realtime search
+    document.getElementById('kw-input').addEventListener('input', renderFiltered);
+    ['date-from-filter', 'date-to-filter'].forEach(id => {
+      document.getElementById(id)?.addEventListener('change', renderFiltered);
+    });
+    document.getElementById('btn-clear-advanced-search').addEventListener('click', () => {
+      _activeVisibility = '';
+      document.querySelectorAll('.visibility-tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      document.getElementById('date-from-filter').value = '';
+      document.getElementById('date-to-filter').value = '';
+      renderFiltered();
+    });
+
+    document.querySelectorAll('.visibility-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        if (_activeVisibility === tab.dataset.visibility) {
+          _activeVisibility = '';
+          tab.classList.remove('active');
+          renderFiltered();
+          return;
+        }
+        document.querySelectorAll('.visibility-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        _activeVisibility = tab.dataset.visibility;
+        renderFiltered();
+      });
+    });
+
+    // Tab switching
+    document.querySelectorAll('.filter-tab[data-status]').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.filter-tab[data-status]').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        _activeStatus = tab.dataset.status;
+        renderFiltered();
+      });
+    });
+
+    // Confirm assign document type
+    document.getElementById('btn-confirm-assign-doctype').addEventListener('click', async function() {
+      if (!_assignDoctypeDocId) return;
+      const doctypeId = document.getElementById('assign-doctype-select').value;
+      if (!doctypeId) { Toast.warning('Vui lòng chọn loại hồ sơ.'); return; }
+      this.classList.add('loading');
+      try {
+        await api.patch(`/documents/${_assignDoctypeDocId}/metadata`, { documentTypeId: doctypeId });
+        Modal.close('modal-assign-doctype');
+        Toast.success('Đã gán loại hồ sơ!');
+        loadAll(); // Refresh data
+      } catch (err) {
+        Toast.error('Lỗi: ' + err.message);
+      } finally {
+        this.classList.remove('loading');
+      }
+    });
+  });
+</script>
+</body>
+</html>

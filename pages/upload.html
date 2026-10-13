@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tải lên tài liệu — BV Hữu Nghị</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <!-- PDF.js (local copy) for text extraction -->
+  <script src="../assets/js/vendor/pdf.min.js"></script>
+  <!-- Tesseract.js for OCR (scan documents) -->
+  <script src="../assets/js/vendor/tesseract.min.js"></script>
+  <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+  <style>
+    .file-preview {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px;
+      background: var(--gray-100);
+      border-radius: var(--radius);
+      margin-top: 12px;
+    }
+    .file-preview-icon {
+      width: 44px; height: 44px;
+      background: var(--navy);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--white);
+      flex-shrink: 0;
+    }
+    .file-preview-info { flex: 1; }
+    .file-preview-name { font-weight: 600; font-size: .9rem; }
+    .file-preview-size { font-size: .78rem; color: var(--gray-600); font-family: 'IBM Plex Mono', monospace; }
+
+    .upload-progress { display: none; margin-top: 16px; }
+    .upload-success  { display: none; text-align: center; padding: 32px; }
+    .upload-success .stamp { margin: 0 auto 16px; }
+
+    /* Tag input */
+    .tag-input-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 8px 10px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius);
+      background: var(--white);
+      min-height: 42px;
+      cursor: text;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .tag-input-wrap:focus-within {
+      border-color: var(--brass);
+      box-shadow: 0 0 0 3px rgba(156,107,46,.15);
+    }
+    .tag-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 10px 2px 10px;
+      background: rgba(27,42,74,.08);
+      color: var(--navy);
+      border-radius: 99px;
+      font-size: .78rem;
+      font-weight: 600;
+    }
+    .tag-chip button {
+      background: none; border: none; cursor: pointer;
+      color: var(--gray-600); font-size: .75rem; padding: 0;
+      line-height: 1; display: flex; align-items: center;
+    }
+    .tag-chip button:hover { color: var(--stamp-deny); }
+    .tag-input-field {
+      border: none; outline: none; font-size: .88rem;
+      font-family: 'Inter', sans-serif; color: var(--navy);
+      background: transparent; min-width: 120px; flex: 1;
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Sidebar -->
+  <nav class="sidebar"></nav>
+
+  <!-- Main -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <main class="main-content">
+    <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+    </div>
+
+    <div style="max-width:680px">
+      <div class="card" id="upload-form-card">
+
+        <!-- Drop zone -->
+        <div class="drop-zone" id="drop-zone">
+          <svg class="dz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+          </svg>
+          <h3>Kéo thả file PDF vào đây</h3>
+          <p>hoặc nhấp để chọn file &nbsp;·&nbsp; Có thể chọn nhiều file &nbsp;·&nbsp; Tối đa 500 MB/file</p>
+        </div>
+        <input type="file" id="file-input" accept=".pdf,application/pdf" multiple style="display:none" />
+
+        <!-- File preview -->
+        <div id="file-preview" style="display:none" class="file-preview"></div>
+
+        <!-- Form fields -->
+        <div id="form-fields" style="margin-top:24px;display:none">
+          <div class="form-group">
+            <label class="form-label" for="doc-title">Tiêu đề tài liệu <span style="color:var(--stamp-deny)">*</span></label>
+            <input class="form-control" type="text" id="doc-title" placeholder="Nhập tiêu đề…" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="doc-reference-no">Số ký hiệu</label>
+            <input class="form-control" type="text" id="doc-reference-no" placeholder="VD: 58/KH/BTC" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="doc-issuing-unit">Đơn vị ban hành</label>
+            <input class="form-control" type="text" id="doc-issuing-unit" placeholder="VD: Ban Tổ chức Trưng cầu" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="doc-organizing-body">Ban tổ chức trưng cầu</label>
+            <input class="form-control" type="text" id="doc-organizing-body" placeholder="VD: UBND tỉnh" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="doc-received-date">Ngày đến</label>
+            <input class="form-control" type="date" id="doc-received-date" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="doc-document-number">Số văn bản</label>
+            <input class="form-control" type="text" id="doc-document-number" placeholder="VD: 123/2026" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="doc-security-level">Độ mật</label>
+            <select class="form-control" id="doc-security-level">
+              <option value="Thường">Thường</option>
+              <option value="Mật">Mật</option>
+              <option value="Tối mật">Tối mật</option>
+              <option value="Tuyệt mật">Tuyệt mật</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="doc-author-name">Người soạn thảo</label>
+            <input class="form-control" type="text" id="doc-author-name" placeholder="VD: Đinh Huyền" />
+          </div>
+
+          <!-- Khoa được lấy tự động từ tài khoản đang đăng nhập -->
+          <input type="hidden" id="doc-dept" />
+
+          <!-- Loại hồ sơ (TT33/2025/TT-BYT) -->
+          <div class="form-group">
+            <label class="form-label" for="doc-type">
+              Loại hồ sơ <span style="color:var(--stamp-deny)">*</span>
+              <span style="color:var(--gray-400);font-weight:400;font-size:.78rem">(theo TT 33/2025/TT-BYT)</span>
+            </label>
+            <select class="form-control" id="doc-type" required>
+              <option value="">— Chọn loại hồ sơ —</option>
+            </select>
+            <div id="doc-type-hint" style="display:none;margin-top:6px;padding:8px 12px;
+              background:rgba(27,42,74,.05);border-radius:var(--radius-sm);font-size:.78rem;color:var(--gray-600)">
+            </div>
+          </div>
+
+          <!-- Ngày hình thành tài liệu -->
+          <div class="form-group">
+            <label class="form-label" for="doc-issued-date">
+              Ngày hình thành tài liệu
+              <span style="color:var(--gray-400);font-weight:400;font-size:.78rem">(ngày ban hành / lập hồ sơ, có thể khác ngày tải lên)</span>
+            </label>
+            <input class="form-control" type="date" id="doc-issued-date" max="" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="doc-summary">Trích yếu / tóm tắt</label>
+            <textarea class="form-control" id="doc-summary" rows="4" placeholder="Nhập nội dung tóm tắt của hồ sơ…"></textarea>
+          </div>
+
+          <!-- Quyền xem -->
+          <div class="form-group">
+            <label class="form-label">Quyền xem tài liệu</label>
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;
+                padding:10px 16px;border:1.5px solid var(--gray-200);border-radius:var(--radius);
+                transition:border-color var(--transition),background var(--transition);flex:1;min-width:140px"
+                id="label-visibility-public">
+                <input type="radio" name="doc-visibility" value="public" checked
+                  style="accent-color:var(--stamp-ok)" />
+                <div>
+                  <div style="font-weight:600;font-size:.85rem">📢 Công khai</div>
+                  <div style="font-size:.72rem;color:var(--gray-600)">Cần phê duyệt</div>
+                </div>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;
+                padding:10px 16px;border:1.5px solid var(--gray-200);border-radius:var(--radius);
+                transition:border-color var(--transition),background var(--transition);flex:1;min-width:140px"
+                id="label-visibility-department">
+                <input type="radio" name="doc-visibility" value="department"
+                  style="accent-color:var(--brass)" />
+                <div>
+                  <div style="font-weight:600;font-size:.85rem">🏢 Nội bộ khoa</div>
+                  <div style="font-size:.72rem;color:var(--gray-600)">Chỉ thành viên khoa</div>
+                </div>
+              </label>
+            </div>
+            <div id="visibility-hint" style="display:none;margin-top:10px;padding:10px 14px;
+              background:rgba(27,42,74,.04);border-left:3px solid var(--brass);
+              border-radius:var(--radius-sm);font-size:.82rem;color:var(--gray-700)">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="doc-desc">
+              Mô tả (tự động trích xuất, cần rà soát)
+            </label>
+            <textarea class="form-control" id="doc-desc" placeholder="Nội dung trích xuất sẽ xuất hiện ở đây…" rows="6"></textarea>
+            <div id="pdf-extract-status" style="margin-top:6px;font-size:.78rem;color:var(--gray-500)"></div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Thẻ / Tag <span style="color:var(--gray-400);font-weight:400">(Enter hoặc dấu phẩy để thêm)</span></label>
+            <div class="tag-input-wrap" id="tag-wrap" onclick="document.getElementById('tag-field').focus()">
+              <input class="tag-input-field" type="text" id="tag-field"
+                placeholder="VD: báo cáo, 2024, y-tế…" />
+            </div>
+          </div>
+
+          <!-- Upload progress -->
+          <div class="upload-progress" id="upload-progress">
+            <div class="form-label" style="margin-bottom:8px">Đang tải lên…</div>
+            <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:8px">
+            <button class="btn btn-primary" id="btn-submit" style="flex:1;justify-content:center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+              <span id="btn-submit-text">Tải lên tài liệu</span>
+            </button>
+            <a href="my-documents.html" class="btn btn-ghost">Huỷ</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Success state -->
+      <div class="card upload-success" id="upload-success">
+        <div class="stamp stamp-pending stamp-lg" id="success-stamp">CHỜ<br>DUYỆT</div>
+        <h2 style="margin-bottom:8px" id="success-title">Tài liệu đã được gửi!</h2>
+        <p style="color:var(--gray-600);margin-bottom:24px" id="success-message">Admin sẽ xem xét và duyệt tài liệu của bạn sớm nhất.</p>
+        <div style="display:flex;gap:10px;justify-content:center">
+          <a href="upload.html" class="btn btn-primary">Tải lên thêm</a>
+          <a href="my-documents.html" class="btn btn-ghost">Xem tài liệu của tôi</a>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-container"></div>
+<script src="../assets/js/app.js?v=role-sync-12"></script>
+<script src="../assets/js/sidebar.js?v=role-sync-12"></script>
+<script>
+  Auth.require();
+
+  let selectedFiles = [];
+  let tags = [];
+  let autoExtractedDescription = '';
+  const MAX_UPLOAD_FILE_SIZE_MB = 500;
+  const MAX_UPLOAD_FILE_SIZE_BYTES = MAX_UPLOAD_FILE_SIZE_MB * 1024 * 1024;
+  
+  // PDF.js worker setup (local files)
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '../assets/js/vendor/pdf.worker.min.js';
+    console.log('[PDF.js] Loaded from local, version:', pdfjsLib.version);
+  } else {
+    console.error('[PDF.js] Failed to load');
+  }
+
+  /* ── PDF Text Extraction with OCR Fallback ────────────────── */
+  async function extractPdfText(file) {
+    const statusEl = document.getElementById('pdf-extract-status');
+    
+    // Check if PDF.js is loaded
+    if (typeof pdfjsLib === 'undefined') {
+      console.error('PDF.js library not loaded');
+      if (statusEl) {
+        statusEl.textContent = '— lỗi: thư viện PDF.js chưa tải';
+        statusEl.style.color = 'var(--stamp-deny)';
+      }
+      return null;
+    }
+    
+    if (statusEl) {
+      statusEl.textContent = `— đang đọc nội dung ${file.name}…`;
+      statusEl.style.color = 'var(--brass)';
+    }
+    
+    try {
+      console.log('[PDF Extract] Starting extraction for:', file.name);
+      const arrayBuffer = await file.arrayBuffer();
+      console.log('[PDF Extract] File loaded, size:', arrayBuffer.byteLength);
+      
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+      const numPages = pdf.numPages;
+      console.log('[PDF Extract] PDF loaded, pages:', numPages);
+      
+      let fullText = '';
+      
+      // Extract text from all pages (limit to first 50 pages for performance)
+      const maxPages = Math.min(numPages, 50);
+      for (let i = 1; i <= maxPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        fullText += pageText + '\n\n';
+        
+        // Update progress every 5 pages
+        if (i % 5 === 0 || i === maxPages) {
+          if (statusEl) statusEl.textContent = `— đang xử lý ${file.name}: trang ${i}/${maxPages}…`;
+        }
+      }
+      
+      if (numPages > 50) {
+        fullText += `\n[... và ${numPages - 50} trang còn lại]`;
+      }
+      
+      const cleanedText = fullText.trim();
+      console.log('[PDF Extract] Extracted text length:', cleanedText.length, 'chars');
+      
+      // If no text found, try OCR on first 3 pages
+      if (cleanedText.length === 0) {
+        console.log('[PDF Extract] No text layer found, attempting OCR...');
+        if (statusEl) {
+          statusEl.textContent = `— ${file.name} là PDF scan, đang nhận dạng chữ…`;
+          statusEl.style.color = 'var(--brass)';
+        }
+        
+        const ocrPageLimit = Math.min(numPages, 50);
+        const ocrText = await extractTextWithOCR(pdf, ocrPageLimit);
+        if (ocrText && ocrText.length > 0) {
+          console.log('[OCR] Extracted', ocrText.length, 'chars via OCR');
+          if (statusEl) {
+            statusEl.textContent = `— đã nhận dạng ${ocrPageLimit}/${numPages} trang của ${file.name} (OCR)`;
+            statusEl.style.color = 'var(--stamp-ok)';
+          }
+          return ocrText;
+        } else {
+          if (statusEl) {
+            statusEl.textContent = '— không thể nhận dạng chữ, vui lòng nhập mô tả thủ công';
+            statusEl.style.color = 'var(--gray-500)';
+          }
+          return null;
+        }
+      }
+      
+      if (statusEl) {
+        statusEl.textContent = `— đã trích xuất ${maxPages}/${numPages} trang của ${file.name}`;
+        statusEl.style.color = 'var(--stamp-ok)';
+      }
+      
+      return cleanedText;
+    } catch (err) {
+      console.error('[PDF Extract] Failed:', err);
+      if (statusEl) {
+        statusEl.textContent = `— lỗi: ${err.message || 'không thể đọc PDF'}`;
+        statusEl.style.color = 'var(--stamp-deny)';
+      }
+      return null;
+    }
+  }
+  
+  /* ── OCR Text Extraction using Tesseract.js ──────────────── */
+  async function extractTextWithOCR(pdf, maxPages) {
+    if (typeof Tesseract === 'undefined') {
+      console.error('[OCR] Tesseract.js not loaded');
+      return null;
+    }
+    
+    const statusEl = document.getElementById('pdf-extract-status');
+    let fullText = '';
+    
+    try {
+      // Create Tesseract worker
+      const worker = await Tesseract.createWorker('vie', 1, {
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            const progress = Math.round(m.progress * 100);
+            if (statusEl) statusEl.textContent = `— OCR đang nhận dạng: ${progress}%`;
+          }
+        }
+      });
+      
+      // Process each page (limit to maxPages for performance)
+      for (let i = 1; i <= maxPages; i++) {
+        if (statusEl) statusEl.textContent = `— OCR trang ${i}/${maxPages}…`;
+        
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 3.0 });
+        
+        // Render page to canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const context = canvas.getContext('2d');
+        
+        await page.render({
+          canvasContext: context,
+          viewport: viewport
+        }).promise;
+
+        // Reduce scan noise before OCR so faint backgrounds and watermarks
+        // have less influence on Vietnamese character recognition.
+        const image = context.getImageData(0, 0, canvas.width, canvas.height);
+        for (let offset = 0; offset < image.data.length; offset += 4) {
+          const gray = 0.299 * image.data[offset]
+            + 0.587 * image.data[offset + 1]
+            + 0.114 * image.data[offset + 2];
+          const contrast = Math.max(0, Math.min(255, (gray - 128) * 1.8 + 128));
+          image.data[offset] = contrast;
+          image.data[offset + 1] = contrast;
+          image.data[offset + 2] = contrast;
+        }
+        context.putImageData(image, 0, 0);
+        
+        // OCR the canvas
+        const { data: { text } } = await worker.recognize(canvas);
+        fullText += text + '\n\n';
+        
+        console.log(`[OCR] Page ${i} extracted:`, text.length, 'chars');
+      }
+      
+      await worker.terminate();
+      return fullText.trim();
+      
+    } catch (err) {
+      console.error('[OCR] Failed:', err);
+      return null;
+    }
+  }
+
+  /* ── Multi-file preview helpers ────────────────────────────── */
+  function addFilePreview(file) {
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      Toast.error('Chỉ chấp nhận file PDF!'); return false;
+    }
+    if (file.size > MAX_UPLOAD_FILE_SIZE_BYTES) {
+      Toast.error(`File vượt quá giới hạn ${MAX_UPLOAD_FILE_SIZE_MB} MB!`); return false;
+    }
+    selectedFiles.push(file);
+    return true;
+  }
+
+  function renderFilePreviews() {
+    const container = document.getElementById('file-preview');
+    if (selectedFiles.length === 0) {
+      container.style.display = 'none';
+      document.getElementById('form-fields').style.display = 'none';
+      return;
+    }
+
+    container.style.display = 'block';
+    document.getElementById('form-fields').style.display = 'block';
+
+    // Clear existing preview and rebuild
+    container.innerHTML = '';
+    
+    selectedFiles.forEach((file, idx) => {
+      const preview = document.createElement('div');
+      preview.style.cssText = 'display:flex;align-items:center;gap:14px;padding:16px;background:var(--gray-100);border-radius:var(--radius);margin-top:' + (idx === 0 ? '0' : '12px');
+      preview.innerHTML = `
+        <div style="width:44px;height:44px;background:var(--navy);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--white);flex-shrink:0">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:.9rem">${file.name}</div>
+          <div style="font-size:.78rem;color:var(--gray-600);font-family:'IBM Plex Mono',monospace">${fmtSize(file.size)}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="removeFile(${idx})">✕ Xoá</button>
+      `;
+      container.appendChild(preview);
+    });
+  }
+
+  async function extractAndFillDescription(file) {
+    const extractedText = await extractPdfText(file);
+    if (!extractedText || !selectedFiles.includes(file)) return;
+
+    const descriptionField = document.getElementById('doc-desc');
+    const previousAutoText = autoExtractedDescription;
+    const fileText = `Nội dung trích xuất từ ${file.name}:\n${extractedText}`;
+    autoExtractedDescription = previousAutoText
+      ? `${previousAutoText}\n\n${fileText}`
+      : fileText;
+
+    // Do not overwrite text the user has already entered manually.
+    if (!descriptionField.value.trim() || descriptionField.value === previousAutoText) {
+      descriptionField.value = autoExtractedDescription;
+    }
+  }
+
+  window.removeFile = function(idx) {
+    selectedFiles.splice(idx, 1);
+    autoExtractedDescription = '';
+    document.getElementById('doc-desc').value = '';
+    renderFilePreviews();
+    selectedFiles.forEach(file => extractAndFillDescription(file));
+    // Reset input so we can re-select the same files if needed
+    document.getElementById('file-input').value = '';
+  };
+
+  /* ── Tag input ──────────────────────────────────────────────── */
+  const tagField = document.getElementById('tag-field');
+  const tagWrap  = document.getElementById('tag-wrap');
+
+  function addTag(val) {
+    const t = val.trim().toLowerCase().replace(/[^a-z0-9àáâãèéêìíòóôõùúýăđơư\s-]/gi, '');
+    if (!t || tags.includes(t)) return;
+    tags.push(t);
+
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip';
+    chip.dataset.tag = t;
+
+    const label = document.createTextNode(t);
+    const removeBtn = document.createElement('button');
+    removeBtn.type  = 'button';
+    removeBtn.title = 'Xoá';
+    removeBtn.textContent = '✕';
+    removeBtn.addEventListener('click', () => removeTag(t, chip));
+
+    chip.appendChild(label);
+    chip.appendChild(removeBtn);
+    tagWrap.insertBefore(chip, tagField);
+  }
+
+  function removeTag(val, chip) {
+    tags  = tags.filter(t => t !== val);
+    chip?.remove();
+  }
+
+  tagField.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag(tagField.value);
+      tagField.value = '';
+    } else if (e.key === 'Backspace' && !tagField.value && tags.length) {
+      const last = tags[tags.length - 1];
+      const lastChip = tagWrap.querySelector(`.tag-chip[data-tag="${CSS.escape(last)}"]`);
+      removeTag(last, lastChip);
+    }
+  });
+
+  tagField.addEventListener('blur', () => {
+    if (tagField.value.trim()) {
+      addTag(tagField.value);
+      tagField.value = '';
+    }
+  });
+
+  /* ── Load document types ────────────────────────────────────── */
+  function loadDocumentTypes() {
+    api.get('/document-types').then(res => {
+      const types = Array.isArray(res) ? res : (res.data || []);
+      const sel   = document.getElementById('doc-type');
+      types.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.dataset.permanent     = t.isPermanent ? '1' : '0';
+        opt.dataset.retentionYears = t.retentionYears || '';
+        opt.dataset.basis          = t.retentionBasis || '';
+        opt.textContent = `${t.code ? `[${t.code}] ` : ''}${t.name}`;
+        sel.appendChild(opt);
+      });
+    }).catch(() => {});
+  }
+
+  // Hiển thị gợi ý thời hạn khi chọn loại hồ sơ
+  document.getElementById('doc-type').addEventListener('change', function () {
+    const opt   = this.selectedOptions[0];
+    const hint  = document.getElementById('doc-type-hint');
+    if (!opt?.value) { hint.style.display = 'none'; return; }
+
+    const perm   = opt.dataset.permanent === '1';
+    const years  = opt.dataset.retentionYears;
+    const basis  = { creation:'từ ngày hình thành', end_of_work:'từ khi kết thúc công việc',
+                     death:'từ ngày người bệnh qua đời', custom:'xem ghi chú' }[opt.dataset.basis] || '';
+    hint.style.display = 'block';
+    hint.innerHTML = perm
+      ? `⚠ Loại hồ sơ này có giá trị <strong style="color:var(--stamp-ok)">vĩnh viễn</strong> — không tiêu hủy.`
+      : `⏳ Thời hạn lưu trữ: <strong>${years} năm</strong> ${basis ? `(${basis})` : ''}.`;
+  });
+
+  // Highlight radio khi chọn (visibility) và update UI text
+  document.querySelectorAll('input[name="doc-visibility"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('input[name="doc-visibility"]').forEach(r => {
+        r.closest('label').style.borderColor = '';
+        r.closest('label').style.background  = '';
+      });
+      const color = radio.value === 'public' ? 'var(--stamp-ok)' : 'var(--brass)';
+      radio.closest('label').style.borderColor = color;
+      radio.closest('label').style.background  = color.replace(')', ', 0.05)').replace('var(', 'rgba(');
+      
+      // Update button text
+      const btnText = document.getElementById('btn-submit-text');
+      btnText.textContent = 'Gửi lên để duyệt';
+    });
+  });
+
+  /* ── Drop zone ──────────────────────────────────────────────── */
+  const dropEl  = document.getElementById('drop-zone');
+  const inputEl = document.getElementById('file-input');
+
+  initDropZone(dropEl, inputEl, files => {
+    // Handle multiple files
+    const fileList = files.length ? Array.from(files) : [files];
+    
+    const addedFiles = fileList.filter(file => addFilePreview(file));
+    
+    renderFilePreviews();
+    addedFiles.forEach(file => extractAndFillDescription(file));
+    
+    // Focus tiêu đề để UX tốt hơn
+    if (selectedFiles.length > 0) {
+      setTimeout(() => document.getElementById('doc-title').focus(), 50);
+    }
+  });
+
+  // Also handle input change event for multiple files
+  inputEl.addEventListener('change', (e) => {
+    if (e.target.files.length) {
+      const addedFiles = Array.from(e.target.files).filter(file => addFilePreview(file));
+      renderFilePreviews();
+      addedFiles.forEach(file => extractAndFillDescription(file));
+      if (selectedFiles.length > 0) {
+        setTimeout(() => document.getElementById('doc-title').focus(), 50);
+      }
+    }
+  });
+
+  /* ── Submit ─────────────────────────────────────────────────── */
+  document.getElementById('btn-submit').addEventListener('click', async () => {
+    if (selectedFiles.length === 0) { 
+      Toast.warning('Vui lòng chọn ít nhất một file PDF trước.'); 
+      return; 
+    }
+    const title = document.getElementById('doc-title').value.trim();
+    if (!title) { Toast.warning('Vui lòng nhập tiêu đề tài liệu.'); return; }
+    
+    const docType = document.getElementById('doc-type').value;
+    if (!docType) { Toast.warning('Vui lòng chọn loại hồ sơ.'); return; }
+
+    const btn        = document.getElementById('btn-submit');
+    const progressEl = document.getElementById('upload-progress');
+    const fillEl     = document.getElementById('progress-fill');
+
+    btn.classList.add('loading');
+    btn.disabled          = true;
+    progressEl.style.display = 'block';
+
+    // Fake progress
+    let prog  = 0;
+    const timer = setInterval(() => {
+      prog = Math.min(prog + Math.random() * 15, 85);
+      fillEl.style.width = prog + '%';
+    }, 200);
+
+    // Get logged-in user's department
+    const user = Auth.getUser();
+    const userDeptId = user?.department?.id;
+    
+    if (!userDeptId) {
+      Toast.error('Không xác định được khoa/đơn vị của tài khoản. Vui lòng đăng nhập lại.');
+      clearInterval(timer);
+      progressEl.style.display = 'none';
+      btn.classList.remove('loading');
+      btn.disabled = false;
+      return;
+    }
+
+    // Upload each file separately (backend expects single file per request)
+    let successCount = 0;
+    let failCount = 0;
+    let lastError = null;
+
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      const form = new FormData();
+      
+      // For multiple files, append index to title
+      const fileTitle = selectedFiles.length === 1 
+        ? title 
+        : `${title} (${i + 1}/${selectedFiles.length})`;
+      
+      form.append('file',  file);
+      form.append('title', fileTitle);
+      
+      const desc          = document.getElementById('doc-desc').value.trim();
+      const summary       = document.getElementById('doc-summary').value.trim();
+      const referenceNo   = document.getElementById('doc-reference-no').value.trim();
+      const issuingUnit   = document.getElementById('doc-issuing-unit').value.trim();
+      const organizingBody= document.getElementById('doc-organizing-body').value.trim();
+      const receivedDate  = document.getElementById('doc-received-date').value.trim();
+      const documentNumber= document.getElementById('doc-document-number').value.trim();
+      const securityLevel = document.getElementById('doc-security-level').value.trim();
+      const authorName    = document.getElementById('doc-author-name').value.trim();
+      const docType       = document.getElementById('doc-type').value;
+      const issuedDate    = document.getElementById('doc-issued-date').value.trim();
+      const visibility    = document.querySelector('input[name="doc-visibility"]:checked')?.value || 'public';
+
+      // Auto-populate department from logged-in user
+      if (userDeptId)       form.append('departmentId', userDeptId);
+      if (docType)          form.append('documentTypeId', docType);
+      if (desc)             form.append('description', desc);
+      if (summary)          form.append('summary', summary);
+      if (referenceNo)      form.append('referenceNo', referenceNo);
+      if (issuingUnit)      form.append('issuingUnit', issuingUnit);
+      if (organizingBody)   form.append('organizingBody', organizingBody);
+      if (receivedDate)     form.append('receivedDate', receivedDate);
+      if (documentNumber)   form.append('documentNumber', documentNumber);
+      if (securityLevel)    form.append('securityLevel', securityLevel);
+      if (authorName)       form.append('authorName', authorName);
+      if (issuedDate)       form.append('documentDate', issuedDate);
+      if (visibility)       form.append('visibility', visibility);
+      
+      // Note: Backend will handle approval logic based on visibility
+
+      try {
+        await api.upload('/documents/upload', form);
+        successCount++;
+      } catch (err) {
+        console.error(`Failed to upload ${file.name}:`, err);
+        lastError = err;
+        failCount++;
+      }
+    }
+
+    clearInterval(timer);
+    fillEl.style.width = '100%';
+    
+    // Get visibility for success message
+    const visibility = document.querySelector('input[name="doc-visibility"]:checked')?.value || 'public';
+
+    if (failCount === 0) {
+      // All succeeded
+      setTimeout(() => {
+        document.getElementById('upload-form-card').style.display = 'none';
+        const successEl = document.getElementById('upload-success');
+        const successMsg = successEl.querySelector('p');
+        const stamp = document.getElementById('success-stamp');
+        
+        stamp.className = 'stamp stamp-pending stamp-lg';
+        stamp.innerHTML = 'CHỜ<br>DUYỆT';
+        if (selectedFiles.length > 1) {
+          successMsg.textContent = `${successCount} tài liệu đã được gửi! Admin sẽ xem xét và duyệt sớm nhất.`;
+        } else {
+          successMsg.textContent = 'Admin sẽ xem xét và duyệt tài liệu của bạn sớm nhất.';
+        }
+        
+        successEl.style.display = 'block';
+        animateStamp(stamp);
+      }, 400);
+    } else if (successCount > 0) {
+      // Partial success
+      progressEl.style.display = 'none';
+      btn.classList.remove('loading');
+      btn.disabled = false;
+      Toast.warning(`Đã tải lên ${successCount}/${selectedFiles.length} file. ${failCount} file thất bại.`);
+      
+      // Remove successfully uploaded files from list
+      selectedFiles = selectedFiles.slice(successCount);
+      renderFilePreviews();
+    } else {
+      // All failed
+      progressEl.style.display = 'none';
+      btn.classList.remove('loading');
+      btn.disabled = false;
+      const errorMsg = lastError?.message || 'Lỗi không xác định';
+      Toast.error(`Lỗi tải lên: ${errorMsg}`);
+    }
+  });
+
+  /* ── Init ───────────────────────────────────────────────────── */
+  document.addEventListener('DOMContentLoaded', () => {
+    // Set max date = hôm nay cho trường ngày hình thành
+    document.getElementById('doc-issued-date').max = new Date().toISOString().slice(0, 10);
+    
+    // Auto-populate department from logged-in user
+    const user = Auth.getUser();
+    if (user?.department?.id) {
+      document.getElementById('doc-dept').value = user.department.id;
+    }
+
+    document.querySelector('input[name="doc-visibility"]:checked')?.dispatchEvent(new Event('change'));
+    
+    loadDocumentTypes();
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "lths-frontend",
+  "version": "1.0.0",
+  "description": "LTHS — Hệ Thống Lưu Trữ Tài Liệu PDF",
+  "scripts": {
+    "start": "npx serve . -p 5000 --no-clipboard",
+    "dev": "npx live-server --port=5000 --open=pages/login.html"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.0",
+    "serve": "^14.2.3"
+  }
+}

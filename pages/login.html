@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đăng nhập — Bệnh viện Hữu Nghị</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--paper); }
+
+    .login-wrap {
+      display: flex;
+      width: 100%;
+      max-width: 900px;
+      min-height: 560px;
+      box-shadow: var(--shadow-lg);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    /* Left decorative panel */
+    .login-art {
+      flex: 1;
+      background: var(--navy);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 36px;
+      gap: 24px;
+    }
+
+    .login-art-logo { width: 132px; height: 132px; object-fit: contain; animation: stampDrop .7s .3s cubic-bezier(.22,1,.36,1) both; }
+
+    .login-art h1 {
+      color: var(--white);
+      font-size: 1.5rem;
+      text-align: center;
+      line-height: 1.3;
+    }
+    .login-art p {
+      color: rgba(255,255,255,.55);
+      font-size: .85rem;
+      text-align: center;
+      max-width: 240px;
+    }
+
+    .catalog-lines {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .catalog-line {
+      height: 1px;
+      background: rgba(255,255,255,.1);
+      border-radius: 1px;
+    }
+    .catalog-line:nth-child(2) { width: 80%; }
+    .catalog-line:nth-child(3) { width: 60%; }
+
+    /* Right form panel */
+    .login-form-panel {
+      flex: 1;
+      background: var(--white);
+      padding: 52px 44px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .login-form-panel h2 {
+      font-size: 1.6rem;
+      margin-bottom: 6px;
+    }
+    .login-form-panel .sub {
+      color: var(--gray-600);
+      font-size: .88rem;
+      margin-bottom: 32px;
+    }
+
+    .login-btn { width: 100%; justify-content: center; padding: 12px; font-size: 1rem; margin-top: 8px; }
+
+    .captcha-group { margin-top: 18px; }
+    .captcha-label { display: block; color: var(--gray-700); font-size: .82rem; font-weight: 600; margin-bottom: 8px; }
+    .captcha-row { display: flex; align-items: center; gap: 8px; }
+    .captcha-image {
+      flex: 0 0 128px;
+      height: 42px;
+      object-fit: cover;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      background: repeating-linear-gradient(-12deg, #eef4fc 0 5px, #f8fbff 5px 10px);
+      color: var(--navy);
+      font: 700 1.15rem 'IBM Plex Mono', monospace;
+      letter-spacing: .18em;
+      user-select: none;
+    }
+    .captcha-refresh { flex: 0 0 42px; height: 42px; padding: 0; font-size: 1.2rem; }
+    .captcha-input { flex: 1; min-width: 0; height: 42px; }
+
+    .login-footer {
+      margin-top: 24px;
+      font-size: .78rem;
+      color: var(--gray-400);
+      text-align: center;
+    }
+
+    #login-error {
+      background: rgba(163,59,59,.1);
+      border: 1px solid rgba(163,59,59,.25);
+      color: var(--stamp-deny);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-size: .85rem;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    /* OTP Form Styles */
+    #otp-panel {
+      display: none;
+    }
+    
+    .otp-input-group {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin: 24px 0;
+    }
+    
+    .otp-input {
+      width: 48px;
+      height: 56px;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      font-family: 'IBM Plex Mono', monospace;
+      border: 2px solid var(--gray-200);
+      border-radius: var(--radius);
+      outline: none;
+      transition: all var(--transition);
+    }
+    
+    .otp-input:focus {
+      border-color: var(--navy);
+      box-shadow: 0 0 0 3px rgba(13,71,161,.1);
+    }
+    
+    .otp-info {
+      background: rgba(13,71,161,.08);
+      border: 1px solid rgba(13,71,161,.2);
+      color: var(--navy);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      font-size: .85rem;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    .otp-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    
+    .otp-actions button {
+      flex: 1;
+    }
+
+    @media (max-width: 680px) {
+      .login-art { display: none; }
+      .login-form-panel { padding: 36px 28px; }
+      .otp-input { width: 42px; height: 50px; font-size: 1.3rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-wrap">
+  <!-- Decorative left -->
+  <div class="login-art">
+    <img class="login-art-logo" src="../assets/images/logo.png" alt="Logo Bệnh viện Hữu Nghị" />
+    <h1>BỆNH VIỆN HỮU NGHỊ<br>Hệ thống lưu trữ tài liệu</h1>
+    <p>Vietnam-HuuNghi Hospital<br>Document Archive System</p>
+    <div class="catalog-lines">
+      <div class="catalog-line"></div>
+      <div class="catalog-line"></div>
+      <div class="catalog-line"></div>
+    </div>
+  </div>
+
+  <!-- Form -->
+  <div class="login-form-panel">
+    <h2>Đăng nhập</h2>
+    <p class="sub">Nhập thông tin tài khoản của bạn</p>
+
+    <div id="login-error"></div>
+
+    <!-- Login Form -->
+    <form id="login-form" autocomplete="on">
+      <div class="form-group">
+        <label class="form-label" for="email">Email</label>
+        <input class="form-control" type="email" id="email" name="email"
+               placeholder="ten@truong.edu.vn" required autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Mật khẩu</label>
+        <div style="position:relative">
+          <input class="form-control" type="password" id="password" name="password"
+                 placeholder="••••••••" required autocomplete="current-password"
+                 style="padding-right:44px" />
+          <button type="button" id="btn-toggle-pw"
+            style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray-400);padding:4px;display:flex;align-items:center"
+            aria-label="Hiện/ẩn mật khẩu">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="captcha-group">
+        <label class="captcha-label" for="captcha-input">Nhập mã xác nhận</label>
+        <div class="captcha-row">
+          <img class="captcha-image" id="captcha-image" alt="Mã xác nhận" />
+          <button class="btn btn-ghost captcha-refresh" type="button" id="captcha-refresh" aria-label="Tạo mã xác nhận mới" title="Tạo mã mới">↻</button>
+          <input class="form-control captcha-input" type="text" id="captcha-input" maxlength="6" required autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="captcha-help" />
+        </div>
+        <small id="captcha-help" style="display:block;margin-top:6px;color:var(--gray-500);font-size:.75rem">Nhập đúng 6 ký tự trong hình.</small>
+      </div>
+      <button class="btn btn-primary login-btn" type="submit" id="login-btn">
+        Đăng nhập
+      </button>
+      <a href="forgot-password.html" style="display:block;text-align:center;margin-top:16px;color:var(--navy);font-size:.85rem">Quên mật khẩu?</a>
+    </form>
+
+    <!-- OTP Verification Panel -->
+    <div id="otp-panel">
+      <div class="otp-info">
+        Mã xác thực OTP đã được gửi đến email <strong id="otp-email"></strong>. Vui lòng kiểm tra hộp thư.
+      </div>
+      
+      <div class="otp-input-group">
+        <input class="otp-input" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="0" />
+        <input class="otp-input" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="1" />
+        <input class="otp-input" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="2" />
+        <input class="otp-input" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="3" />
+        <input class="otp-input" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="4" />
+        <input class="otp-input" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" data-index="5" />
+      </div>
+
+      <div class="otp-actions">
+        <button class="btn btn-ghost" type="button" id="btn-cancel-otp">Huỷ</button>
+        <button class="btn btn-primary" type="button" id="btn-verify-otp">Xác thực</button>
+      </div>
+      
+      <p style="text-align:center;font-size:.82rem;color:var(--gray-500);margin-top:16px">
+        Không nhận được mã? <button type="button" id="btn-resend-otp" style="background:none;border:none;color:var(--navy);text-decoration:underline;cursor:pointer;font:inherit">Gửi lại</button>
+      </p>
+
+    </div>
+
+    <p class="login-footer">
+      BỆNH VIỆN HỮU NGHỊ<br>
+      <small style="font-size:.8em;opacity:.7">Vietnam-HuuNghi Hospital</small> &nbsp;·&nbsp;
+      <span class="mono">v1.0</span>
+    </p>
+  </div>
+</div>
+
+<div class="toast-container"></div>
+<script src="../assets/js/app.js?v=role-sync-12"></script>
+<script src="../assets/js/sidebar.js?v=role-sync-12"></script>
+<script src="../assets/js/auth-flow.js?v=auth6"></script>
+<script>
+  // Redirect nếu đã đăng nhập
+  if (Auth.getToken()) {
+    const role = Auth.getUser()?.role;
+    if (role === 'admin')            window.location.href = 'admin/dashboard.html';
+    else if (role === 'department_head') window.location.href = 'dept-head/dashboard.html';
+    else window.location.href = 'dashboard.html';
+  }
+
+  /* ── Toggle hiện/ẩn mật khẩu ───────────────────────────────── */
+  const SVG_EYE = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>`;
+  const SVG_EYE_OFF = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
+    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
+    <line x1="1" y1="1" x2="23" y2="23"/>
+  </svg>`;
+
+  document.getElementById('btn-toggle-pw').addEventListener('click', () => {
+    const input = document.getElementById('password');
+    const btn   = document.getElementById('btn-toggle-pw');
+    const isHidden = input.type === 'password';
+    input.type   = isHidden ? 'text' : 'password';
+    btn.innerHTML = isHidden ? SVG_EYE_OFF : SVG_EYE;
+    btn.setAttribute('aria-label', isHidden ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+  });
+
+  /* ── Form submit ────────────────────────────────────────────── */
+  let _pendingUserId = '';
+  let _pendingEmail = '';
+  let _pendingPassword = '';
+  let _captchaId = '';
+
+  async function loadCaptcha() {
+    const captcha = await api.get('/auth/captcha');
+    _captchaId = captcha.captcha_id;
+    const image = captcha.image || captcha.svg;
+    if (!_captchaId || !image) throw new Error('Không tải được mã xác nhận.');
+    document.getElementById('captcha-image').src = image.startsWith('data:')
+      ? image
+      : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(image)}`;
+    document.getElementById('captcha-input').value = '';
+  }
+
+  loadCaptcha().catch(error => {
+    document.getElementById('login-error').textContent = error.message;
+    document.getElementById('login-error').style.display = 'block';
+  });
+  document.getElementById('captcha-refresh').addEventListener('click', () => {
+    loadCaptcha().catch(error => {
+      document.getElementById('login-error').textContent = error.message;
+      document.getElementById('login-error').style.display = 'block';
+    });
+  });
+  
+  document.getElementById('login-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn   = document.getElementById('login-btn');
+    const errEl = document.getElementById('login-error');
+    errEl.style.display = 'none';
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    try {
+      const captchaCode = document.getElementById('captcha-input').value.trim();
+      if (!_captchaId || !captchaCode) throw new Error('Vui lòng nhập mã xác nhận.');
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const isNewAccount = localStorage.getItem(`lths_new_account_${email.trim().toLowerCase()}`) === '1';
+      
+      const res = await api.post('/auth/login', {
+        email,
+        password,
+        captcha_id: _captchaId,
+        captcha_code: captchaCode
+      });
+      const mustChangePassword = requiresPasswordChange(res);
+
+      // Tài khoản mới phải đổi mật khẩu trước, sau đó mới xác thực OTP.
+      if (mustChangePassword) {
+        if (res.reset_token) sessionStorage.setItem('lths_force_reset_token', res.reset_token);
+        sessionStorage.setItem('lths_force_email', email.trim().toLowerCase());
+        authRouteAfterStep(res, res.user_id || res.user?.id, email);
+        return;
+      }
+
+      // Fallback cho tài khoản vừa tạo trên cùng trình duyệt khi backend chưa trả cờ.
+      if (isNewAccount) {
+        sessionStorage.setItem('lths_user_id', res.user_id || '');
+        sessionStorage.setItem('lths_force_user_id', res.user_id || '');
+        sessionStorage.setItem('lths_force_email_hint', res.email_hint || email);
+        sessionStorage.setItem('lths_force_email', email.trim().toLowerCase());
+        window.location.href = 'force-change-password.html';
+        return;
+      }
+
+      // Các lần đăng nhập sau: xác thực OTP ngay trên trang đăng nhập.
+      if (res.requires_otp === true) {
+        _pendingUserId = res.user_id || '';
+        _pendingEmail = email;
+        _pendingPassword = password;
+        showOtpPanel(res.email_hint || email, res.expires_in);
+        Toast.success('Mã OTP đã được gửi về email của bạn');
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        return;
+      }
+      if (authRouteAfterStep(res, res.user_id, email)) return;
+    } catch (err) {
+      errEl.textContent   = err.message || 'Email hoặc mật khẩu không đúng.';
+      errEl.style.display = 'block';
+      loadCaptcha().catch(() => {});
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  });
+
+  /* ── OTP Panel Functions ────────────────────────────────────── */
+  function showOtpPanel(emailHint, expiresIn) {
+    document.getElementById('login-form').style.display = 'none';
+    document.getElementById('otp-panel').style.display = 'block';
+    document.getElementById('otp-email').textContent = emailHint;
+    
+    // Hiển thị thời gian hết hạn nếu có
+    if (expiresIn) {
+      const minutes = Math.floor(expiresIn / 60);
+      const infoEl = document.querySelector('.otp-info');
+      infoEl.innerHTML = `Mã xác thực OTP đã được gửi đến email <strong>${emailHint}</strong>.<br>
+        <small style="opacity:0.8">Mã có hiệu lực trong ${minutes} phút.</small>`;
+    }
+    
+    // Focus first input
+    document.querySelector('.otp-input[data-index="0"]').focus();
+    // Clear all inputs
+    document.querySelectorAll('.otp-input').forEach(input => input.value = '');
+  }
+
+  function hideOtpPanel() {
+    document.getElementById('login-form').style.display = 'block';
+    document.getElementById('otp-panel').style.display = 'none';
+    document.getElementById('login-error').style.display = 'none';
+    document.querySelector('.otp-input-group').style.display = 'flex';
+    document.querySelector('.otp-actions').style.display = 'flex';
+    document.getElementById('btn-resend-otp').closest('p').style.display = 'block';
+    _pendingUserId = '';
+    _pendingEmail = '';
+    _pendingPassword = '';
+  }
+
+  /* ── OTP Input Auto-advance ─────────────────────────────────── */
+  const otpInputs = document.querySelectorAll('.otp-input');
+  otpInputs.forEach((input, idx) => {
+    input.addEventListener('input', e => {
+      const val = e.target.value;
+      // Chỉ cho phép số
+      if (val && !/^\d$/.test(val)) {
+        e.target.value = '';
+        return;
+      }
+      // Auto-advance to next input
+      if (val && idx < otpInputs.length - 1) {
+        otpInputs[idx + 1].focus();
+      }
+    });
+    
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        verifyOtp();
+        return;
+      }
+      // Backspace: move to previous input if current is empty
+      if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+        otpInputs[idx - 1].focus();
+      }
+      // Arrow keys navigation
+      if (e.key === 'ArrowLeft' && idx > 0) {
+        e.preventDefault();
+        otpInputs[idx - 1].focus();
+      }
+      if (e.key === 'ArrowRight' && idx < otpInputs.length - 1) {
+        e.preventDefault();
+        otpInputs[idx + 1].focus();
+      }
+    });
+    
+    // Paste support
+    input.addEventListener('paste', e => {
+      e.preventDefault();
+      const pasteData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+      if (pasteData.length === 6) {
+        otpInputs.forEach((inp, i) => {
+          inp.value = pasteData[i] || '';
+        });
+        otpInputs[5].focus();
+      }
+    });
+  });
+
+  /* ── Verify OTP ──────────────────────────────────────────────── */
+  async function verifyOtp() {
+    const button = document.getElementById('btn-verify-otp');
+    if (button.disabled) return;
+    const otp = Array.from(otpInputs).map(inp => inp.value).join('');
+    
+    if (otp.length !== 6) {
+      Toast.warning('Vui lòng nhập đầy đủ 6 số mã OTP');
+      return;
+    }
+    
+    if (!_pendingUserId) {
+      Toast.error('Phiên đăng nhập đã hết hạn. Vui lòng thử lại.');
+      hideOtpPanel();
+      return;
+    }
+    
+    const errEl = document.getElementById('login-error');
+    errEl.style.display = 'none';
+    button.classList.add('loading');
+    button.disabled = true;
+    
+    try {
+      // Backend expect: { user_id, otp }
+      const res = await api.post('/auth/verify-otp', {
+        user_id: _pendingUserId,
+        otp: otp
+      });
+
+      await authRouteAfterStep(res, res.user_id || res.user?.id || _pendingUserId, _pendingEmail);
+    } catch (err) {
+      errEl.textContent = err.message || 'Mã OTP không đúng hoặc đã hết hạn';
+      errEl.style.display = 'block';
+      button.classList.remove('loading');
+      button.disabled = false;
+      // Clear OTP inputs
+      otpInputs.forEach(inp => inp.value = '');
+      otpInputs[0].focus();
+    }
+  }
+
+  document.getElementById('btn-verify-otp').addEventListener('click', verifyOtp);
+
+  function completeLogin(res) {
+    if (!res.access_token || !res.user) {
+      throw new Error('Backend không trả về thông tin đăng nhập đầy đủ');
+    }
+    if (res.must_change_password === true || res.mustChangePassword === true
+      || res.user.must_change_password === true || res.user.mustChangePassword === true) {
+      sessionStorage.setItem('lths_force_user_id', res.user_id || res.user.id || _pendingUserId);
+      window.location.href = 'force-change-password.html';
+      return;
+    }
+    Auth.setSession(res.access_token, res.user);
+    Toast.success('Đăng nhập thành công!');
+    setTimeout(() => {
+      if (res.user.role === 'admin')                window.location.href = 'admin/dashboard.html';
+      else if (res.user.role === 'department_head') window.location.href = 'dept-head/dashboard.html';
+      else                                          window.location.href = 'dashboard.html';
+    }, 600);
+  }
+
+  /* ── Cancel OTP ──────────────────────────────────────────────── */
+  document.getElementById('btn-cancel-otp').addEventListener('click', () => {
+    hideOtpPanel();
+  });
+
+  /* ── Resend OTP ──────────────────────────────────────────────── */
+  document.getElementById('btn-resend-otp').addEventListener('click', async function() {
+    if (!_pendingEmail || !_pendingPassword) {
+      Toast.error('Không thể gửi lại OTP. Vui lòng đăng nhập lại.');
+      hideOtpPanel();
+      return;
+    }
+    
+    hideOtpPanel();
+    document.getElementById('email').value = _pendingEmail;
+    document.getElementById('password').value = _pendingPassword;
+    await loadCaptcha();
+    Toast.info('Vui lòng nhập mã xác nhận mới để nhận lại OTP');
+  });
+</script>
+</body>
+</html>

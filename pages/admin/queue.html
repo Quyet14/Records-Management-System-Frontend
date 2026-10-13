@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hàng chờ duyệt — BV Hữu Nghị</title>
+  <link rel="stylesheet" href="../../assets/css/style.css" />
+  <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+  <style>
+    .queue-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow var(--transition);
+    }
+    .queue-card:hover { box-shadow: var(--shadow-md); }
+    .queue-card-body { flex: 1; }
+    .queue-card-title { font-family:var(--font-ui) !important; font-size:1.05rem; font-weight:600; margin-bottom:4px; }
+    .queue-card-meta  { font-size:.8rem; color:var(--gray-600); display:flex; gap:14px; flex-wrap:wrap; }
+    .queue-card-actions { display:flex; gap:8px; flex-shrink:0; }
+    .badge-counter {
+      background: var(--stamp-wait);
+      color: var(--white);
+      border-radius: 99px;
+      padding: 2px 8px;
+      font-size: .72rem;
+      font-weight: 700;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Sidebar Admin -->
+  <nav class="sidebar"></nav>
+
+  <!-- Main -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <main class="main-content">
+    <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+    </div>
+
+    <div class="section-tab">
+      <span class="section-tab-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        Tài liệu chờ xử lý
+      </span>
+      <span class="section-tab-line"></span>
+      <span class="section-tab-count" id="queue-count"></span>
+    </div>
+
+    <!-- Bulk action bar — chỉ hiện khi có checkbox được chọn -->
+    <div class="bulk-bar" id="bulk-bar" style="display:none">
+      <span class="bulk-count" id="bulk-count">0 đã chọn</span>
+      <span style="color:rgba(255,255,255,.5);font-size:.8rem">tài liệu được chọn</span>
+      <div class="bulk-actions">
+        <button class="btn btn-approve btn-sm" id="btn-bulk-approve">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Duyệt tất cả
+        </button>
+        <button class="btn btn-reject btn-sm" id="btn-bulk-reject" style="background:rgba(163,59,59,.2);border-color:var(--stamp-deny);color:#fff">
+          Từ chối tất cả
+        </button>
+        <button class="btn btn-ghost btn-sm" id="btn-bulk-cancel"
+          style="color:rgba(255,255,255,.7);border-color:rgba(255,255,255,.2)">
+          Huỷ
+        </button>
+      </div>
+    </div>
+
+    <div id="queue-list" style="display:flex;flex-direction:column;gap:12px">
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        <h3>Đang tải…</h3>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal: Duyệt -->
+<div class="modal-overlay" id="modal-approve">
+  <div class="modal" style="max-width:520px">
+    <button class="modal-close" data-modal-close="modal-approve">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="modal-title">Xác nhận duyệt tài liệu</h3>
+    <p class="modal-subtitle" id="approve-doc-name">—</p>
+    <div class="modal-stamp-center">
+      <div class="stamp stamp-approved stamp-lg" id="approve-stamp">ĐÃ<br>DUYỆT</div>
+    </div>
+
+    <!-- Gán metadata trước khi duyệt -->
+    <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:16px;margin-bottom:4px">
+      <div style="font-size:.8rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+        color:var(--gray-600);margin-bottom:12px">
+        📋 Gán thông tin lưu trữ (bắt buộc trước khi duyệt)
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group" style="grid-column:1/-1;margin-bottom:0">
+          <label class="form-label" style="font-size:.78rem">Loại hồ sơ <span style="color:var(--stamp-deny)">*</span></label>
+          <select class="form-control" id="approve-doc-type" style="font-size:.85rem">
+            <option value="">— Chọn loại hồ sơ —</option>
+          </select>
+          <div id="approve-type-hint" style="display:none;margin-top:5px;font-size:.75rem;color:var(--gray-600)"></div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label" style="font-size:.78rem">Mức giá trị</label>
+          <select class="form-control" id="approve-value-type" style="font-size:.85rem">
+            <option value="inherit">Theo loại hồ sơ</option>
+            <option value="permanent">♾ Vĩnh viễn</option>
+            <option value="limited">⏳ Có thời hạn</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label" style="font-size:.78rem">Ngày hình thành (nếu chưa có)</label>
+          <input class="form-control" type="date" id="approve-issued-date" style="font-size:.85rem" />
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:.8rem;color:var(--gray-600);text-align:center;margin-top:8px">
+      Tài liệu sẽ được chuyển vào kho lưu trữ chính thức và không thể xoá.
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-approve">Huỷ</button>
+      <button class="btn btn-approve" id="btn-confirm-approve">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Xác nhận duyệt
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Từ chối -->
+<div class="modal-overlay" id="modal-reject">
+  <div class="modal">
+    <button class="modal-close" data-modal-close="modal-reject">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="modal-title">Từ chối tài liệu</h3>
+    <p class="modal-subtitle" id="reject-doc-name">—</p>
+    <div class="modal-stamp-center">
+      <div class="stamp stamp-rejected stamp-lg">TỪ<br>CHỐI</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Lý do từ chối <span style="color:var(--stamp-deny)">*</span></label>
+      <textarea class="form-control" id="reject-reason" placeholder="Nêu lý do để người dùng biết cách chỉnh sửa và gửi lại…"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-reject">Huỷ</button>
+      <button class="btn btn-reject" id="btn-confirm-reject">Xác nhận từ chối</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Bulk từ chối -->
+<div class="modal-overlay" id="modal-bulk-reject">
+  <div class="modal" style="max-width:440px">
+    <button class="modal-close" data-modal-close="modal-bulk-reject">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="modal-title">Từ chối hàng loạt</h3>
+    <p class="modal-subtitle" id="bulk-reject-subtitle">Lý do sẽ áp dụng cho tất cả tài liệu được chọn.</p>
+    <div class="form-group">
+      <label class="form-label">Lý do từ chối <span style="color:var(--stamp-deny)">*</span></label>
+      <textarea class="form-control" id="bulk-reject-reason"
+        placeholder="Nêu lý do chung cho tất cả tài liệu…"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-bulk-reject">Huỷ</button>
+      <button class="btn btn-reject" id="btn-confirm-bulk-reject">Xác nhận từ chối</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container"></div>
+<script src="../../assets/js/app.js?v=role-sync-12"></script>
+<script src="../../assets/js/sidebar.js?v=role-sync-12"></script>
+<script>
+  Auth.requireAdmin();
+
+  let _queueDocs    = [];
+  let _pendingDocId = null;
+  let _selectedIds  = new Set();
+
+  /* ── Load queue ─────────────────────────────────────────────── */
+  async function loadQueue() {
+    const container = document.getElementById('queue-list');
+    _selectedIds.clear();
+    updateBulkBar();
+
+    // Xóa innerHTML tạo element mới để tránh chồng event listener
+    // Event delegation được gắn một lần duy nhất bên ngoài hàm này
+
+    container.innerHTML = Array(3).fill(0).map(() => `
+      <div class="queue-card" style="pointer-events:none">
+        <div class="skeleton-avatar" style="width:52px;height:52px;border-radius:50%;flex-shrink:0"></div>
+        <div class="queue-card-body">
+          <div class="skeleton-line title" style="width:55%"></div>
+          <div class="skeleton-line short" style="width:75%;height:10px"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <div class="skeleton-line" style="width:72px;height:32px;border-radius:8px;margin:0"></div>
+          <div class="skeleton-line" style="width:72px;height:32px;border-radius:8px;margin:0"></div>
+        </div>
+      </div>`).join('');
+
+    try {
+      const res  = await api.get('/documents/pending');
+      const docs = Array.isArray(res) ? res : (res.data || res.items || []);
+      _queueDocs = docs;
+
+      const countEl = document.getElementById('queue-count');
+      if (countEl) countEl.textContent = docs.length > 0 ? docs.length : '';
+
+      if (!docs.length) {
+        container.innerHTML = emptyStatePro('✅', 'Hàng chờ trống', 'Tất cả tài liệu đã được xử lý.');
+        return;
+      }
+
+      container.innerHTML = docs.map((d, i) => `
+        <div class="queue-card" data-idx="${i}" id="card-${esc(d.id)}"
+          style="cursor:pointer;position:relative">
+          <!-- Checkbox chọn bulk -->
+          <label style="flex-shrink:0;display:flex;align-items:center;padding:4px;cursor:pointer"
+            title="Chọn để xử lý hàng loạt">
+            <input type="checkbox" class="row-check" data-id="${esc(d.id)}" />
+          </label>
+          <div style="flex-shrink:0">${stampHtml('pending', 'stamp-sm')}</div>
+          <div class="queue-card-body">
+            <div class="queue-card-title">${esc(d.title || d.originalFilename)}</div>
+            <div class="queue-card-meta">
+              <span>👤 ${esc(d.uploader?.fullName || d.uploader?.email || '—')}</span>
+              <span>🏛 ${esc(d.department?.name || 'Chưa phân khoa')}</span>
+              <span>📅 ${fmtDate(d.createdAt)}</span>
+              <span class="mono">${fmtSize(d)}</span>
+            </div>
+          </div>
+          <div class="queue-card-actions">
+            <button class="btn btn-reject btn-sm"  data-action="reject"  data-idx="${i}">Từ chối</button>
+            <button class="btn btn-approve btn-sm" data-action="approve" data-idx="${i}">✓ Duyệt</button>
+          </div>
+        </div>`).join('');
+
+    } catch (err) {
+      container.innerHTML = emptyStatePro(
+        '⚠️', 'Không thể tải hàng chờ', esc(err.message),
+        `<button class="btn btn-ghost btn-sm" id="btn-retry-queue">Thử lại</button>`
+      );
+      document.getElementById('btn-retry-queue')?.addEventListener('click', loadQueue);
+      Toast.error(err.message);
+    }
+  }
+
+  /* ── Bulk bar ───────────────────────────────────────────────── */
+  function updateBulkBar() {
+    const n   = _selectedIds.size;
+    const bar = document.getElementById('bulk-bar');
+    bar.style.display = n > 0 ? 'flex' : 'none';
+    document.getElementById('bulk-count').textContent = n;
+  }
+
+  /* ── Bulk approve ───────────────────────────────────────────── */
+  document.getElementById('btn-bulk-approve').addEventListener('click', async function () {
+    const ids = [..._selectedIds];
+    if (!ids.length) return;
+
+    // Lấy docTypeId từ select — nếu chưa chọn thì hỏi trước
+    const docTypeId = document.getElementById('approve-doc-type').value;
+    if (!docTypeId) {
+      Toast.warning('Vui lòng chọn loại hồ sơ trước khi duyệt hàng loạt.');
+      Modal.open('modal-approve'); // Mở modal để admin chọn loại hồ sơ
+      return;
+    }
+
+    this.classList.add('loading');
+    let ok = 0, fail = 0;
+    for (const id of ids) {
+      try {
+        // Gửi metadata với approve request - dùng đúng tên field backend
+        const meta = { documentTypeId: docTypeId };
+        const valueType = document.getElementById('approve-value-type').value;
+        const issuedDate = document.getElementById('approve-issued-date').value;
+        if (valueType !== 'inherit') meta.classificationValue = valueType;  // Backend dùng classificationValue
+        if (issuedDate) meta.documentDate = issuedDate;  // Backend dùng documentDate
+        
+        await api.patch(`/documents/${id}/approve`, meta);
+        document.getElementById(`card-${id}`)?.remove();
+        ok++;
+      } catch { fail++; }
+    }
+    this.classList.remove('loading');
+    _selectedIds.clear();
+    updateBulkBar();
+    const countEl   = document.getElementById('queue-count');
+    const remaining = document.querySelectorAll('.queue-card').length;
+    if (countEl) countEl.textContent = remaining || '';
+    if (!remaining) {
+      document.getElementById('queue-list').innerHTML = emptyStatePro(
+        '✅', 'Hàng chờ trống', 'Tất cả tài liệu đã được xử lý.'
+      );
+    }
+    Toast.success(`Đã duyệt ${ok} tài liệu${fail ? `, ${fail} lỗi` : ''}!`);
+  });
+
+  /* ── Bulk reject ────────────────────────────────────────────── */
+  document.getElementById('btn-bulk-reject').addEventListener('click', () => {
+    const n = _selectedIds.size;
+    document.getElementById('bulk-reject-subtitle').textContent =
+      `Lý do sẽ áp dụng cho ${n} tài liệu được chọn.`;
+    document.getElementById('bulk-reject-reason').value = '';
+    Modal.open('modal-bulk-reject');
+    setTimeout(() => document.getElementById('bulk-reject-reason')?.focus(), 150);
+  });
+
+  document.getElementById('btn-confirm-bulk-reject').addEventListener('click', async function () {
+    const reason = document.getElementById('bulk-reject-reason').value.trim();
+    if (!reason) {
+      Toast.warning('Vui lòng nhập lý do từ chối.');
+      document.getElementById('bulk-reject-reason').focus();
+      return;
+    }
+    const ids = [..._selectedIds];
+    this.classList.add('loading');
+    let ok = 0, fail = 0;
+    for (const id of ids) {
+      try {
+        await submitDocumentReject(id, reason);
+        document.getElementById(`card-${id}`)?.remove();
+        ok++;
+      } catch { fail++; }
+    }
+    this.classList.remove('loading');
+    Modal.close('modal-bulk-reject');
+    _selectedIds.clear();
+    updateBulkBar();
+    const countEl  = document.getElementById('queue-count');
+    const remaining = document.querySelectorAll('.queue-card').length;
+    if (countEl) countEl.textContent = remaining || '';
+    if (!remaining) {
+      document.getElementById('queue-list').innerHTML = emptyStatePro(
+        '✅', 'Hàng chờ trống', 'Tất cả tài liệu đã được xử lý.'
+      );
+    }
+    Toast.warning(`Đã từ chối ${ok} tài liệu${fail ? `, ${fail} lỗi` : ''}.`);
+  });
+
+  document.getElementById('btn-bulk-cancel').addEventListener('click', () => {
+    _selectedIds.clear();
+    document.querySelectorAll('.row-check').forEach(c => c.checked = false);
+    updateBulkBar();
+  });
+
+  /* ── Load document types vào modal duyệt ────────────────────── */
+  let _docTypes = [];
+  async function loadDocTypes() {
+    try {
+      const res  = await api.get('/document-types');
+      _docTypes  = Array.isArray(res) ? res : (res.data || []);
+      const sel  = document.getElementById('approve-doc-type');
+      _docTypes.forEach(t => {
+        const o = document.createElement('option');
+        o.value = t.id;
+        o.dataset.permanent     = t.isPermanent ? '1' : '0';
+        o.dataset.retentionYears = t.retentionYears || '';
+        o.textContent = `${t.code ? `[${t.code}] ` : ''}${t.name}`;
+        sel.appendChild(o);
+      });
+    } catch { /* document types chưa có — bỏ qua */ }
+  }
+
+  document.getElementById('approve-doc-type').addEventListener('change', function () {
+    const opt  = this.selectedOptions[0];
+    const hint = document.getElementById('approve-type-hint');
+    if (!opt?.value) { hint.style.display = 'none'; return; }
+    const perm  = opt.dataset.permanent === '1';
+    const years = opt.dataset.retentionYears;
+    hint.style.display  = 'block';
+    hint.innerHTML = perm
+      ? `<span style="color:var(--stamp-ok)">♾ Vĩnh viễn — không tiêu hủy</span>`
+      : `⏳ Thời hạn: <strong>${years} năm</strong>`;
+  });
+
+  /* ── Single approve/reject ──────────────────────────────────── */
+  function openApprove(id, name, doc) {
+    _pendingDocId = id;
+    document.getElementById('approve-doc-name').textContent = name;
+    
+    // Debug: xem doc object có gì
+    console.log('[Approve Modal] Document data:', doc);
+    console.log('[Approve Modal] Title:', doc?.title);
+    console.log('[Approve Modal] documentType:', doc?.documentType);
+    console.log('[Approve Modal] classificationValue:', doc?.classificationValue);
+    console.log('[Approve Modal] documentDate:', doc?.documentDate);
+    console.log('[Approve Modal] description:', doc?.description?.substring(0, 100));
+    
+    // Get form elements
+    const docTypeSelect = document.getElementById('approve-doc-type');
+    const valueTypeSelect = document.getElementById('approve-value-type');
+    const issuedDateInput = document.getElementById('approve-issued-date');
+    const typeHint = document.getElementById('approve-type-hint');
+    
+    // Reset form first to clear previous values
+    docTypeSelect.value = '';
+    valueTypeSelect.value = 'inherit';
+    issuedDateInput.value = '';
+    typeHint.style.display = 'none';
+    
+    // Pre-fill với data từ user nếu có (dùng đúng tên field từ backend)
+    // Backend trả về doc.documentType (relation) hoặc doc.documentTypeId
+    const docTypeId = doc?.documentType?.id || doc?.documentTypeId;
+    if (docTypeId) {
+      docTypeSelect.value = docTypeId;
+      docTypeSelect.dispatchEvent(new Event('change'));
+      console.log('[Approve Modal] ✅ Pre-filled documentTypeId:', docTypeId);
+    } else {
+      console.log('[Approve Modal] ⚠️ No documentTypeId from user');
+    }
+    
+    // Backend dùng classificationValue thay vì valueType
+    if (doc?.classificationValue) {
+      valueTypeSelect.value = doc.classificationValue;
+      console.log('[Approve Modal] ✅ Pre-filled classificationValue:', doc.classificationValue);
+    }
+    
+    // Backend dùng documentDate thay vì issuedDate
+    if (doc?.documentDate) {
+      // documentDate có thể là ISO string, cần slice để lấy YYYY-MM-DD
+      const dateStr = doc.documentDate.split('T')[0];
+      issuedDateInput.value = dateStr;
+      console.log('[Approve Modal] ✅ Pre-filled documentDate:', dateStr);
+    }
+    
+    Modal.open('modal-approve');
+    setTimeout(() => animateStamp(document.getElementById('approve-stamp')), 100);
+  }
+
+  function openReject(id, name) {
+    _pendingDocId = id;
+    document.getElementById('reject-doc-name').textContent = name;
+    document.getElementById('reject-reason').value = '';
+    Modal.open('modal-reject');
+    setTimeout(() => document.getElementById('reject-reason')?.focus(), 150);
+  }
+
+  function removeCardAndUpdateCount(docId) {
+    document.getElementById(`card-${docId}`)?.remove();
+    _selectedIds.delete(docId);
+    updateBulkBar();
+    const countEl  = document.getElementById('queue-count');
+    const remaining = document.querySelectorAll('.queue-card').length;
+    const next     = remaining;
+    if (countEl) countEl.textContent = next > 0 ? next : '';
+    if (!next) {
+      document.getElementById('queue-list').innerHTML = emptyStatePro(
+        '✅', 'Hàng chờ trống', 'Tất cả tài liệu đã được xử lý.'
+      );
+    }
+  }
+
+  document.getElementById('btn-confirm-approve').addEventListener('click', async function () {
+    if (!_pendingDocId) return;
+    
+    const docTypeId  = document.getElementById('approve-doc-type').value.trim();
+    const valueType  = document.getElementById('approve-value-type').value.trim();
+    const issuedDate = document.getElementById('approve-issued-date').value.trim();
+    
+    console.log('[Approve Submit] docTypeId:', docTypeId);
+    console.log('[Approve Submit] classificationValue:', valueType);
+    console.log('[Approve Submit] documentDate:', issuedDate);
+    
+    if (!docTypeId) {
+      Toast.warning('Vui lòng chọn loại hồ sơ trước khi duyệt.');
+      document.getElementById('approve-doc-type').focus();
+      return;
+    }
+    
+    this.classList.add('loading');
+    try {
+      // Gửi đúng tên field theo backend
+      const meta = { documentTypeId: docTypeId };
+      if (valueType && valueType !== 'inherit') meta.classificationValue = valueType;  // Backend dùng classificationValue
+      if (issuedDate) meta.documentDate = issuedDate;  // Backend dùng documentDate
+      
+      console.log('[Approve Submit] Calling approve with metadata:', meta);
+      await api.patch(`/documents/${_pendingDocId}/approve`, meta);
+      
+      Modal.close('modal-approve');
+      Toast.success('Tài liệu đã được duyệt và lưu trữ!');
+      removeCardAndUpdateCount(_pendingDocId);
+      _pendingDocId = null;
+    } catch (err) { 
+      console.error('[Approve Submit] Error:', err);
+      Toast.error(err.message); 
+    }
+    finally { this.classList.remove('loading'); }
+  });
+
+  document.getElementById('btn-confirm-reject').addEventListener('click', async function () {
+    const reason = document.getElementById('reject-reason').value.trim();
+    if (!reason) {
+      Toast.warning('Vui lòng nhập lý do từ chối.');
+      document.getElementById('reject-reason').focus();
+      return;
+    }
+    if (!_pendingDocId) return;
+    this.classList.add('loading');
+    try {
+      await submitDocumentReject(_pendingDocId, reason);
+      Modal.close('modal-reject');
+      Toast.warning('Tài liệu đã bị từ chối.');
+      removeCardAndUpdateCount(_pendingDocId);
+      _pendingDocId = null;
+    } catch (err) { Toast.error(err.message); }
+    finally { this.classList.remove('loading'); }
+  });
+
+  document.getElementById('reject-reason').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey))
+      document.getElementById('btn-confirm-reject').click();
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadDocTypes();
+    loadQueue();
+
+    // Event delegation cố định — gắn một lần, không bị mất khi loadQueue chạy lại
+    document.getElementById('queue-list').addEventListener('click', e => {
+      // Checkbox bulk select
+      const chk = e.target.closest('input[type="checkbox"].row-check');
+      if (chk) {
+        e.stopPropagation();
+        if (chk.checked) _selectedIds.add(chk.dataset.id);
+        else             _selectedIds.delete(chk.dataset.id);
+        updateBulkBar();
+        return;
+      }
+
+      const actionBtn = e.target.closest('[data-action]');
+      const card      = e.target.closest('.queue-card[data-idx]');
+      if (!card) return;
+      const d = _queueDocs[parseInt(card.dataset.idx, 10)];
+      if (!d) return;
+
+      if (actionBtn) {
+        e.stopPropagation();
+        if (actionBtn.dataset.action === 'approve') openApprove(d.id, d.title || d.originalFilename, d);
+        if (actionBtn.dataset.action === 'reject')  openReject(d.id, d.title || d.originalFilename);
+        return;
+      }
+      previewFile(d.id, d.title || d.originalFilename);
+    });
+  });
+</script>
+</body>
+</html>

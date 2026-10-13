@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Xác thực mã</title>
+    <link rel="stylesheet" href="../assets/css/style.css?v=auth3" />
+    <link rel="stylesheet" href="../assets/css/auth-pages.css?v=3" />
+    <style>.code{font:700 1.6rem 'IBM Plex Mono',monospace;text-align:center;letter-spacing:.35em}.error{display:none;color:var(--stamp-deny);background:rgba(163,59,59,.1);padding:10px;border-radius:var(--radius);margin-bottom:16px;font-size:.85rem}</style>
+</head>
+<body class="auth-page">
+    <main class="auth-wrap">
+        <section class="auth-art"><img class="auth-stamp" src="../assets/images/logo.png" alt="Logo Bệnh viện Hữu Nghị" /><h1>BỆNH VIỆN HỮU NGHỊ<br>Hệ thống lưu trữ tài liệu</h1><p>Vietnam-HuuNghi Hospital<br>Document Archive System</p><div class="auth-lines"><div class="auth-line"></div><div class="auth-line"></div><div class="auth-line"></div></div></section>
+        <section class="auth-panel">
+        <h1 id="title">Xác thực</h1>
+        <p id="hint">Nhập mã xác thực để tiếp tục.</p>
+        <div class="error" id="error"></div>
+        <form id="form">
+            <input class="form-control code" id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required />
+            <button class="btn btn-primary" id="submit" type="submit" style="width:100%;justify-content:center;margin-top:20px">Xác thực</button>
+        </form>
+        <a href="login.html" style="display:block;margin-top:18px;color:var(--navy)">Quay lại đăng nhập</a>
+        </section>
+    </main>
+    <script src="../assets/js/app.js?v=role-sync-12"></script>
+    <script src="../assets/js/auth-flow.js"></script>
+    <script>
+  const params = new URLSearchParams(location.search); const type = params.get('type') === 'totp' ? 'totp' : 'otp'; const userId = params.get('user_id') || ''; const hint = params.get('email_hint');
+  document.getElementById('title').textContent = type === 'totp' ? 'Mã Authenticator' : 'Mã OTP';
+  document.getElementById('hint').textContent = type === 'totp' ? 'Nhập mã 6 số trong ứng dụng Authenticator.' : `Mã OTP đã gửi đến ${hint || 'email của bạn'}.`;
+    document.getElementById('form').addEventListener('submit', async event => { event.preventDefault(); const error=document.getElementById('error'), button=document.getElementById('submit'); error.style.display='none'; button.disabled=true; button.classList.add('loading'); try { const res=await api.post(type === 'totp' ? '/auth/verify-totp' : '/auth/verify-otp', { user_id:userId, [type === 'totp' ? 'totp' : 'otp']:document.getElementById('code').value }); await authRouteAfterStep(res,userId,hint || ''); } catch(err) { error.textContent=authErrorMessage(err,'Mã xác thực không đúng hoặc đã hết hạn.'); error.style.display='block'; button.disabled=false; button.classList.remove('loading'); } });
+</script>
+</body>
+</html>

@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kho lưu trữ — BV Hữu Nghị</title>
+  <link rel="stylesheet" href="../../assets/css/style.css" />
+  <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+  <style>
+    .archive-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+    .archive-card {
+      background: var(--white);
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 24px 20px;
+      cursor: pointer;
+      transition: all var(--transition);
+      text-align: center;
+      position: relative;
+      box-shadow: var(--shadow-sm);
+    }
+    .archive-card:hover {
+      border-color: var(--brass);
+      box-shadow: 0 4px 12px rgba(156,107,46,.15);
+      transform: translateY(-2px);
+    }
+    .archive-card-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+      opacity: 0.9;
+    }
+    .archive-card-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 8px;
+    }
+    .archive-card-meta {
+      font-size: 0.8rem;
+      color: var(--gray-600);
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .archive-card-meta span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+      color: var(--gray-600);
+    }
+    .breadcrumb a {
+      color: var(--brass);
+      text-decoration: none;
+      font-weight: 600;
+      transition: color var(--transition);
+    }
+    .breadcrumb a:hover {
+      color: var(--navy);
+    }
+    .breadcrumb-sep {
+      color: var(--gray-400);
+    }
+    .breadcrumb-current {
+      color: var(--navy);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+  <nav class="sidebar"></nav>
+
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <main class="main-content">
+    
+    <!-- Breadcrumb -->
+    <div class="breadcrumb" id="breadcrumb" style="display:none">
+      <a href="#" id="bc-home">🗄️ Kho lưu trữ</a>
+      <span class="breadcrumb-sep" id="bc-sep1" style="display:none">/</span>
+      <a href="#" id="bc-year" style="display:none"></a>
+      <span class="breadcrumb-sep" id="bc-sep2" style="display:none">/</span>
+      <span class="breadcrumb-current" id="bc-date" style="display:none"></span>
+    </div>
+
+    <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+    </div>
+
+    <!-- Search bar -->
+    <div class="card" style="margin-bottom:24px" id="search-card">
+      <div style="display:flex;gap:12px;align-items:center">
+        <div style="flex:1;position:relative">
+          <input 
+            type="text" 
+            class="form-control" 
+            id="search-input" 
+            placeholder="🔍 Tìm kiếm theo tiêu đề, tên file, mô tả, từ khóa trong tài liệu..." 
+            style="padding-left:36px" />
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" 
+            style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--gray-400);pointer-events:none">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+        </div>
+        <button class="btn btn-primary" id="btn-search" style="min-width:100px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          Tìm kiếm
+        </button>
+        <button class="btn btn-ghost" id="btn-clear-search" style="display:none">
+          ✕ Xóa
+        </button>
+      </div>
+    </div>
+
+    <!-- Search results -->
+    <div id="search-results" style="display:none">
+      <div class="card">
+        <div class="table-wrap" id="search-table-wrap">
+          <div style="text-align:center;padding:32px;color:var(--gray-400)">Đang tìm kiếm...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- View: Lưới năm -->
+    <div id="view-years" class="archive-grid"></div>
+
+    <!-- View: Lưới ngày trong năm -->
+    <div id="view-days" style="display:none">
+      <div class="archive-grid"></div>
+    </div>
+
+    <!-- View: Bảng file trong ngày -->
+    <div id="view-files" style="display:none">
+      <div class="card">
+        <div class="table-wrap" id="files-table-wrap">
+          <div style="text-align:center;padding:32px;color:var(--gray-400)">Đang tải...</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast-container"></div>
+<script src="../../assets/js/app.js?v=role-sync-12"></script>
+<script src="../../assets/js/sidebar.js?v=role-sync-12"></script>
+<script>
+  Auth.requireAdmin();
+
+  let allDocs = [];
+  let currentView = 'years'; // 'years' | 'days' | 'files' | 'search'
+  let selectedYear = null;
+  let selectedDate = null;
+  let searchQuery = '';
+
+  /* ── Search functionality ───────────────────────────────────── */
+  function performSearch() {
+    const query = document.getElementById('search-input').value.trim();
+    if (!query || query.length < 2) {
+      Toast.warning('Vui lòng nhập ít nhất 2 ký tự để tìm kiếm');
+      return;
+    }
+
+    searchQuery = query;
+    currentView = 'search';
+
+    // Hide other views
+    document.getElementById('view-years').style.display = 'none';
+    document.getElementById('view-days').style.display = 'none';
+    document.getElementById('view-files').style.display = 'none';
+    document.getElementById('breadcrumb').style.display = 'none';
+    
+    // Show search results
+    document.getElementById('search-results').style.display = 'block';
+    document.getElementById('btn-clear-search').style.display = 'inline-flex';
+
+    // Search in documents
+    const lowerQuery = query.toLowerCase();
+    const results = allDocs.filter(d => {
+      if (!d.storagePath) return false; // Only stored documents
+      const title = (d.title || '').toLowerCase();
+      const filename = (d.originalFilename || '').toLowerCase();
+      const desc = (d.description || '').toLowerCase();
+      
+      return title.includes(lowerQuery) || 
+             filename.includes(lowerQuery) || 
+             desc.includes(lowerQuery);
+    }).sort((a,b) => new Date(b.approvedAt || b.createdAt) - new Date(a.approvedAt || a.createdAt));
+
+    renderSearchResults(results);
+  }
+
+  function renderSearchResults(results) {
+    const wrap = document.getElementById('search-table-wrap');
+    
+    if (results.length === 0) {
+      wrap.innerHTML = `
+        <div style="text-align:center;padding:48px">
+          <div style="font-size:3rem;margin-bottom:16px;opacity:0.3">🔍</div>
+          <div style="font-size:1.1rem;font-weight:600;color:var(--gray-600);margin-bottom:8px">
+            Không tìm thấy kết quả
+          </div>
+          <div style="color:var(--gray-500);font-size:0.9rem">
+            Thử tìm kiếm với từ khóa khác hoặc kiểm tra chính tả
+          </div>
+        </div>`;
+      return;
+    }
+
+    // Highlight function
+    const highlight = (text, query) => {
+      if (!text) return '—';
+      const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      return text.replace(regex, '<mark style="background:rgba(255,193,7,0.3);padding:2px 4px;border-radius:3px;font-weight:600">$1</mark>');
+    };
+
+    wrap.innerHTML = `
+      <div style="padding:12px 16px;background:rgba(156,107,46,0.08);border-bottom:1.5px solid var(--gray-200);font-size:0.9rem;color:var(--gray-700)">
+        <strong>${results.length}</strong> tài liệu tìm thấy
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:35%">Tiêu đề / Tên file</th>
+            <th style="width:25%">Mô tả</th>
+            <th>Người gửi</th>
+            <th>Khoa</th>
+            <th>Ngày lưu trữ</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${results.map(d => {
+            const date = new Date(d.approvedAt || d.createdAt);
+            const dateStr = date.toLocaleDateString('vi-VN');
+            const desc = (d.description || '').substring(0, 150) + ((d.description || '').length > 150 ? '...' : '');
+            
+            return `
+              <tr style="cursor:pointer" onclick="previewDoc('${d.id}', '${esc(d.originalFilename)}')">
+                <td>
+                  <div style="font-weight:600;font-size:.88rem;margin-bottom:4px">${highlight(d.title || d.originalFilename, searchQuery)}</div>
+                  <div class="td-mono" style="font-size:.72rem;color:var(--gray-600)">${highlight(d.originalFilename, searchQuery)}</div>
+                </td>
+                <td style="font-size:.8rem;color:var(--gray-700);line-height:1.5">${highlight(desc, searchQuery)}</td>
+                <td style="font-size:.85rem">${esc(d.uploader?.fullName || '—')}</td>
+                <td style="font-size:.85rem">${esc(d.department?.name || '—')}</td>
+                <td class="td-mono" style="font-size:.82rem">${dateStr}</td>
+                <td onclick="event.stopPropagation()">
+                  <button class="btn btn-sm btn-ghost" onclick="downloadDoc('${d.id}', '${esc(d.originalFilename)}')">⬇ Tải</button>
+                </td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  function clearSearch() {
+    searchQuery = '';
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-results').style.display = 'none';
+    document.getElementById('btn-clear-search').style.display = 'none';
+    renderYearsView();
+  }
+
+  // Event listeners for search
+  document.getElementById('btn-search').addEventListener('click', performSearch);
+  document.getElementById('btn-clear-search').addEventListener('click', clearSearch);
+  document.getElementById('search-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') performSearch();
+  });
+
+  /* ── Load all stored documents ──────────────────────────── */
+  async function loadDocuments() {
+    try {
+      const res = await api.get('/documents/search?limit=10000');
+      allDocs = (Array.isArray(res) ? res
+              : Array.isArray(res.data) ? res.data
+              : Array.isArray(res.documents) ? res.documents
+              : Array.isArray(res.items) ? res.items : [])
+        .filter(d => d.status === 'stored' || d.status === 'approved');
+      
+      renderYearsView();
+    } catch(err) {
+      console.error('[Archive] Load error:', err);
+      Toast.error('Không tải được dữ liệu: ' + err.message);
+    }
+  }
+
+  /* ── View 1: Lưới năm ────────────────────────────────────── */
+  function renderYearsView() {
+    currentView = 'years';
+    selectedYear = null;
+    selectedDate = null;
+
+    // Update breadcrumb and views
+    document.getElementById('breadcrumb').style.display = 'none';
+    document.getElementById('search-results').style.display = 'none';
+    document.getElementById('view-years').style.display = 'grid';
+    document.getElementById('view-days').style.display = 'none';
+    document.getElementById('view-files').style.display = 'none';
+
+    // Group by year (dựa vào approvedAt hoặc createdAt)
+    const yearMap = {};
+    allDocs.forEach(d => {
+      const date = new Date(d.approvedAt || d.createdAt);
+      const year = date.getFullYear();
+      if (!yearMap[year]) yearMap[year] = { count: 0, dates: new Set() };
+      yearMap[year].count++;
+      yearMap[year].dates.add(date.toISOString().slice(0, 10));
+    });
+
+    const years = Object.keys(yearMap).map(y => parseInt(y)).sort((a,b) => b-a);
+    const container = document.getElementById('view-years');
+    
+    if (years.length === 0) {
+      container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--gray-400)">
+        Chưa có tài liệu nào được lưu trữ.
+      </div>`;
+      return;
+    }
+
+    container.innerHTML = years.map(year => {
+      const { count, dates } = yearMap[year];
+      return `
+        <div class="archive-card" onclick="viewYear(${year})">
+          <div class="archive-card-icon">📅</div>
+          <div class="archive-card-title">${year}</div>
+          <div class="archive-card-meta">
+            <span>📄 ${count} tài liệu</span>
+            <span>📆 ${dates.size} ngày</span>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  /* ── View 2: Lưới ngày trong năm ──────────────────────────── */
+  window.viewYear = function(year) {
+    currentView = 'days';
+    selectedYear = year;
+    selectedDate = null;
+
+    // Breadcrumb
+    const bc = document.getElementById('breadcrumb');
+    bc.style.display = 'flex';
+    document.getElementById('bc-home').style.display = 'inline';
+    document.getElementById('bc-sep1').style.display = 'inline';
+    document.getElementById('bc-year').style.display = 'none';
+    document.getElementById('bc-sep2').style.display = 'none';
+    document.getElementById('bc-date').style.display = 'inline';
+    document.getElementById('bc-date').textContent = year;
+
+    document.getElementById('view-years').style.display = 'none';
+    document.getElementById('view-days').style.display = 'block';
+    document.getElementById('view-files').style.display = 'none';
+    document.getElementById('search-results').style.display = 'none';
+
+    // Group by date
+    const dateMap = {};
+    allDocs.forEach(d => {
+      const date = new Date(d.approvedAt || d.createdAt);
+      if (date.getFullYear() !== year) return;
+      const dateStr = date.toISOString().slice(0, 10);
+      if (!dateMap[dateStr]) dateMap[dateStr] = 0;
+      dateMap[dateStr]++;
+    });
+
+    const dates = Object.keys(dateMap).sort((a,b) => b.localeCompare(a));
+    const container = document.getElementById('view-days').querySelector('.archive-grid');
+    
+    if (dates.length === 0) {
+      container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--gray-400)">
+        Không có tài liệu nào trong năm ${year}.
+      </div>`;
+      return;
+    }
+
+    container.innerHTML = dates.map(dateStr => {
+      const count = dateMap[dateStr];
+      const [y, m, d] = dateStr.split('-');
+      const label = `${d}/${m}/${y}`;
+      return `
+        <div class="archive-card" onclick="viewDate('${dateStr}')">
+          <div class="archive-card-icon">📆</div>
+          <div class="archive-card-title">${label}</div>
+          <div class="archive-card-meta">
+            <span>📄 ${count} tài liệu</span>
+          </div>
+        </div>`;
+    }).join('');
+  };
+
+  /* ── View 3: Bảng file trong ngày ────────────────────────── */
+  window.viewDate = function(dateStr) {
+    currentView = 'files';
+    selectedDate = dateStr;
+
+    const [y, m, d] = dateStr.split('-');
+    const label = `${d}/${m}/${y}`;
+
+    // Breadcrumb
+    const bc = document.getElementById('breadcrumb');
+    bc.style.display = 'flex';
+    document.getElementById('bc-home').style.display = 'inline';
+    document.getElementById('bc-sep1').style.display = 'inline';
+    document.getElementById('bc-year').style.display = 'inline';
+    document.getElementById('bc-year').textContent = selectedYear;
+    document.getElementById('bc-sep2').style.display = 'inline';
+    document.getElementById('bc-date').style.display = 'inline';
+    document.getElementById('bc-date').textContent = dateStr;
+
+    document.getElementById('view-years').style.display = 'none';
+    document.getElementById('view-days').style.display = 'none';
+    document.getElementById('view-files').style.display = 'block';
+    document.getElementById('search-results').style.display = 'none';
+
+    // Filter docs by date AND has storagePath
+    const docs = allDocs.filter(d => {
+      if (!d.storagePath) return false; // Chỉ hiển thị tài liệu có file
+      const date = new Date(d.approvedAt || d.createdAt);
+      return date.toISOString().slice(0, 10) === dateStr;
+    }).sort((a,b) => new Date(b.approvedAt || b.createdAt) - new Date(a.approvedAt || a.createdAt));
+
+    const wrap = document.getElementById('files-table-wrap');
+    if (docs.length === 0) {
+      wrap.innerHTML = `<div style="text-align:center;padding:48px;color:var(--gray-400)">
+        Không có tài liệu nào trong ngày ${label}.
+      </div>`;
+      return;
+    }
+
+    wrap.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Tên file</th>
+            <th>Người gửi</th>
+            <th>Khoa</th>
+            <th>Giờ duyệt</th>
+            <th>Dung lượng</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${docs.map(d => {
+            const approvedTime = d.approvedAt ? new Date(d.approvedAt) : new Date(d.createdAt);
+            const timeStr = approvedTime.toLocaleString('vi-VN', { 
+              hour: '2-digit', 
+              minute: '2-digit', 
+              second: '2-digit',
+              hour12: false 
+            });
+            return `
+              <tr style="cursor:pointer" onclick="previewDoc('${d.id}', '${esc(d.originalFilename)}')">
+                <td>
+                  <div style="font-weight:600;font-size:.88rem">${esc(d.title || d.originalFilename)}</div>
+                  <div class="td-mono" style="font-size:.72rem;color:var(--gray-600)">${esc(d.originalFilename)}</div>
+                </td>
+                <td style="font-size:.85rem">${esc(d.uploader?.fullName || '—')}</td>
+                <td style="font-size:.85rem">${esc(d.department?.name || '—')}</td>
+                <td class="td-mono" style="font-size:.82rem">${timeStr}</td>
+                <td class="td-mono" style="font-size:.82rem">${fmtSize(d)}</td>
+                <td onclick="event.stopPropagation()">
+                  ${d.storagePath ? `<button class="btn btn-sm btn-ghost" onclick="downloadDoc('${d.id}', '${esc(d.originalFilename)}')">⬇ Tải</button>` : '—'}
+                </td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  };
+
+  /* ── Breadcrumb navigation ─────────────────────────────────── */
+  document.getElementById('bc-home').addEventListener('click', (e) => {
+    e.preventDefault();
+    renderYearsView();
+  });
+
+  document.getElementById('bc-year').addEventListener('click', (e) => {
+    e.preventDefault();
+    if (selectedYear) viewYear(selectedYear);
+  });
+
+  /* ── Download & Preview ─────────────────────────────────────── */
+  window.downloadDoc = async function(docId, filename) {
+    try {
+      await api.download(`/documents/${docId}/download`, filename);
+      Toast.success('Đang tải xuống...');
+    } catch(err) {
+      Toast.error('Lỗi tải xuống: ' + err.message);
+    }
+  };
+
+  window.previewDoc = async function(docId, filename) {
+    try {
+      // Sử dụng hàm previewFile từ app.js (modal xem trước PDF)
+      await previewFile(docId, filename);
+    } catch(err) {
+      Toast.error('Lỗi xem trước: ' + err.message);
+    }
+  };
+
+  /* ── Init ───────────────────────────────────────────────────── */
+  document.addEventListener('DOMContentLoaded', loadDocuments);
+</script>
+</body>
+</html>

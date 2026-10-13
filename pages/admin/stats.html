@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thống kê — BV Hữu Nghị</title>
+  <link rel="stylesheet" href="../../assets/css/style.css" />
+  <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .chart-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+    .chart-card h3 {
+      font-size: 1rem;
+      margin-bottom: 16px;
+      color: var(--navy);
+    }
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .chart-wrap { position: relative; height: 260px; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+  <nav class="sidebar"></nav>
+
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <main class="main-content">
+    <div class="page-header page-header-row">
+      <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+    </div>
+      <!-- Bộ lọc năm -->
+      <div style="display:flex;align-items:center;gap:10px">
+        <label class="form-label" style="margin:0;white-space:nowrap">Năm:</label>
+        <input type="number" class="form-control" id="year-filter" style="width:110px" 
+          min="2000" max="2099" step="1" placeholder="YYYY" />
+      </div>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="stats-grid" id="summary-stats" style="margin-bottom:24px">
+      <div class="stat-card stat-card--brass"><span class="stat-label">Tổng tài liệu</span><span class="stat-value" id="s-total">—</span></div>
+      <div class="stat-card stat-card--ok"><span class="stat-label">Đã lưu trữ</span><span class="stat-value" id="s-stored" style="color:var(--stamp-ok)">—</span></div>
+      <div class="stat-card stat-card--wait"><span class="stat-label">Chờ duyệt</span><span class="stat-value" id="s-pending" style="color:var(--stamp-wait)">—</span></div>
+      <div class="stat-card stat-card--deny"><span class="stat-label">Từ chối</span><span class="stat-value" id="s-rejected" style="color:var(--stamp-deny)">—</span></div>
+      <div class="stat-card stat-card--brass"><span class="stat-label">Tổng dung lượng</span><span class="stat-value" id="s-size" style="color:var(--brass);font-size:1.3rem;word-break:break-word">—</span></div>
+    </div>
+
+    <!-- Row 1: Theo khoa + Trạng thái -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>📊 Số lượng tài liệu theo khoa</h3>
+        <div class="chart-wrap"><canvas id="chart-by-dept"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>🍩 Phân bố trạng thái</h3>
+        <div class="chart-wrap"><canvas id="chart-by-status"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Row 2: Theo tháng -->
+    <div class="chart-card" style="margin-bottom:20px">
+      <h3>📈 Tài liệu tải lên theo tháng (năm <span id="year-label">—</span>)</h3>
+      <div class="chart-wrap" style="height:220px"><canvas id="chart-by-month"></canvas></div>
+    </div>
+
+    <!-- Row 3: Dung lượng theo khoa -->
+    <div class="chart-card" style="margin-bottom:20px">
+      <h3>💾 Dung lượng lưu trữ theo khoa (MB)</h3>
+      <div class="chart-wrap" style="height:220px"><canvas id="chart-size-by-dept"></canvas></div>
+    </div>
+
+    <!-- Row 4: Theo loại hồ sơ (TT33/2025) -->
+    <div class="charts-grid" style="margin-bottom:20px">
+      <div class="chart-card">
+        <h3>📋 Tài liệu theo loại hồ sơ (TT 33/2025/TT-BYT)</h3>
+        <div class="chart-wrap" style="height:280px"><canvas id="chart-by-doctype"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>⚖️ Phân bố mức giá trị tài liệu</h3>
+        <div class="chart-wrap" style="height:280px"><canvas id="chart-by-value"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Row 5: Sắp hết hạn lưu trữ -->
+    <div class="chart-card" style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <h3 style="margin:0">⏰ Tài liệu sắp hết hạn lưu trữ</h3>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label class="form-label" style="margin:0;white-space:nowrap;font-size:.83rem">Trong vòng</label>
+          <input type="number" class="form-control" id="expiry-years" style="width:80px;font-size:.83rem" 
+            min="1" max="50" step="1" value="5" />
+          <span style="font-size:.83rem;color:var(--gray-600)">năm</span>
+        </div>
+      </div>
+      <div id="expiry-table-wrap">
+        <div style="text-align:center;padding:32px;color:var(--gray-400)">Đang tải…</div>
+      </div>
+    </div>
+
+    <!-- Row 6: Tài liệu cần chỉnh lý -->
+    <div class="chart-card" style="margin-bottom:20px">
+      <h3>📁 Tài liệu trước 01/7/2025 — tiến độ chỉnh lý, xác định giá trị</h3>
+      <div id="review-progress-wrap">
+        <div style="text-align:center;padding:32px;color:var(--gray-400)">Đang tải…</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-container"></div>
+<script src="../../assets/js/app.js?v=role-sync-12"></script>
+<script src="../../assets/js/sidebar.js?v=role-sync-12"></script>
+<script>
+  Auth.requireAdmin();
+
+  const COLORS = [
+    '#1B2A4A','#2F6F4E','#9C6B2E','#A33B3B','#2C3E6B',
+    '#5B4A8A','#3D6B6B','#6B3D3D','#4A6B3D','#6B5B2E',
+    '#8A4A5B','#4A8A7B','#7B8A4A','#5B4A2E','#2E5B8A'
+  ];
+
+  let chartDocType, chartDept, chartStatus, chartMonth, chartSize, chartValue;
+  let allDocs = [];
+
+  // Set default year to current year (hoặc lấy từ localStorage)
+  const currentYear = new Date().getFullYear();
+  const yearInput = document.getElementById('year-filter');
+  const savedYear = localStorage.getItem('lths_stats_year');
+  yearInput.value = savedYear || currentYear;
+  
+  // Lưu năm vào localStorage khi thay đổi
+  const savedExpiryYears = localStorage.getItem('lths_stats_expiry_years');
+  if (savedExpiryYears) {
+    document.getElementById('expiry-years').value = savedExpiryYears;
+  }
+
+  function destroyChart(c) { if (c) c.destroy(); }
+
+  function renderCharts(docs, year) {
+    document.getElementById('year-label').textContent = year;
+
+    // Filter docs theo năm đã chọn (dựa vào documentDate hoặc createdAt)
+    const filteredDocs = docs.filter(d => {
+      const date = d.documentDate || d.createdAt;
+      if (!date) return false;
+      return new Date(date).getFullYear() === parseInt(year);
+    });
+
+    // Summary
+    document.getElementById('s-total').textContent    = filteredDocs.length;
+    document.getElementById('s-stored').textContent   = filteredDocs.filter(d=>d.status==='stored'||d.status==='approved').length;
+    document.getElementById('s-pending').textContent  = filteredDocs.filter(d=>d.status==='pending').length;
+    document.getElementById('s-rejected').textContent = filteredDocs.filter(d=>d.status==='rejected').length;
+    const totalBytes = filteredDocs.reduce((s,d)=>s+(getFileSizeBytes(d)||0),0);
+    console.log('[Stats] Total bytes:', totalBytes, 'Type:', typeof totalBytes);
+    document.getElementById('s-size').textContent = fmtSize(totalBytes);
+
+    // --- Chart 1: Tài liệu theo khoa (bar) ---
+    const deptMap = {};
+    filteredDocs.forEach(d => {
+      const name = d.department?.name || 'Chưa phân khoa';
+      deptMap[name] = (deptMap[name] || 0) + 1;
+    });
+    const deptLabels = Object.keys(deptMap);
+    const deptData   = deptLabels.map(k => deptMap[k]);
+
+    destroyChart(chartDept);
+    chartDept = new Chart(document.getElementById('chart-by-dept'), {
+      type: 'bar',
+      data: {
+        labels: deptLabels,
+        datasets: [{
+          label: 'Số tài liệu',
+          data: deptData,
+          backgroundColor: deptLabels.map((_,i) => COLORS[i % COLORS.length] + 'cc'),
+          borderColor: deptLabels.map((_,i) => COLORS[i % COLORS.length]),
+          borderWidth: 1.5,
+          borderRadius: 6,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+      }
+    });
+
+    // --- Chart 2: Trạng thái (doughnut) ---
+    const stored   = filteredDocs.filter(d=>d.status==='stored'||d.status==='approved').length;
+    const pending  = filteredDocs.filter(d=>d.status==='pending').length;
+    const rejected = filteredDocs.filter(d=>d.status==='rejected').length;
+
+    destroyChart(chartStatus);
+    chartStatus = new Chart(document.getElementById('chart-by-status'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Đã lưu trữ', 'Chờ duyệt', 'Từ chối'],
+        datasets: [{
+          data: [stored, pending, rejected],
+          backgroundColor: ['#2F6F4E', '#B98A2E', '#A33B3B'],
+          borderColor: ['#fff','#fff','#fff'],
+          borderWidth: 3,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { padding: 16, font: { size: 12 } } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.label}: ${ctx.raw} tài liệu`
+            }
+          }
+        },
+        cutout: '65%'
+      }
+    });
+
+    // --- Chart 3: Theo tháng (line) ---
+    const monthCounts = Array(12).fill(0);
+    filteredDocs.forEach(d => {
+      const date = d.documentDate || d.createdAt;
+      const m = new Date(date).getMonth();
+      monthCounts[m]++;
+    });
+
+    destroyChart(chartMonth);
+    chartMonth = new Chart(document.getElementById('chart-by-month'), {
+      type: 'line',
+      data: {
+        labels: ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'],
+        datasets: [{
+          label: 'Số tài liệu',
+          data: monthCounts,
+          borderColor: '#1B2A4A',
+          backgroundColor: 'rgba(27,42,74,.08)',
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: '#9C6B2E',
+          pointRadius: 5,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+      }
+    });
+
+    // --- Chart 4: Dung lượng theo khoa (bar ngang) ---
+    const sizeDeptMap = {};
+    filteredDocs.forEach(d => {
+      const name = d.department?.name || 'Chưa phân khoa';
+      sizeDeptMap[name] = (sizeDeptMap[name] || 0) + (getFileSizeBytes(d) || 0);
+    });
+    const sizeLabels = Object.keys(sizeDeptMap);
+    const sizeMB     = sizeLabels.map(k => parseFloat((sizeDeptMap[k]/1024/1024).toFixed(2)));
+
+    destroyChart(chartSize);
+    chartSize = new Chart(document.getElementById('chart-size-by-dept'), {
+      type: 'bar',
+      data: {
+        labels: sizeLabels,
+        datasets: [{
+          label: 'MB',
+          data: sizeMB,
+          backgroundColor: sizeLabels.map((_,i) => COLORS[i % COLORS.length] + 'bb'),
+          borderColor: sizeLabels.map((_,i) => COLORS[i % COLORS.length]),
+          borderWidth: 1.5,
+          borderRadius: 6,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.parsed.x.toFixed(2)} MB`
+            }
+          }
+        },
+        scales: { x: { beginAtZero: true } }
+      }
+    });
+    
+    // --- Chart 5: Theo loại hồ sơ (TT33/2025) — filter theo năm ---
+    const typeMap = {};
+    filteredDocs.forEach(d => {
+      const name = d.documentType?.name || (d.documentType?.code ? `[${d.documentType.code}]` : 'Chưa phân loại');
+      typeMap[name] = (typeMap[name] || 0) + 1;
+    });
+    // Sắp xếp giảm dần, lấy top 12
+    const typeSorted = Object.entries(typeMap).sort((a,b) => b[1]-a[1]).slice(0,12);
+    const typeLabels  = typeSorted.map(e => e[0].length > 30 ? e[0].slice(0,28)+'…' : e[0]);
+    const typeData    = typeSorted.map(e => e[1]);
+
+    if (chartDocType) chartDocType.destroy();
+    chartDocType = new Chart(document.getElementById('chart-by-doctype'), {
+      type: 'bar',
+      data: {
+        labels: typeLabels,
+        datasets: [{
+          label: 'Số tài liệu',
+          data: typeData,
+          backgroundColor: typeLabels.map((_,i) => COLORS[i % COLORS.length] + 'cc'),
+          borderColor:      typeLabels.map((_,i) => COLORS[i % COLORS.length]),
+          borderWidth: 1.5, borderRadius: 6,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
+        onClick: (evt, elements) => {
+          if (elements.length > 0) {
+            const index = elements[0].index;
+            const label = typeLabels[index];
+            // Nếu click vào "Chưa phân loại" → navigate sang search
+            if (label === 'Chưa phân loại') {
+              window.location.href = 'search.html?unclassified=true';
+            }
+          }
+        }
+      }
+    });
+    
+    // --- Chart 6: Mức giá trị (doughnut) — filter theo năm ---
+    const permanent = filteredDocs.filter(d => d.valueType === 'permanent' || d.documentType?.isPermanent).length;
+    const limited   = filteredDocs.filter(d => d.valueType === 'limited' || (d.documentType && !d.documentType.isPermanent)).length;
+    const unclassified = filteredDocs.length - permanent - limited;
+
+    if (chartValue) chartValue.destroy();
+    chartValue = new Chart(document.getElementById('chart-by-value'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Vĩnh viễn', 'Có thời hạn', 'Chưa phân loại'],
+        datasets: [{
+          data: [permanent, limited, unclassified],
+          backgroundColor: ['#2F6F4E', '#B98A2E', '#AEAE9A'],
+          borderColor: ['#fff','#fff','#fff'],
+          borderWidth: 3,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { padding: 14, font: { size: 12 } } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} tài liệu` } }
+        },
+        cutout: '60%',
+        onClick: (evt, elements) => {
+          if (elements.length > 0) {
+            const index = elements[0].index;
+            if (index === 2) { // Chưa phân loại
+              window.location.href = 'search.html?unclassified=true';
+            }
+          }
+        }
+      }
+    });
+
+    // --- Bảng sắp hết hạn (filter theo năm) ---
+    const expiryYears = parseInt(document.getElementById('expiry-years').value) || 5;
+    renderExpiryTable(filteredDocs, expiryYears * 365);
+
+    // --- Tiến độ chỉnh lý (filter theo năm) ---
+    renderReviewProgress(filteredDocs);
+  }
+
+  function renderExpiryTable(docs, withinDays) {
+    const expiring = getExpiringDocs(docs, withinDays);
+    const wrap     = document.getElementById('expiry-table-wrap');
+    if (!expiring.length) {
+      const years = Math.round(withinDays / 365);
+      wrap.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-400)">
+        Không có tài liệu nào hết hạn trong ${years} năm tới.
+      </div>`;
+      return;
+    }
+    wrap.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tài liệu</th>
+              <th>Loại hồ sơ</th>
+              <th>Khoa</th>
+              <th>Ngày hình thành</th>
+              <th>Hạn lưu trữ</th>
+              <th>Còn lại</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${expiring.map(({ doc: d, expiry, daysLeft }) => {
+              const urgency = daysLeft < 0 ? 'var(--stamp-deny)' : daysLeft < 180 ? 'var(--stamp-deny)' : daysLeft < 365 ? 'var(--stamp-wait)' : 'var(--navy)';
+              const label   = daysLeft < 0 ? `Đã hết hạn ${Math.abs(daysLeft)} ngày trước`
+                            : daysLeft === 0 ? 'Hết hạn hôm nay'
+                            : `${daysLeft} ngày`;
+              return `
+                <tr>
+                  <td>
+                    <div style="font-weight:600;font-size:.88rem">${esc(d.title || d.originalFilename)}</div>
+                    <div class="td-mono" style="font-size:.72rem">${esc(d.originalFilename)}</div>
+                  </td>
+                  <td style="font-size:.82rem">${esc(d.documentType?.name || '—')}</td>
+                  <td style="font-size:.82rem">${esc(d.department?.name || '—')}</td>
+                  <td class="td-mono">${d.issuedDate ? fmtDate(d.issuedDate) : fmtDate(d.createdAt)}</td>
+                  <td class="td-mono">${fmtDate(expiry)}</td>
+                  <td style="font-weight:700;color:${urgency};font-size:.82rem">${label}</td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  function renderReviewProgress(docs) {
+    const CUTOFF = new Date('2025-07-01');
+    const DEADLINE = new Date('2030-07-01');
+    const now = new Date();
+    const daysLeft = Math.ceil((DEADLINE - now) / 86400000);
+
+    const oldDocs     = docs.filter(d => new Date(d.issuedDate || d.createdAt) < CUTOFF &&
+                                        (d.status === 'stored' || d.status === 'approved'));
+    const completed   = oldDocs.filter(d => d.reviewStatus === 'completed').length;
+    const pending_r   = oldDocs.length - completed;
+    const pct         = oldDocs.length ? Math.round(completed / oldDocs.length * 100) : 100;
+    const urgency     = daysLeft < 365 ? 'var(--stamp-deny)' : daysLeft < 730 ? 'var(--stamp-wait)' : 'var(--stamp-ok)';
+
+    const wrap = document.getElementById('review-progress-wrap');
+    if (!oldDocs.length) {
+      wrap.innerHTML = `<div style="text-align:center;padding:24px;color:var(--gray-400)">
+        Không có tài liệu nào hình thành trước 01/7/2025.
+      </div>`;
+      return;
+    }
+
+    wrap.innerHTML = `
+      <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:16px">
+        <div style="flex:1;min-width:200px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:.82rem">
+            <span>Tiến độ chỉnh lý</span>
+            <strong style="color:${urgency}">${pct}% (${completed}/${oldDocs.length})</strong>
+          </div>
+          <div class="progress-bar" style="height:10px">
+            <div class="progress-bar-fill" style="width:${pct}%;background:${urgency}"></div>
+          </div>
+          <div style="font-size:.75rem;color:var(--gray-600);margin-top:6px">
+            Hạn chót: <strong style="color:${urgency}">01/7/2030</strong>
+            — còn <strong>${daysLeft} ngày</strong>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <div class="stat-card" style="min-width:120px;padding:12px 16px">
+            <span class="stat-label">Đã chỉnh lý</span>
+            <span class="stat-value" style="color:var(--stamp-ok);font-size:1.6rem">${completed}</span>
+          </div>
+          <div class="stat-card" style="min-width:120px;padding:12px 16px">
+            <span class="stat-label">Chưa chỉnh lý</span>
+            <span class="stat-value" style="color:${urgency};font-size:1.6rem">${pending_r}</span>
+          </div>
+        </div>
+      </div>
+      ${pending_r > 0 ? `
+      <div style="font-size:.8rem;color:var(--gray-600);margin-bottom:8px">
+        Các tài liệu chưa hoàn thành chỉnh lý (hiển thị tối đa 10):
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tài liệu</th><th>Loại hồ sơ</th><th>Khoa</th><th>Ngày hình thành</th></tr></thead>
+          <tbody>
+            ${oldDocs.filter(d => d.reviewStatus !== 'completed').slice(0,10).map(d => `
+              <tr>
+                <td style="font-size:.85rem;font-weight:600">${esc(d.title || d.originalFilename)}</td>
+                <td style="font-size:.8rem">${esc(d.documentType?.name || '—')}</td>
+                <td style="font-size:.8rem">${esc(d.department?.name || '—')}</td>
+                <td class="td-mono">${d.issuedDate ? fmtDate(d.issuedDate) : fmtDate(d.createdAt)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>` : `<div style="color:var(--stamp-ok);font-weight:600;font-size:.88rem">✓ Tất cả tài liệu trước 01/7/2025 đã được chỉnh lý.</div>`}
+    `;
+  }
+
+  yearInput.addEventListener('change', () => {
+    const year = parseInt(yearInput.value);
+    if (year && year >= 2000 && year <= 2099) {
+      localStorage.setItem('lths_stats_year', year);
+      renderCharts(allDocs, year);
+    }
+  });
+  
+  document.getElementById('expiry-years')?.addEventListener('change', e => {
+    const years = parseInt(e.target.value);
+    if (years && years > 0) {
+      localStorage.setItem('lths_stats_expiry_years', years);
+      // Re-filter docs theo năm đã chọn
+      const year = parseInt(yearInput.value);
+      const filteredDocs = allDocs.filter(d => {
+        const date = d.documentDate || d.createdAt;
+        if (!date) return false;
+        return new Date(date).getFullYear() === year;
+      });
+      renderExpiryTable(filteredDocs, years * 365);
+    }
+  });
+
+  async function loadStats() {
+    // Skeleton cho summary stats
+    ['s-total','s-stored','s-pending','s-rejected','s-size'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = '…'; el.classList.add('skeleton'); }
+    });
+    try {
+      const res = await api.get('/documents/search?limit=10000');
+      allDocs = Array.isArray(res) ? res
+              : Array.isArray(res.data) ? res.data
+              : Array.isArray(res.documents) ? res.documents
+              : Array.isArray(res.items) ? res.items
+              : [];
+      ['s-total','s-stored','s-pending','s-rejected','s-size']
+        .forEach(id => document.getElementById(id)?.classList.remove('skeleton'));
+      renderCharts(allDocs, yearInput.value);
+    } catch(err) {
+      ['s-total','s-stored','s-pending','s-rejected','s-size'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.textContent = '—'; el.classList.remove('skeleton'); }
+      });
+      console.error('[Stats] Load error:', err);
+      Toast.error('Không tải được dữ liệu: ' + err.message);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadStats);
+</script>
+</body>
+</html>

@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quản lý Khoa — BV Hữu Nghị</title>
+  <link rel="stylesheet" href="../../assets/css/style.css" />
+  <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+  <style>
+    .dept-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .dept-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 22px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow var(--transition), transform var(--transition);
+    }
+    .dept-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .dept-icon {
+      width: 46px; height: 46px;
+      background: rgba(27,42,74,.07);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--navy);
+      flex-shrink: 0;
+      font-family: var(--font-ui) !important;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    .dept-name { font-family: var(--font-ui) !important; font-weight: 600; font-size: 1rem; }
+    .dept-id   { font-family: var(--font-mono); font-size: .68rem; color: var(--gray-400); margin-top: 2px; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Sidebar Admin -->
+  <nav class="sidebar"></nav>
+
+  <!-- Main -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <main class="main-content">
+    <div class="page-header page-header-row">
+      <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+    </div>
+      <button class="btn btn-brass" id="btn-add-dept">+ Thêm khoa</button>
+    </div>
+
+    <!-- Stats -->
+    <div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap">
+      <div class="stat-card stat-card--brass" style="min-width:160px">
+        <span class="stat-label">Tổng số khoa</span>
+        <span class="stat-value" id="dept-count">—</span>
+      </div>
+    </div>
+
+    <!-- Grid -->
+    <div class="dept-grid" id="dept-grid">
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+        <h3>Đang tải…</h3>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal: Thêm khoa -->
+<div class="modal-overlay" id="modal-add-dept">
+  <div class="modal" style="max-width:420px">
+    <button class="modal-close" data-modal-close="modal-add-dept">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="modal-title">Thêm khoa mới</h3>
+    <p class="modal-subtitle">Tên khoa phải là duy nhất trong hệ thống.</p>
+
+    <div class="form-group">
+      <label class="form-label">Tên khoa *</label>
+      <input class="form-control" type="text" id="new-dept-name"
+             placeholder="VD: Khoa Công nghệ Thông tin" />
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-add-dept">Huỷ</button>
+      <button class="btn btn-primary" id="btn-save-dept">Thêm khoa</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container"></div>
+<script src="../../assets/js/app.js?v=role-sync-12"></script>
+<script src="../../assets/js/sidebar.js?v=role-sync-12"></script>
+<script>
+  Auth.requireAdmin();
+
+
+  /* esc() — see app.js */
+
+  const COLORS = [
+    '#1B2A4A','#2F6F4E','#9C6B2E','#A33B3B','#2C3E6B',
+    '#5B4A8A','#3D6B6B','#6B3D3D','#4A6B3D','#6B5B2E'
+  ];
+
+  function colorFor(name) {
+    let h = 0;
+    for (const c of String(name)) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff;
+    return COLORS[Math.abs(h) % COLORS.length];
+  }
+
+  /* ── Lưu danh sách khoa để event delegation dùng ────────────── */
+  let _depts = [];
+
+  async function loadDepts() {
+    const grid = document.getElementById('dept-grid');
+    // Skeleton
+    grid.innerHTML = Array(4).fill(0).map(() => `
+      <div class="dept-card" style="pointer-events:none">
+        <div class="skeleton-avatar" style="width:46px;height:46px;border-radius:12px;flex-shrink:0"></div>
+        <div style="flex:1"><div class="skeleton-line title" style="width:60%"></div><div class="skeleton-line short"></div></div>
+      </div>`).join('');
+
+    try {
+      const res  = await api.get('/departments?limit=10000');
+      _depts     = Array.isArray(res) ? res : (res.data || []);
+      document.getElementById('dept-count').textContent = _depts.length;
+
+      if (!_depts.length) {
+        grid.innerHTML = emptyStatePro(
+          '🏛', 'Chưa có khoa nào',
+          'Thêm khoa đầu tiên bằng nút "+ Thêm khoa".'
+        );
+        return;
+      }
+
+      grid.innerHTML = _depts.map((d, i) => {
+        const color = colorFor(d.name);
+        return `
+          <div class="dept-card" data-idx="${i}" style="cursor:pointer">
+            <div class="dept-icon" style="background:${color}20;color:${color}">
+              ${esc(d.name[0].toUpperCase())}
+            </div>
+            <div style="flex:1;min-width:0">
+              <div class="dept-name">${esc(d.name)}</div>
+              <div class="dept-id">${esc(d.id.slice(0, 8))}…</div>
+            </div>
+          </div>`;
+      }).join('');
+
+      // Event delegation — không onclick inline
+      grid.addEventListener('click', e => {
+        const card = e.target.closest('.dept-card[data-idx]');
+        if (!card) return;
+        const d = _depts[parseInt(card.dataset.idx, 10)];
+        if (d) openDeptDetail(d.id, d.name);
+      });
+
+    } catch (err) {
+      grid.innerHTML = emptyStatePro('⚠️', 'Không thể tải danh sách khoa', esc(err.message),
+        `<button class="btn btn-ghost btn-sm" id="btn-retry-depts">Thử lại</button>`);
+      document.getElementById('btn-retry-depts')?.addEventListener('click', loadDepts);
+      Toast.error(err.message);
+    }
+  }
+
+  /* ── Thêm khoa ──────────────────────────────────────────────── */
+  document.getElementById('btn-add-dept').addEventListener('click', () => {
+    document.getElementById('new-dept-name').value = '';
+    Modal.open('modal-add-dept');
+    setTimeout(() => document.getElementById('new-dept-name').focus(), 150);
+  });
+
+  document.getElementById('btn-save-dept').addEventListener('click', async function () {
+    const name = document.getElementById('new-dept-name').value.trim();
+    if (!name) { Toast.warning('Vui lòng nhập tên khoa.'); return; }
+    this.classList.add('loading');
+    try {
+      await api.post('/departments', { name });
+      Modal.close('modal-add-dept');
+      Toast.success(`Đã thêm khoa "${name}"!`);
+      loadDepts();
+    } catch (err) {
+      Toast.error(err.message);
+    } finally {
+      this.classList.remove('loading');
+    }
+  });
+
+  document.getElementById('new-dept-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-save-dept').click();
+  });
+
+  document.addEventListener('DOMContentLoaded', loadDepts);
+</script>
+
+<!-- Modal: Chi tiết khoa -->
+<div class="modal-overlay" id="modal-dept-detail">
+  <div class="modal" style="max-width:700px;padding:0;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--gray-200)">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div id="dept-detail-icon" style="width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-size:1.2rem;font-weight:700;flex-shrink:0"></div>
+        <div>
+          <h3 class="modal-title" id="dept-detail-name" style="margin-bottom:2px"></h3>
+          <span id="dept-detail-id" style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--gray-400)"></span>
+        </div>
+      </div>
+      <button class="modal-close" data-modal-close="modal-dept-detail" style="position:static">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Stats row -->
+    <div style="display:flex;border-bottom:1px solid var(--gray-200)">
+      <div style="flex:1;padding:16px 20px;text-align:center;border-right:1px solid var(--gray-200)">
+        <div style="font-size:.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-600)">Tổng TL</div>
+        <div id="dept-stat-total" style="font-family:'Fraunces',serif;font-size:1.6rem;font-weight:700;color:var(--navy)">—</div>
+      </div>
+      <div style="flex:1;padding:16px 20px;text-align:center;border-right:1px solid var(--gray-200)">
+        <div style="font-size:.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-600)">Chờ duyệt</div>
+        <div id="dept-stat-pending" style="font-family:'Fraunces',serif;font-size:1.6rem;font-weight:700;color:var(--stamp-wait)">—</div>
+      </div>
+      <div style="flex:1;padding:16px 20px;text-align:center;border-right:1px solid var(--gray-200)">
+        <div style="font-size:.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-600)">Đã lưu trữ</div>
+        <div id="dept-stat-stored" style="font-family:'Fraunces',serif;font-size:1.6rem;font-weight:700;color:var(--stamp-ok)">—</div>
+      </div>
+      <div style="flex:1;padding:16px 20px;text-align:center">
+        <div style="font-size:.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-600)">Từ chối</div>
+        <div id="dept-stat-rejected" style="font-family:'Fraunces',serif;font-size:1.6rem;font-weight:700;color:var(--stamp-deny)">—</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--gray-200);padding:0 24px" role="tablist">
+      <button role="tab" aria-selected="true" id="tab-btn-docs"
+        style="padding:12px 18px;border:none;background:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;font-size:.85rem;color:var(--navy);border-bottom:3px solid var(--brass);margin-bottom:-1px">
+        📄 Tài liệu
+      </button>
+      <button role="tab" aria-selected="false" id="tab-btn-members"
+        style="padding:12px 18px;border:none;background:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:600;font-size:.85rem;color:var(--gray-600);border-bottom:3px solid transparent;margin-bottom:-1px">
+        👥 Thành viên
+      </button>
+    </div>
+
+    <div id="dept-tab-docs"    style="max-height:380px;overflow-y:auto;padding:0 24px 16px"></div>
+    <div id="dept-tab-members" style="max-height:380px;overflow-y:auto;padding:0 24px 16px;display:none"></div>
+  </div>
+</div>
+
+<!-- Modal: Xem chi tiết thành viên -->
+<div class="modal-overlay" id="modal-member-detail">
+  <div class="modal" style="max-width:600px">
+    <button class="modal-close" data-modal-close="modal-member-detail">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="modal-title">Thông tin nhân viên</h3>
+    
+    <div style="display:flex;align-items:center;gap:16px;margin:24px 0;padding:20px;background:var(--gray-50);border-radius:var(--radius)">
+      <div id="member-avatar" style="width:64px;height:64px;border-radius:50%;background:var(--brass);
+        display:flex;align-items:center;justify-content:center;color:var(--white);
+        font-family:'Fraunces',serif;font-weight:700;font-size:1.5rem;flex-shrink:0">
+        U
+      </div>
+      <div style="flex:1">
+        <h4 id="member-fullname" style="margin:0 0 4px;font-size:1.1rem;color:var(--navy)">—</h4>
+        <p id="member-email" style="margin:0;font-size:.85rem;color:var(--gray-500);font-family:'IBM Plex Mono',monospace">—</p>
+      </div>
+    </div>
+
+    <div style="display:grid;gap:16px">
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">Số điện thoại:</span>
+        <span id="member-phone" style="color:var(--gray-800)">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">CCCD/CMND:</span>
+        <span id="member-idcard" style="color:var(--gray-800);font-family:'IBM Plex Mono',monospace">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">Ngày sinh:</span>
+        <span id="member-dob" style="color:var(--gray-800);font-family:'IBM Plex Mono',monospace">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">Khoa:</span>
+        <span id="member-department" style="color:var(--gray-800)">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">Chức vụ:</span>
+        <span id="member-position" style="color:var(--gray-800)">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">Trình độ:</span>
+        <span id="member-education" style="color:var(--gray-800)">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">Vai trò:</span>
+        <span id="member-role"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">Trạng thái:</span>
+        <span id="member-status"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:start">
+        <span style="font-weight:600;color:var(--gray-600)">Ngày tạo:</span>
+        <span id="member-created" style="color:var(--gray-800);font-family:'IBM Plex Mono',monospace">—</span>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-member-detail">Đóng</button>
+      <button class="btn btn-primary" id="btn-edit-member">Chỉnh sửa</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Chỉnh sửa thành viên -->
+<div class="modal-overlay" id="modal-edit-member">
+  <div class="modal" style="max-width:700px">
+    <button class="modal-close" data-modal-close="modal-edit-member">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="modal-title">Chỉnh sửa thông tin nhân viên</h3>
+    <p class="modal-subtitle" id="edit-member-subtitle"></p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Họ và tên</label>
+        <input class="form-control" type="text" id="edit-member-fullname" placeholder="Nguyễn Văn A" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-control" type="email" id="edit-member-email" placeholder="nva@truong.edu.vn" />
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Số điện thoại</label>
+        <input class="form-control" type="tel" id="edit-member-phone" placeholder="0912345678" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">CCCD/CMND</label>
+        <input class="form-control" type="text" id="edit-member-idcard" placeholder="079123456789" />
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Khoa / Đơn vị</label>
+        <select class="form-control" id="edit-member-dept">
+          <option value="">— Không phân khoa —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Chức vụ</label>
+        <input class="form-control" type="text" id="edit-member-position" placeholder="Bác sĩ, Y tá, Điều dưỡng..." />
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label">Ngày sinh</label>
+        <input class="form-control" type="date" id="edit-member-dob" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Trình độ</label>
+        <input class="form-control" type="text" id="edit-member-education" placeholder="Đại học, Thạc sĩ, Tiến sĩ..." />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Vai trò</label>
+      <select class="form-control" id="edit-member-role">
+        <option value="user">User — Người dùng thường</option>
+        <option value="department_head">Trưởng Khoa — Quản lý khoa mình</option>
+        <option value="admin">Admin — Toàn quyền</option>
+      </select>
+    </div>
+
+    <div style="background:rgba(185,138,46,.08);border-radius:var(--radius);padding:12px;font-size:.82rem;color:var(--stamp-wait);margin-bottom:16px">
+      ⚠ Trưởng Khoa có thể duyệt tài liệu và quản lý thành viên trong khoa của họ.
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-edit-member">Huỷ</button>
+      <button class="btn btn-primary" id="btn-save-member">Lưu thay đổi</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ── Tab switcher ───────────────────────────────────────────── */
+  document.querySelector('[role="tablist"]').addEventListener('click', e => {
+    const btn = e.target.closest('[role="tab"]');
+    if (!btn) return;
+    const tab = btn.id === 'tab-btn-docs' ? 'docs' : 'members';
+    switchTab(tab);
+  });
+
+  function switchTab(tab) {
+    const isDocs = tab === 'docs';
+    document.getElementById('dept-tab-docs').style.display    = isDocs ? 'block' : 'none';
+    document.getElementById('dept-tab-members').style.display = isDocs ? 'none'  : 'block';
+    const tD = document.getElementById('tab-btn-docs');
+    const tM = document.getElementById('tab-btn-members');
+    tD.style.color             = isDocs ? 'var(--navy)'    : 'var(--gray-600)';
+    tD.style.borderBottomColor = isDocs ? 'var(--brass)'   : 'transparent';
+    tD.setAttribute('aria-selected', isDocs);
+    tM.style.color             = isDocs ? 'var(--gray-600)': 'var(--navy)';
+    tM.style.borderBottomColor = isDocs ? 'transparent'    : 'var(--brass)';
+    tM.setAttribute('aria-selected', !isDocs);
+  }
+
+  /* ── Mở modal chi tiết khoa ─────────────────────────────────── */
+  let _deptDocs = []; // để event delegation preview
+
+  async function openDeptDetail(deptId, deptName) {
+    const color = colorFor(deptName);
+    document.getElementById('dept-detail-icon').style.background = color + '20';
+    document.getElementById('dept-detail-icon').style.color      = color;
+    document.getElementById('dept-detail-icon').textContent      = deptName[0].toUpperCase();
+    document.getElementById('dept-detail-name').textContent      = deptName;
+    document.getElementById('dept-detail-id').textContent        = deptId;
+
+    ['dept-stat-total','dept-stat-pending','dept-stat-stored','dept-stat-rejected']
+      .forEach(id => { document.getElementById(id).textContent = '—'; });
+    document.getElementById('dept-tab-docs').innerHTML    = '<div style="text-align:center;padding:32px;color:var(--gray-400)">Đang tải…</div>';
+    document.getElementById('dept-tab-members').innerHTML = '<div style="text-align:center;padding:32px;color:var(--gray-400)">Đang tải…</div>';
+
+    switchTab('docs');
+    Modal.open('modal-dept-detail');
+
+    const params = new URLSearchParams({ departmentId: deptId, limit: 10000 });
+    const [docsRes, usersRes] = await Promise.allSettled([
+      api.get('/documents/search?' + params),
+      api.get('/users?limit=10000')
+    ]);
+
+    // ── Docs ────────────────────────────────────────────────────
+    if (docsRes.status === 'fulfilled') {
+      const res  = docsRes.value;
+      let docs   = Array.isArray(res) ? res : (res.data || res.documents || res.items || []);
+      _deptDocs  = docs;
+
+      document.getElementById('dept-stat-total').textContent    = docs.length;
+      document.getElementById('dept-stat-pending').textContent  = docs.filter(d => d.status === 'pending').length;
+      document.getElementById('dept-stat-stored').textContent   = docs.filter(d => d.status === 'stored' || d.status === 'approved').length;
+      document.getElementById('dept-stat-rejected').textContent = docs.filter(d => d.status === 'rejected').length;
+
+      const docsEl = document.getElementById('dept-tab-docs');
+      if (!docs.length) {
+        docsEl.innerHTML = emptyStatePro('📄', 'Chưa có tài liệu nào', 'Khoa này chưa có tài liệu.');
+      } else {
+        docsEl.innerHTML = `
+          <div class="table-wrap" style="margin-top:16px">
+            <table>
+              <thead><tr><th>Tài liệu</th><th>Người gửi</th><th>Ngày gửi</th><th>Kích thước</th><th>Trạng thái</th><th></th></tr></thead>
+              <tbody id="dept-docs-tbody">
+                ${docs.map((d, i) => `
+                  <tr data-idx="${i}" style="cursor:pointer">
+                    <td>
+                      <div style="font-weight:600;font-size:.9rem">${esc(d.title || d.originalFilename)}</div>
+                      <div class="td-mono">${esc(d.originalFilename)}</div>
+                    </td>
+                    <td>
+                      <div style="font-size:.85rem;font-weight:500">${esc(d.uploader?.fullName || '—')}</div>
+                      <div class="td-mono" style="font-size:.72rem">${esc(d.uploader?.email || '')}</div>
+                    </td>
+                    <td class="td-mono">${fmtDate(d.createdAt)}</td>
+                    <td class="td-mono">${fmtSize(d)}</td>
+                    <td>${statusBadge(d.status)}</td>
+                    <td>
+                      ${d.status === 'stored' || d.status === 'approved'
+                        ? `<button class="btn btn-brass btn-sm" data-action="dl" data-idx="${i}">↓</button>`
+                        : ''}
+                    </td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>`;
+
+        document.getElementById('dept-docs-tbody').addEventListener('click', e => {
+          const dlBtn = e.target.closest('[data-action="dl"]');
+          const row   = e.target.closest('tr[data-idx]');
+          if (!row) return;
+          const d = _deptDocs[parseInt(row.dataset.idx, 10)];
+          if (!d) return;
+          if (dlBtn) { e.stopPropagation(); downloadFile(d.id, d.originalFilename || 'document.pdf'); return; }
+          previewFile(d.id, d.title || d.originalFilename);
+        });
+      }
+    } else {
+      document.getElementById('dept-tab-docs').innerHTML =
+        `<div style="padding:24px;color:var(--stamp-deny)">Lỗi tải tài liệu: ${esc(docsRes.reason?.message)}</div>`;
+    }
+
+    // ── Members ──────────────────────────────────────────────────
+    if (usersRes.status === 'fulfilled') {
+      const allUsers = Array.isArray(usersRes.value) ? usersRes.value : (usersRes.value?.data || []);
+      const members  = allUsers.filter(u => u.departmentId === deptId || u.department?.id === deptId);
+      const membersEl = document.getElementById('dept-tab-members');
+      window._deptMembers = members; // Lưu để click handler dùng
+
+      if (!members.length) {
+        membersEl.innerHTML = emptyStatePro('👥', 'Chưa có thành viên', 'Không có tài khoản nào thuộc khoa này.');
+      } else {
+        membersEl.innerHTML = `
+          <div class="table-wrap" style="margin-top:16px">
+            <table>
+              <thead><tr><th>Họ và tên</th><th>Email</th><th>Số điện thoại</th><th>Chức vụ</th><th>Vai trò</th><th>Trạng thái</th></tr></thead>
+              <tbody id="dept-members-tbody">
+                ${members.map((u, i) => {
+                  // === FIX: Swap position và qualification nếu bị sai ===
+                  let position = u.position || '';
+                  let qualification = u.qualification || u.educationLevel || u.education || u.degree || '';
+                  
+                  const normalizeText = (text) => text.toLowerCase().trim().replace(/\s+/g, ' ');
+                  const educationKeywords = ['cao đẳng', 'đại học', 'thạc sĩ', 'tiến sĩ', 'cử nhân', 'kỹ sư', 'bác sĩ nội trú', 'chuyên khoa'];
+                  const positionNorm = normalizeText(position);
+                  const qualificationNorm = normalizeText(qualification);
+                  const hasEducationInPosition = educationKeywords.some(kw => positionNorm.includes(kw));
+                  const hasEducationInQualification = educationKeywords.some(kw => qualificationNorm.includes(kw));
+                  
+                  if (hasEducationInPosition && !qualification) {
+                    [position, qualification] = ['', position];
+                  } else if (position && qualification && positionNorm === qualificationNorm) {
+                    position = '';
+                  } else if (hasEducationInPosition && hasEducationInQualification && positionNorm !== qualificationNorm) {
+                    position = '';
+                  }
+                  // === END FIX ===
+                  
+                  return `
+                  <tr data-member-idx="${i}" style="cursor:pointer" class="row-hover">
+                    <td>
+                      <div style="display:flex;align-items:center;gap:10px">
+                        <div style="width:32px;height:32px;border-radius:50%;
+                          background:${u.role==='admin'?'var(--brass)':u.role==='department_head'?'var(--stamp-ok)':'var(--navy)'};
+                          display:flex;align-items:center;justify-content:center;
+                          color:#fff;font-family:'Fraunces',serif;font-weight:700;font-size:.85rem;flex-shrink:0">
+                          ${esc((u.fullName?.[0] || 'U').toUpperCase())}
+                        </div>
+                        <div style="font-weight:600;font-size:.9rem">${esc(u.fullName || '—')}</div>
+                      </div>
+                    </td>
+                    <td class="td-mono">${esc(u.email)}</td>
+                    <td>${esc(u.phone || u.phoneNumber || '—')}</td>
+                    <td>${position ? esc(position) : ''}</td>
+                    <td><span class="badge ${u.role==='admin'?'badge-stored':u.role==='department_head'?'badge-approved':'badge-pending'}">${u.role==='admin'?'Admin':u.role==='department_head'?'Trưởng Khoa':'User'}</span></td>
+                    <td><span class="badge ${u.isActive?'badge-approved':'badge-rejected'}">${u.isActive?'Hoạt động':'Vô hiệu'}</span></td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>`;
+        
+        // Click handler cho thành viên
+        document.getElementById('dept-members-tbody').addEventListener('click', e => {
+          const row = e.target.closest('tr[data-member-idx]');
+          if (!row) return;
+          const member = window._deptMembers[parseInt(row.dataset.memberIdx, 10)];
+          if (member) openMemberDetail(member);
+        });
+      }
+    } else {
+      document.getElementById('dept-tab-members').innerHTML =
+        `<div style="padding:24px;color:var(--stamp-deny)">Lỗi tải thành viên: ${esc(usersRes.reason?.message)}</div>`;
+    }
+  }
+
+  /* ── Mở modal chi tiết thành viên ────────────────────────────── */
+  let _currentMember = null;
+
+  function openMemberDetail(userObj) {
+    _currentMember = userObj;
+    
+    // Debug: Log để xem dữ liệu thực tế
+    console.log('[Member Detail] User data:', userObj);
+    console.log('[Member Detail] All fields:', Object.keys(userObj));
+    
+    // === FIX: Swap position và qualification nếu bị sai ===
+    let position = userObj.position || '';
+    let qualification = userObj.qualification || userObj.educationLevel || userObj.education || userObj.degree || '';
+    
+    const educationKeywords = ['cao đẳng', 'đại học', 'thạc sĩ', 'tiến sĩ', 'cử nhân', 'kỹ sư', 'bác sĩ nội trú', 'chuyên khoa'];
+    const positionLower = position.toLowerCase();
+    const qualificationLower = qualification.toLowerCase();
+    const hasEducationInPosition = educationKeywords.some(kw => positionLower.includes(kw));
+    const hasEducationInQualification = educationKeywords.some(kw => qualificationLower.includes(kw));
+    
+    if (hasEducationInPosition) {
+      if (!qualification) {
+        [position, qualification] = ['', position];
+      } else if (position.toLowerCase() === qualification.toLowerCase()) {
+        position = '';
+      } else if (hasEducationInQualification) {
+        position = '';
+      }
+    }
+    // === END FIX ===
+    
+    const roleColor = userObj.role === 'admin' ? 'var(--brass)'
+                    : userObj.role === 'department_head' ? 'var(--stamp-ok)'
+                    : 'var(--navy)';
+    const roleBadge = userObj.role === 'admin' ? 'badge-stored'
+                    : userObj.role === 'department_head' ? 'badge-approved'
+                    : 'badge-pending';
+    const roleLabel = userObj.role === 'admin' ? 'Admin'
+                    : userObj.role === 'department_head' ? 'Trưởng Khoa'
+                    : 'User';
+
+    document.getElementById('member-avatar').textContent = (userObj.fullName?.[0] || 'U').toUpperCase();
+    document.getElementById('member-avatar').style.background = roleColor;
+    document.getElementById('member-fullname').textContent = userObj.fullName || '—';
+    document.getElementById('member-email').textContent = userObj.email || '—';
+    document.getElementById('member-phone').textContent = userObj.phone || userObj.phoneNumber || '—';
+    
+    // Backend dùng field 'cccd' thay vì 'idCard'
+    const idCard = userObj.cccd || userObj.idCard || userObj.idCardNumber || userObj.citizenId || userObj.nationalId;
+    document.getElementById('member-idcard').textContent = idCard || '—';
+    
+    document.getElementById('member-dob').textContent = userObj.dateOfBirth ? fmtDate(userObj.dateOfBirth) : '—';
+    document.getElementById('member-department').textContent = userObj.department?.name || '—';
+    document.getElementById('member-position').textContent = position || '';
+    
+    // Backend có field 'qualification' chứ không phải 'educationLevel'!
+    document.getElementById('member-education').textContent = qualification || '—';
+    
+    document.getElementById('member-role').innerHTML = `<span class="badge ${roleBadge}">${roleLabel}</span>`;
+    document.getElementById('member-status').innerHTML = `<span class="badge ${userObj.isActive ? 'badge-approved' : 'badge-rejected'}">${userObj.isActive ? 'Hoạt động' : 'Vô hiệu'}</span>`;
+    document.getElementById('member-created').textContent = fmtDate(userObj.createdAt);
+
+    Modal.open('modal-member-detail');
+  }
+
+  /* ── Mở modal chỉnh sửa thành viên ────────────────────────────── */
+  document.getElementById('btn-edit-member').addEventListener('click', async () => {
+    if (!_currentMember) return;
+    Modal.close('modal-member-detail');
+    
+    document.getElementById('edit-member-subtitle').textContent = 'Tài khoản: ' + (_currentMember.fullName || _currentMember.email);
+    document.getElementById('edit-member-fullname').value = _currentMember.fullName || '';
+    document.getElementById('edit-member-email').value = _currentMember.email || '';
+    document.getElementById('edit-member-phone').value = _currentMember.phone || _currentMember.phoneNumber || '';
+    document.getElementById('edit-member-idcard').value = _currentMember.cccd || _currentMember.idCard || '';
+    document.getElementById('edit-member-position').value = _currentMember.position || '';
+    document.getElementById('edit-member-dob').value = _currentMember.dateOfBirth ? _currentMember.dateOfBirth.split('T')[0] : '';
+    document.getElementById('edit-member-education').value = _currentMember.qualification || _currentMember.educationLevel || _currentMember.education || '';
+    document.getElementById('edit-member-role').value = _currentMember.role || 'user';
+
+    // Load departments
+    try {
+      const res = await api.get('/departments?limit=10000');
+      const depts = Array.isArray(res) ? res : (res.data || []);
+      const sel = document.getElementById('edit-member-dept');
+      sel.innerHTML = '<option value="">— Không phân khoa —</option>';
+      depts.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.id;
+        opt.textContent = d.name;
+        sel.appendChild(opt);
+      });
+      const deptId = _currentMember.departmentId || _currentMember.department?.id;
+      if (deptId) sel.value = deptId;
+    } catch(e) {}
+
+    Modal.open('modal-edit-member');
+  });
+
+  /* ── Lưu thay đổi thành viên ─────────────────────────────────── */
+  document.getElementById('btn-save-member').addEventListener('click', async function() {
+    if (!_currentMember) return;
+    
+    const role          = document.getElementById('edit-member-role').value;
+    const deptId        = document.getElementById('edit-member-dept').value;
+
+    if (role === 'department_head' && !deptId) {
+      Toast.warning('Trưởng Khoa phải được gán vào một khoa cụ thể.');
+      return;
+    }
+
+    this.classList.add('loading');
+    
+    try {
+      // Cập nhật role trước
+      const roleBody = { role };
+      if (deptId) roleBody.departmentId = deptId;
+      await api.patch(`/users/${_currentMember.id}/role`, roleBody);
+      
+      // Cập nhật thông tin cá nhân
+      const fullName      = document.getElementById('edit-member-fullname').value.trim();
+      const email         = document.getElementById('edit-member-email').value.trim();
+      const phone         = document.getElementById('edit-member-phone').value.trim();
+      const cccd          = document.getElementById('edit-member-idcard').value.trim();
+      const position      = document.getElementById('edit-member-position').value.trim();
+      const dateOfBirth   = document.getElementById('edit-member-dob').value;
+      const qualification = document.getElementById('edit-member-education').value.trim();
+      
+      const updateBody = {};
+      if (fullName) updateBody.fullName = fullName;
+      if (email) updateBody.email = email;
+      if (phone) updateBody.phone = phone;
+      if (cccd) updateBody.cccd = cccd;
+      if (position) updateBody.position = position;
+      if (dateOfBirth) updateBody.dateOfBirth = dateOfBirth;
+      if (qualification) updateBody.qualification = qualification;
+      
+      if (Object.keys(updateBody).length > 0) {
+        try {
+          await api.patch(`/users/${_currentMember.id}`, updateBody);
+        } catch (e) {
+          console.warn('Update user info failed:', e);
+        }
+      }
+      
+      Modal.close('modal-edit-member');
+      Toast.success('Đã cập nhật thông tin nhân viên!');
+      // Reload modal chi tiết khoa để cập nhật danh sách
+      const currentDeptId = _currentMember.departmentId || _currentMember.department?.id;
+      const currentDeptName = _currentMember.department?.name;
+      if (currentDeptId && currentDeptName) {
+        Modal.close('modal-dept-detail');
+        setTimeout(() => openDeptDetail(currentDeptId, currentDeptName), 100);
+      }
+    } catch(err) {
+      Toast.error(err.message);
+    } finally {
+      this.classList.remove('loading');
+    }
+  });
+</script>
+</body>
+</html>

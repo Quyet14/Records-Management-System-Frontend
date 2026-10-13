@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Giám sát hệ thống — BV Hữu Nghị</title>
+  <link rel="stylesheet" href="../../assets/css/style.css" />
+  <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
+  <script>
+    (function(){
+      if(localStorage.getItem('lths_dark')==='1')
+        document.documentElement.setAttribute('data-theme','dark');
+    })();
+  </script>
+  <style>
+    .monitor-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .monitor-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      padding: 20px 22px;
+      box-shadow: var(--shadow-sm);
+    }
+    .monitor-card h4 {
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--gray-600);
+      margin-bottom: 8px;
+    }
+    .monitor-val {
+      font-family: var(--font-ui) !important;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--navy);
+      line-height: 1;
+    }
+    .monitor-sub { font-size: .78rem; color: var(--gray-400); margin-top: 4px; }
+
+    .storage-bar-wrap {
+      background: var(--gray-200);
+      border-radius: 99px;
+      height: 10px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+    .storage-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--stamp-ok), #4a9c73);
+      transition: width .6s ease;
+    }
+    .storage-bar-fill.warn  { background: linear-gradient(90deg, var(--stamp-wait), #d4a040); }
+    .storage-bar-fill.danger{ background: linear-gradient(90deg, var(--stamp-deny), #c05a5a); }
+
+    .health-dot {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    .health-ok     { background: var(--stamp-ok); }
+    .health-warn   { background: var(--stamp-wait); animation: badgePulse 1.4s infinite; }
+    .health-error  { background: var(--stamp-deny); }
+
+    .checksum-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: .85rem;
+      margin-bottom: 6px;
+    }
+    .checksum-row.ok     { background: rgba(47,111,78,.06);  color: var(--stamp-ok); }
+    .checksum-row.error  { background: rgba(163,59,59,.08);  color: var(--stamp-deny); }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+  <nav class="sidebar"></nav>
+
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <main class="main-content">
+    <div class="page-header page-header-row">
+      <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+    </div>
+      <button class="btn btn-ghost" id="btn-refresh">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        Làm mới
+      </button>
+    </div>
+
+    <!-- Cảnh báo chỉnh lý + sắp hết hạn (TT33/2025) -->
+    <div class="section-tab">
+      <span class="section-tab-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Cảnh báo lưu trữ — TT 33/2025/TT-BYT
+      </span>
+      <span class="section-tab-line"></span>
+    </div>
+
+    <!-- Tabs: Chỉnh lý / Sắp hết hạn -->
+    <div style="display:flex;gap:4px;margin-bottom:16px" role="tablist" id="retention-tabs">
+      <button class="status-tab-btn active" data-panel="panel-review" role="tab">
+        📁 Chưa chỉnh lý <span class="tab-count" id="tab-count-review">—</span>
+      </button>
+      <button class="status-tab-btn" data-panel="panel-expiring" role="tab">
+        ⏰ Sắp hết hạn <span class="tab-count" id="tab-count-expiring">—</span>
+      </button>
+      <button class="status-tab-btn" data-panel="panel-expired" role="tab">
+        🚨 Đã hết hạn <span class="tab-count" id="tab-count-expired">—</span>
+      </button>
+    </div>
+
+    <!-- Panel: Chưa chỉnh lý -->
+    <div id="panel-review" style="margin-bottom:24px">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tài liệu</th>
+              <th>Loại hồ sơ</th>
+              <th>Khoa</th>
+              <th>Ngày hình thành</th>
+              <th>Người gửi</th>
+              <th style="width:140px">Trạng thái chỉnh lý</th>
+            </tr>
+          </thead>
+          <tbody id="review-tbody">
+            <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-400)">Đang tải…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Panel: Sắp hết hạn -->
+    <div id="panel-expiring" style="display:none;margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <span style="font-size:.82rem;color:var(--gray-600)">Hiển thị tài liệu hết hạn trong vòng:</span>
+        <select class="form-control" id="monitor-expiry-range" style="width:160px;font-size:.82rem">
+          <option value="180">6 tháng</option>
+          <option value="365" selected>1 năm</option>
+          <option value="730">2 năm</option>
+          <option value="1825">5 năm</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tài liệu</th>
+              <th>Loại hồ sơ</th>
+              <th>Khoa</th>
+              <th>Ngày hình thành</th>
+              <th>Hạn lưu trữ</th>
+              <th>Còn lại</th>
+            </tr>
+          </thead>
+          <tbody id="expiring-tbody">
+            <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-400)">Đang tải…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Panel: Đã hết hạn -->
+    <div id="panel-expired" style="display:none;margin-bottom:24px">
+      <div style="background:var(--stamp-deny-light);border:1px solid var(--stamp-deny);
+        border-radius:var(--radius-lg);padding:12px 16px;margin-bottom:12px;font-size:.84rem;color:var(--stamp-deny)">
+        🚨 Các tài liệu này đã quá thời hạn lưu trữ theo quy định. Cần xem xét tiêu hủy hoặc chuyển giao theo thủ tục pháp lý.
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tài liệu</th>
+              <th>Loại hồ sơ</th>
+              <th>Khoa</th>
+              <th>Hạn lưu trữ</th>
+              <th>Quá hạn</th>
+            </tr>
+          </thead>
+          <tbody id="expired-tbody">
+            <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--gray-400)">Đang tải…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Health checks -->
+    <div class="section-tab">
+      <span class="section-tab-label">🟢 Trạng thái dịch vụ</span>
+      <span class="section-tab-line"></span>
+      <span id="last-check" style="font-size:.75rem;color:var(--gray-400)"></span>
+    </div>
+    <div class="monitor-grid" id="health-grid">
+      <div class="monitor-card">
+        <h4>API Server</h4>
+        <div id="h-api" style="display:flex;align-items:center;font-size:.9rem;font-weight:600">
+          <span class="health-dot health-warn"></span> Đang kiểm tra…
+        </div>
+      </div>
+      <div class="monitor-card">
+        <h4>Database</h4>
+        <div id="h-db" style="display:flex;align-items:center;font-size:.9rem;font-weight:600">
+          <span class="health-dot health-warn"></span> Đang kiểm tra…
+        </div>
+      </div>
+      <div class="monitor-card">
+        <h4>Bộ lưu trữ file</h4>
+        <div id="h-storage" style="display:flex;align-items:center;font-size:.9rem;font-weight:600">
+          <span class="health-dot health-warn"></span> Đang kiểm tra…
+        </div>
+      </div>
+    </div>
+
+    <!-- Storage stats -->
+    <div class="section-tab" style="margin-top:8px">
+      <span class="section-tab-label">💾 Dung lượng lưu trữ</span>
+      <span class="section-tab-line"></span>
+    </div>
+    <div class="monitor-grid">
+      <div class="monitor-card">
+        <h4>Tổng dung lượng tài liệu</h4>
+        <div class="monitor-val" id="storage-total">—</div>
+        <div class="monitor-sub">tổng tất cả file đã lưu</div>
+      </div>
+      <div class="monitor-card">
+        <h4>Số file đã lưu trữ</h4>
+        <div class="monitor-val" id="storage-count">—</div>
+        <div class="monitor-sub">tài liệu đã được duyệt</div>
+      </div>
+      <div class="monitor-card">
+        <h4>File lớn nhất</h4>
+        <div class="monitor-val" id="storage-max">—</div>
+        <div class="monitor-sub" id="storage-max-name">—</div>
+      </div>
+      <div class="monitor-card">
+        <h4>Trung bình mỗi file</h4>
+        <div class="monitor-val" id="storage-avg">—</div>
+        <div class="monitor-sub">kích thước trung bình</div>
+      </div>
+    </div>
+
+    <!-- Checksum integrity -->
+    <div class="section-tab" style="margin-top:8px">
+      <span class="section-tab-label">🔐 Kiểm tra tính toàn vẹn (Checksum)</span>
+      <span class="section-tab-line"></span>
+    </div>
+    <div class="card" id="checksum-wrap">
+      <div style="text-align:center;padding:32px;color:var(--gray-400)">Đang kiểm tra…</div>
+    </div>
+
+    <!-- Lịch sử duyệt -->
+    <div class="section-tab" style="margin-top:24px">
+      <span class="section-tab-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Lịch sử duyệt / từ chối
+      </span>
+      <span class="section-tab-line"></span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <select class="form-control" id="history-filter" style="width:160px;font-size:.8rem;padding:5px 10px">
+          <option value="">Tất cả hành động</option>
+          <option value="approve">Chỉ duyệt</option>
+          <option value="reject">Chỉ từ chối</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap" id="history-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Thời gian</th>
+            <th>Người duyệt</th>
+            <th>Hành động</th>
+            <th>Tài liệu</th>
+            <th>Người gửi</th>
+            <th>Lý do</th>
+          </tr>
+        </thead>
+        <tbody id="history-body">
+          <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-400)">Đang tải…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Audit log -->
+    <div class="section-tab" style="margin-top:24px">
+      <span class="section-tab-label">📋 Nhật ký hoạt động gần đây</span>
+      <span class="section-tab-line"></span>
+    </div>
+    <div class="table-wrap" id="audit-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Thời gian</th>
+            <th>Người dùng</th>
+            <th>Hành động</th>
+            <th>Chi tiết</th>
+          </tr>
+        </thead>
+        <tbody id="audit-body">
+          <tr><td colspan="4" style="text-align:center;padding:24px;color:var(--gray-400)">Đang tải…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<div class="toast-container"></div>
+<script src="../../assets/js/app.js?v=role-sync-12"></script>
+<script src="../../assets/js/sidebar.js?v=role-sync-12"></script>
+<script>
+  Auth.requireAdmin();
+
+
+  /* esc() — see app.js */
+
+  const ACTION_LABEL = {
+    upload:      '📄 Tải lên',
+    approve:     '✅ Duyệt',
+    reject:      '❌ Từ chối',
+    download:    '⬇ Tải về',
+    role_change: '🔑 Đổi quyền',
+    set_active:  '👤 Đổi trạng thái TK',
+  };
+
+  function nameFromUser(user) {
+    if (!user) return '';
+    if (typeof user === 'string') return user;
+    return user.fullName || user.name || user.displayName || user.email || user.username || '';
+  }
+
+  function getDocumentReviewerName(doc = {}) {
+    return nameFromUser(doc.approvedBy)
+      || nameFromUser(doc.rejectedBy)
+      || nameFromUser(doc.reviewedBy)
+      || nameFromUser(doc.reviewer)
+      || nameFromUser(doc.updatedBy)
+      || nameFromUser(doc.actionBy)
+      || nameFromUser(doc.processedBy)
+      || nameFromUser(doc.approver)
+      || nameFromUser(doc.rejecter)
+      || doc.approvedByName
+      || doc.rejectedByName
+      || doc.reviewedByName
+      || doc.reviewerName
+      || doc.actionByName
+      || doc.processedByName
+      || doc.approverName
+      || doc.rejecterName
+      || '';
+  }
+
+  function getDocumentUploaderName(doc = {}) {
+    return nameFromUser(doc.uploader)
+      || nameFromUser(doc.uploadedBy)
+      || nameFromUser(doc.owner)
+      || nameFromUser(doc.createdBy)
+      || doc.uploaderName
+      || doc.uploadedByName
+      || doc.ownerName
+      || doc.createdByName
+      || doc.uploaderEmail
+      || doc.uploadedByEmail
+      || '';
+  }
+
+  function getActionActorName(item, options = {}) {
+    const actor = item?.actor
+      || item?.user
+      || item?.createdBy
+      || item?.approvedBy
+      || item?.rejectedBy
+      || item?.reviewedBy
+      || item?.reviewer
+      || item?.updatedBy
+      || item?.actionBy
+      || item?.processedBy
+      || item?.approver
+      || item?.rejecter
+      || null;
+    return nameFromUser(actor)
+      || item?.actorName
+      || item?.userName
+      || item?.approvedByName
+      || item?.rejectedByName
+      || item?.reviewedByName
+      || getDocumentReviewerName(item?.document)
+      || (options.fallbackToUploader ? getDocumentUploaderName(item?.document) : '')
+      || '';
+  }
+
+  function getActionReason(item) {
+    return item?.metadata?.reason
+      || item?.metadata?.rejectReason
+      || item?.metadata?.rejectionReason
+      || item?.metadata?.decisionNote
+      || item?.reason
+      || item?.rejectReason
+      || item?.rejectionReason
+      || item?.decisionNote
+      || getRejectReason(item?.document || {});
+  }
+
+  function renderAuditDetail(log) {
+    const doc = log.document || {};
+    const title = doc.title || doc.originalFilename || log.documentTitle || log.title || '—';
+    const reason = getActionReason(log);
+    return `
+      <div style="font-weight:600;color:var(--navy);font-size:.85rem">${esc(title)}</div>
+      ${doc.department?.name ? `<div style="font-size:.74rem;color:var(--gray-600);margin-top:2px">${esc(doc.department.name)}</div>` : ''}
+      ${reason ? `<div class="rejection-note-inline" style="margin-top:6px;max-width:520px"><strong>Lý do:</strong> ${esc(reason)}</div>` : ''}
+    `;
+  }
+
+  function setHealth(id, ok, label) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cls = ok === true ? 'health-ok' : ok === false ? 'health-error' : 'health-warn';
+    el.innerHTML = `<span class="health-dot ${cls}"></span> ${label}`;
+  }
+
+  async function loadMonitor() {
+    document.getElementById('last-check').textContent =
+      'Cập nhật: ' + new Date().toLocaleTimeString('vi-VN');
+
+    // 1. Health check — ping API
+    try {
+      const health = await api.get('/health');
+      setHealth('h-api', true, 'Hoạt động bình thường');
+      setHealth('h-db',  true, 'Kết nối OK');
+      setHealth('h-storage', true, 'Sẵn sàng');
+    } catch(e) {
+      // Endpoint /health chưa có — set mặc định
+      setHealth('h-api', true, 'API sẵn sàng');
+      setHealth('h-db',  null, 'Không xác định');
+      setHealth('h-storage', null, 'Không xác định');
+    }
+
+    // 2. Storage stats — dùng /documents/search
+    try {
+      const res = await api.get('/documents/search?limit=10000');
+      let docs = [];
+      if (Array.isArray(res))               docs = res;
+      else if (Array.isArray(res.data))     docs = res.data;
+      else if (Array.isArray(res.documents))docs = res.documents;
+
+      const stored = docs.filter(d => d.status === 'stored' || d.status === 'approved');
+      const totalBytes = stored.reduce((s,d) => s + (getFileSizeBytes(d) || 0), 0);
+      const maxDoc = stored.reduce((m,d) => (getFileSizeBytes(d) || 0) > (getFileSizeBytes(m) || 0) ? d : m, null);
+      const avgBytes = stored.length ? totalBytes / stored.length : 0;
+
+      document.getElementById('storage-total').textContent = fmtSize(totalBytes);
+      document.getElementById('storage-count').textContent = stored.length;
+      document.getElementById('storage-max').textContent   = maxDoc ? fmtSize(maxDoc) : '—';
+      document.getElementById('storage-max-name').textContent = maxDoc?.title || maxDoc?.originalFilename || '—';
+      document.getElementById('storage-avg').textContent   = fmtSize(avgBytes);
+
+      // 3. Checksum check
+      const withChecksum    = stored.filter(d => d.sha256Checksum);
+      const withoutChecksum = stored.filter(d => !d.sha256Checksum);
+      const wrap = document.getElementById('checksum-wrap');
+
+      if (!stored.length) {
+        wrap.innerHTML = '<div class="empty-state" style="padding:32px 0"><h3>Chưa có tài liệu nào được lưu trữ</h3></div>';
+      } else {
+        wrap.innerHTML = `
+          <div style="display:flex;gap:24px;margin-bottom:16px;flex-wrap:wrap">
+            <div style="font-size:.88rem"><span style="color:var(--stamp-ok);font-weight:700">${withChecksum.length}</span> file có checksum</div>
+            <div style="font-size:.88rem"><span style="color:${withoutChecksum.length?'var(--stamp-deny)':'var(--stamp-ok)'};font-weight:700">${withoutChecksum.length}</span> file thiếu checksum</div>
+            <div style="font-size:.88rem;color:var(--gray-600)">Tổng: ${stored.length} file</div>
+          </div>
+          ${withoutChecksum.length ? `
+            <div style="margin-bottom:8px;font-weight:600;color:var(--stamp-deny);font-size:.85rem">⚠ File thiếu checksum:</div>
+            ${withoutChecksum.slice(0,10).map(d => `
+              <div class="checksum-row error">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <span style="flex:1">${d.title||d.originalFilename}</span>
+                <span style="font-family:monospace;font-size:.75rem">${fmtDate(d.createdAt)}</span>
+              </div>`).join('')}
+            ${withoutChecksum.length > 10 ? `<div style="font-size:.78rem;color:var(--gray-400);text-align:center;padding:8px">...và ${withoutChecksum.length-10} file nữa</div>` : ''}
+          ` : `<div class="checksum-row ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Tất cả file đã có SHA-256 checksum</div>`}`;
+      }
+    } catch(e) {
+      document.getElementById('storage-total').textContent = '—';
+    }
+
+    // 4. Audit log — fallback sang lịch sử duyệt
+    try {
+      await loadHistory();
+      await loadRetentionAlerts();
+      
+      const tbody = document.getElementById('audit-body');
+      // Lấy từ /documents/search thay vì /audit-logs
+      const res  = await api.get('/documents/search?limit=10000');
+      const docs = Array.isArray(res) ? res
+                 : Array.isArray(res.data) ? res.data
+                 : Array.isArray(res.items) ? res.items : [];
+      
+      const logs = docs
+        .filter(d => d.status === 'stored' || d.status === 'approved' || d.status === 'rejected')
+        .map(d => ({
+          action:    d.status === 'rejected' ? 'rejected' : 'approved',
+          createdAt: d.approvedAt || d.reviewedAt || d.updatedAt || d.createdAt,
+          actor:     d.status === 'rejected'
+            ? (d.rejectedBy || d.reviewedBy || d.reviewer || d.updatedBy || d.actionBy || d.processedBy || null)
+            : (d.approvedBy || d.reviewedBy || d.reviewer || d.updatedBy || d.actionBy || d.processedBy || null),
+          document:  d,
+          metadata:  getRejectReason(d) ? { reason: getRejectReason(d) } : null,
+        }))
+        .slice(0, 20);
+
+      if (!logs.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--gray-400)">Chưa có nhật ký.</td></tr>';
+        return;
+      }
+      
+      const ACTION_LABEL = {
+        approved: 'Duyệt tài liệu',
+        rejected: 'Từ chối tài liệu',
+        upload:   'Tải lên',
+        delete:   'Xóa',
+      };
+
+      tbody.innerHTML = logs.map(log => `
+        <tr>
+          <td class="td-mono">${fmtDate(log.createdAt)} ${new Date(log.createdAt).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})}</td>
+          <td style="font-size:.88rem">${esc(getActionActorName(log, { fallbackToUploader: true }) || 'Không ghi nhận')}</td>
+          <td><span style="font-size:.82rem">${esc(ACTION_LABEL[log.action] || log.action)}</span></td>
+          <td>${renderAuditDetail(log)}</td>
+        </tr>`).join('');
+    } catch(e) {
+      document.getElementById('audit-body').innerHTML =
+        '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--gray-400)">Chưa có endpoint audit-logs.</td></tr>';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('btn-refresh').addEventListener('click', async function () {
+      this.classList.add('loading');
+      await loadMonitor();
+      this.classList.remove('loading');
+    });
+
+    // Filter lịch sử duyệt
+    document.getElementById('history-filter').addEventListener('change', loadHistory);
+
+    loadMonitor();
+  });
+  setInterval(loadMonitor, 300000);
+
+  /* ── Lịch sử duyệt ──────────────────────────────────────────── */
+  /* ── Tab switcher cho retention panels ─────────────────────── */
+  document.getElementById('retention-tabs')?.addEventListener('click', e => {
+    const btn = e.target.closest('[data-panel]');
+    if (!btn) return;
+    document.querySelectorAll('#retention-tabs .status-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    ['panel-review','panel-expiring','panel-expired'].forEach(id => {
+      document.getElementById(id).style.display = id === btn.dataset.panel ? 'block' : 'none';
+    });
+  });
+
+  document.getElementById('monitor-expiry-range')?.addEventListener('change', e => {
+    _renderExpiringRows(parseInt(e.target.value));
+  });
+
+  let _monitorDocs = [];
+
+  async function loadRetentionAlerts() {
+    try {
+      const res  = await api.get('/documents/search?limit=10000');
+      _monitorDocs = Array.isArray(res) ? res
+                  : Array.isArray(res.data) ? res.data
+                  : Array.isArray(res.items) ? res.items : [];
+
+      const CUTOFF = new Date('2025-07-01');
+
+      // 1. Chưa chỉnh lý
+      const needReview = _monitorDocs.filter(d =>
+        new Date(d.issuedDate || d.createdAt) < CUTOFF &&
+        d.reviewStatus !== 'completed' &&
+        (d.status === 'stored' || d.status === 'approved')
+      );
+      document.getElementById('tab-count-review').textContent = needReview.length;
+      const reviewTbody = document.getElementById('review-tbody');
+      if (!needReview.length) {
+        reviewTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--stamp-ok);font-weight:600">
+          ✓ Tất cả tài liệu trước 01/7/2025 đã hoàn thành chỉnh lý.
+        </td></tr>`;
+      } else {
+        reviewTbody.innerHTML = needReview.map(d => `
+          <tr>
+            <td>
+              <div style="font-weight:600;font-size:.88rem">${esc(displayDocTitle(d))}</div>
+              <div class="td-mono" style="font-size:.72rem">${esc(displayDocFilename(d))}</div>
+            </td>
+            <td style="font-size:.8rem">${esc(d.documentType?.name || '—')}</td>
+            <td style="font-size:.8rem">${esc(d.department?.name || '—')}</td>
+            <td class="td-mono">${fmtDate(d.issuedDate || d.createdAt)}</td>
+            <td style="font-size:.82rem">${esc(d.uploader?.fullName || d.uploader?.email || '—')}</td>
+            <td>
+              <span class="badge badge-pending" style="font-size:.68rem">⏳ Chưa chỉnh lý</span>
+            </td>
+          </tr>`).join('');
+      }
+
+      // 2. Sắp hết hạn & 3. Đã hết hạn
+      _renderExpiringRows(parseInt(document.getElementById('monitor-expiry-range').value));
+
+      const expiredAll = getExpiringDocs(_monitorDocs, -1).filter(x => x.daysLeft < 0);
+      document.getElementById('tab-count-expired').textContent = expiredAll.length;
+
+    } catch (e) {
+      ['review-tbody','expiring-tbody','expired-tbody'].forEach(id => {
+        document.getElementById(id).innerHTML =
+          `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-400)">Chưa có dữ liệu.</td></tr>`;
+      });
+    }
+  }
+
+  function _renderExpiringRows(withinDays) {
+    const expiring = getExpiringDocs(_monitorDocs, withinDays).filter(x => x.daysLeft >= 0);
+    document.getElementById('tab-count-expiring').textContent = expiring.length;
+
+    const tbody = document.getElementById('expiring-tbody');
+    if (!expiring.length) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--gray-400)">
+        Không có tài liệu nào sắp hết hạn trong khoảng thời gian này.
+      </td></tr>`;
+    } else {
+      tbody.innerHTML = expiring.map(({ doc: d, expiry, daysLeft }) => {
+        const urgency = daysLeft < 90 ? 'var(--stamp-deny)' : daysLeft < 180 ? 'var(--stamp-wait)' : 'var(--navy)';
+        return `
+          <tr>
+            <td>
+              <div style="font-weight:600;font-size:.88rem">${esc(displayDocTitle(d))}</div>
+              <div class="td-mono" style="font-size:.72rem">${esc(displayDocFilename(d))}</div>
+            </td>
+            <td style="font-size:.8rem">${esc(d.documentType?.name || '—')}</td>
+            <td style="font-size:.8rem">${esc(d.department?.name || '—')}</td>
+            <td class="td-mono">${fmtDate(d.issuedDate || d.createdAt)}</td>
+            <td class="td-mono">${fmtDate(expiry)}</td>
+            <td style="font-weight:700;color:${urgency};font-size:.82rem">
+              ${daysLeft} ngày
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    // Đã hết hạn
+    const expired = getExpiringDocs(_monitorDocs, -1).filter(x => x.daysLeft < 0);
+    const expiredTbody = document.getElementById('expired-tbody');
+    if (!expired.length) {
+      expiredTbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:28px;color:var(--stamp-ok);font-weight:600">
+        ✓ Không có tài liệu nào đã quá hạn.
+      </td></tr>`;
+    } else {
+      expiredTbody.innerHTML = expired.map(({ doc: d, expiry, daysLeft }) => `
+        <tr>
+          <td>
+            <div style="font-weight:600;font-size:.88rem;color:var(--stamp-deny)">${esc(displayDocTitle(d))}</div>
+            <div class="td-mono" style="font-size:.72rem">${esc(displayDocFilename(d))}</div>
+          </td>
+          <td style="font-size:.8rem">${esc(d.documentType?.name || '—')}</td>
+          <td style="font-size:.8rem">${esc(d.department?.name || '—')}</td>
+          <td class="td-mono">${fmtDate(expiry)}</td>
+          <td style="font-weight:700;color:var(--stamp-deny);font-size:.82rem">
+            ${Math.abs(daysLeft)} ngày trước
+          </td>
+        </tr>`).join('');
+    }
+  }
+
+  async function loadHistory() {
+    const filter = document.getElementById('history-filter')?.value || '';
+    const tbody  = document.getElementById('history-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-400)">
+      <div style="display:inline-block;width:18px;height:18px;border:2px solid var(--gray-200);
+        border-top-color:var(--brass);border-radius:50%;animation:spin .7s linear infinite"></div>
+    </td></tr>`;
+
+    try {
+      // Tận dụng audit-logs hoặc documents/search với filter approved/rejected
+      let rows = [];
+
+      // Thử endpoint audit-logs trước
+      try {
+        const res  = await api.get('/audit-logs?limit=50&action=approve,reject');
+        const list = Array.isArray(res) ? res : (res.data || []);
+        rows = list.filter(l => ['approve','reject','approved','rejected'].includes(l.action));
+      } catch {
+        // Fallback: lấy từ documents/search — tài liệu đã được xử lý
+        const res  = await api.get('/documents/search?limit=10000');
+        const docs = Array.isArray(res) ? res
+                   : Array.isArray(res.data) ? res.data
+                   : Array.isArray(res.items) ? res.items : [];
+        // Chuyển thành format giống audit log
+        rows = docs
+          .filter(d => d.status === 'stored' || d.status === 'approved' || d.status === 'rejected')
+          .map(d => {
+            const actor = d.status === 'rejected'
+              ? (d.rejectedBy || d.reviewedBy || d.reviewer || d.updatedBy || d.actionBy || d.processedBy || null)
+              : (d.approvedBy || d.reviewedBy || d.reviewer || d.updatedBy || d.actionBy || d.processedBy || null);
+            return {
+              action:    d.status === 'rejected' ? 'reject' : 'approve',
+              createdAt: d.approvedAt || d.reviewedAt || d.updatedAt || d.createdAt,
+              actor,
+              document:  d,
+              metadata:  getRejectReason(d) ? { reason: getRejectReason(d) } : null,
+            };
+          })
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+          .slice(0, 50);
+      }
+
+      // Áp dụng filter
+      if (filter === 'approve') rows = rows.filter(r => ['approve','approved'].includes(r.action));
+      if (filter === 'reject')  rows = rows.filter(r => ['reject','rejected'].includes(r.action));
+
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-400)">
+          Chưa có lịch sử duyệt.
+        </td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = rows.map(r => {
+        const isApprove = ['approve','approved'].includes(r.action);
+        const actionBadge = isApprove
+          ? `<span class="badge badge-approved">✓ Đã duyệt</span>`
+          : `<span class="badge badge-rejected">✕ Từ chối</span>`;
+        const docTitle   = esc(r.document?.title || r.document?.originalFilename || '—');
+        const uploaderName = esc(getDocumentUploaderName(r.document) || '—');
+        const actorText = getActionActorName(r);
+        const actorName  = actorText
+                         ? esc(actorText)
+                         : '<span style="color:var(--gray-400);font-style:italic">Không ghi nhận</span>';
+        const reason     = getActionReason(r) || '';
+        const timeStr    = r.createdAt
+          ? fmtDate(r.createdAt) + ' ' + new Date(r.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+          : '—';
+        return `
+          <tr>
+            <td class="td-mono" style="white-space:nowrap">${timeStr}</td>
+            <td>
+              <div style="font-size:.88rem;font-weight:500">${actorName}</div>
+            </td>
+            <td>${actionBadge}</td>
+            <td>
+              <div style="font-weight:600;font-size:.88rem">${docTitle}</div>
+              ${r.document?.department?.name
+                ? `<div style="font-size:.75rem;color:var(--gray-600)">${esc(r.document.department.name)}</div>`
+                : ''}
+            </td>
+            <td style="font-size:.85rem">${uploaderName}</td>
+            <td style="font-size:.78rem;color:${isApprove ? 'var(--gray-600)' : 'var(--stamp-deny)'};max-width:200px">
+              ${reason ? esc(reason.slice(0, 120)) + (reason.length > 120 ? '…' : '') : '—'}
+            </td>
+          </tr>`;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-400)">
+        Chưa có dữ liệu lịch sử duyệt.
+      </td></tr>`;
+    }
+  }
+</script>
+</body>
+</html>
