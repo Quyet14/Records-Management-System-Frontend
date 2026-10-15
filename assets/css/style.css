@@ -809,7 +809,7 @@ select.form-control {
 
 .advanced-search-panel {
   display: grid;
-  grid-template-columns: repeat(2, minmax(170px, 1fr)) auto;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 12px;
   align-items: end;
   margin-top: 16px;
@@ -821,6 +821,68 @@ select.form-control {
 
 .advanced-search-field--wide {
   min-width: 360px;
+}
+
+.document-search-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.document-search-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+.document-search-toolbar-department {
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 230px) auto;
+}
+.document-search-card .search-bar { min-width: 0; }
+.document-search-card .form-control { min-width: 0; height: 44px; font-size: .88rem; }
+.document-search-card .document-search-reset { min-height: 44px; padding: 8px 16px; white-space: nowrap; }
+.document-search-filters {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--gray-200);
+}
+.document-search-filters > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  color: var(--gray-600);
+  font-size: .84rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 4px;
+}
+.document-search-filters > summary::-webkit-details-marker { display: none; }
+.document-search-filters > summary:hover { color: var(--navy); }
+.document-search-filters > summary:focus-visible { outline: 2px solid var(--brass); outline-offset: 5px; }
+.document-search-chevron { transition: transform .15s ease; }
+.document-search-filters[open] .document-search-chevron { transform: rotate(180deg); }
+.document-search-card .advanced-search-panel {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+.document-search-card .form-label { font-size: .8rem; margin-bottom: 7px; font-weight: 600; }
+.document-search-field-wide { grid-column: span 2; }
+@media (max-width: 1100px) {
+  .document-search-card .advanced-search-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .document-search-toolbar-department { grid-template-columns: minmax(0, 1fr) auto; }
+  .document-search-toolbar-department .search-bar { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  .document-search-card { padding: 16px; }
+  .document-search-card .advanced-search-panel { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .document-search-field-wide { grid-column: auto; }
+  .document-search-toolbar { gap: 10px; }
+  .document-search-card .document-search-reset { width: auto; padding: 8px 12px; font-size: .82rem; }
 }
 
 .visibility-tabs {
@@ -2074,6 +2136,44 @@ html:not([data-theme="dark"]) tbody tr:hover { background: #F4FAFF; }
 
 .modal-title { font-size: 1.32rem; font-weight: 850; }
 .modal-subtitle { font-size: .92rem; }
+.document-detail-subtitle {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  margin-bottom: 0;
+}
+.document-text-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.document-long-text summary { cursor: pointer; list-style: none; }
+.document-long-text summary::-webkit-details-marker { display: none; }
+.document-text-preview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.document-text-more, .document-text-less {
+  color: var(--navy);
+  font-size: .8rem;
+  font-weight: 600;
+}
+.document-text-less { display: none; }
+.document-long-text[open] .document-text-preview,
+.document-long-text[open] .document-text-more { display: none; }
+.document-long-text[open] .document-text-less { display: inline; }
+.document-text-scroll {
+  max-height: 240px;
+  overflow-y: auto;
+  margin-top: 8px;
+  padding-right: 8px;
+}
 .toast {
   font-size: .94rem;
   font-weight: 700;

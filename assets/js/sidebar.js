@@ -21,6 +21,7 @@
         { href: 'documents.html',    icon: 'search',    label: 'Tài liệu' },
         { href: 'upload.html',       icon: 'upload',    label: 'Tải lên tài liệu' },
         { href: 'my-documents.html', icon: 'file',      label: 'Tài liệu của tôi' },
+        { href: 'approval.html', icon: 'check', label: 'Chờ phê duyệt', permission: 'approve_documents', badgeId: 'sb-queue-badge' },
       ],
     },
     admin: {
@@ -49,6 +50,7 @@
         { href: '../view-requests-admin.html?v=view-requests-2', icon: 'clock', label: 'Yêu cầu xem', badgeId: 'sb-view-requests-badge' },
         { href: 'members.html',    icon: 'users',  label: 'Thành viên khoa' },
         { href: 'documents.html',  icon: 'file',   label: 'Tài liệu khoa' },
+        { href: 'document-types.html', icon: 'clock', label: 'Danh mục hồ sơ' },
       ],
     },
   };
@@ -108,17 +110,25 @@
   function buildSidebar(role, user) {
     const cfg     = NAV[role] || NAV.user;
     const current = currentFile();
+    const canUseLink = link => {
+      if (!link.permission || role !== 'user') return true;
+      if (window.Auth?.hasPermission) return Auth.hasPermission(link.permission);
+      const raw = user?.permissions || user?.userPermissions || user?.permissionKeys || [];
+      return Array.isArray(raw) && raw.some(item =>
+        (typeof item === 'string' ? item : item?.key || item?.name || item?.permission) === link.permission
+      );
+    };
     
     // Use absolute paths from root /pages/ instead of relative
     // This prevents URL issues when navigating between pages
     const pathPrefix = '/pages/';
     
-    // Add cache buster for development
-    const cacheBuster = '?v=' + Date.now();
-
-    const links = cfg.links.map(link => {
-      const isActive = link.href.split('/').pop() === current;
-      const href     = pathPrefix + cfg.prefix + link.href + cacheBuster;
+    const links = cfg.links.filter(canUseLink).map(link => {
+      const target = new URL(pathPrefix + cfg.prefix + link.href, window.location.origin);
+      const isActive = target.pathname.split('/').pop() === current
+        && target.searchParams.get('feature') === new URLSearchParams(window.location.search).get('feature');
+      target.searchParams.set('v', Date.now());
+      const href = target.pathname + target.search;
       const badge    = link.badgeId
         ? `<span class="sb-badge" id="${link.badgeId}" style="display:none">0</span>`
         : '';
@@ -366,7 +376,11 @@
     if (file === 'dashboard.html' || file === 'login.html') return null;
 
     // Tìm label từ NAV config
-    const navLink = cfg.links.find(l => l.href === file);
+    const feature = new URLSearchParams(window.location.search).get('feature');
+    const navLink = cfg.links.find(link => {
+      const target = new URL(link.href, window.location.origin + '/pages/');
+      return target.pathname.split('/').pop() === file && target.searchParams.get('feature') === feature;
+    });
     const pageLabel = navLink?.label || file.replace('.html', '');
 
     return [

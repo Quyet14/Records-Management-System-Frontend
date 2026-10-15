@@ -106,10 +106,10 @@
           <svg class="dz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
           </svg>
-          <h3>Kéo thả file PDF vào đây</h3>
-          <p>hoặc nhấp để chọn file &nbsp;·&nbsp; Có thể chọn nhiều file &nbsp;·&nbsp; Tối đa 500 MB/file</p>
+          <h3>Kéo thả file tài liệu vào đây</h3>
+          <p>hoặc nhấp để chọn file &nbsp;·&nbsp; Có thể chọn nhiều file &nbsp;·&nbsp; Tối đa 50 GB/file</p>
         </div>
-        <input type="file" id="file-input" accept=".pdf,application/pdf" multiple style="display:none" />
+        <input type="file" id="file-input" accept=".pdf,.zip,.rar,.7z,.tar,.gz,.tgz,.tar.gz,application/pdf,application/zip,application/x-zip-compressed,application/vnd.rar,application/x-rar-compressed,application/x-7z-compressed,application/x-tar,application/gzip,application/x-gzip" multiple style="display:none" />
 
         <!-- File preview -->
         <div id="file-preview" style="display:none" class="file-preview"></div>
@@ -131,10 +131,6 @@
             <input class="form-control" type="text" id="doc-issuing-unit" placeholder="VD: Ban Tổ chức Trưng cầu" />
           </div>
 
-          <div class="form-group">
-            <label class="form-label" for="doc-organizing-body">Ban tổ chức trưng cầu</label>
-            <input class="form-control" type="text" id="doc-organizing-body" placeholder="VD: UBND tỉnh" />
-          </div>
 
           <div class="form-group">
             <label class="form-label" for="doc-received-date">Ngày đến</label>
@@ -149,11 +145,12 @@
           <div class="form-group">
             <label class="form-label" for="doc-security-level">Độ mật</label>
             <select class="form-control" id="doc-security-level">
-              <option value="Thường">Thường</option>
-              <option value="Mật">Mật</option>
-              <option value="Tối mật">Tối mật</option>
-              <option value="Tuyệt mật">Tuyệt mật</option>
+              <option value="normal">Thường</option>
+              <option value="confidential">Mật</option>
+              <option value="secret">Tối mật</option>
+              <option value="top_secret">Tuyệt mật</option>
             </select>
+            <small id="security-level-help" role="status" style="color:var(--gray-600)"></small>
           </div>
 
           <div class="form-group">
@@ -243,7 +240,7 @@
 
           <!-- Upload progress -->
           <div class="upload-progress" id="upload-progress">
-            <div class="form-label" style="margin-bottom:8px">Đang tải lên…</div>
+            <div class="form-label" id="upload-progress-label" role="status" style="margin-bottom:8px">Đang tải lên…</div>
             <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
           </div>
 
@@ -272,16 +269,18 @@
 </div>
 
 <div class="toast-container"></div>
-<script src="../assets/js/app.js?v=role-sync-12"></script>
-<script src="../assets/js/sidebar.js?v=role-sync-12"></script>
+<script src="../assets/js/app.js?v=fast-loading-24"></script>
+<script src="../assets/js/sidebar.js?v=staff-approval-21"></script>
 <script>
   Auth.require();
 
   let selectedFiles = [];
   let tags = [];
   let autoExtractedDescription = '';
-  const MAX_UPLOAD_FILE_SIZE_MB = 500;
-  const MAX_UPLOAD_FILE_SIZE_BYTES = MAX_UPLOAD_FILE_SIZE_MB * 1024 * 1024;
+  const MAX_UPLOAD_FILE_SIZE_GB = 50;
+  const MAX_UPLOAD_FILE_SIZE_BYTES = MAX_UPLOAD_FILE_SIZE_GB * 1024 ** 3;
+  const MAX_AUTO_EXTRACT_FILE_SIZE_BYTES = 50 * 1024 ** 2;
+  const SUPPORTED_UPLOAD_LABEL = 'PDF, ZIP, RAR, 7Z, TAR, GZ, TGZ, TAR.GZ';
   
   // PDF.js worker setup (local files)
   if (typeof pdfjsLib !== 'undefined') {
@@ -294,6 +293,10 @@
   /* ── PDF Text Extraction with OCR Fallback ────────────────── */
   async function extractPdfText(file) {
     const statusEl = document.getElementById('pdf-extract-status');
+    if (file.size > MAX_AUTO_EXTRACT_FILE_SIZE_BYTES) {
+      if (statusEl) statusEl.textContent = 'File lớn: bạn có thể nhập mô tả thủ công và tải lên bình thường.';
+      return null;
+    }
     
     // Check if PDF.js is loaded
     if (typeof pdfjsLib === 'undefined') {
@@ -456,14 +459,25 @@
 
   /* ── Multi-file preview helpers ────────────────────────────── */
   function addFilePreview(file) {
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      Toast.error('Chỉ chấp nhận file PDF!'); return false;
+    if (!isAllowedDocumentFile(file)) {
+      Toast.error(`Chỉ chấp nhận file: ${SUPPORTED_UPLOAD_LABEL}!`); return false;
     }
     if (file.size > MAX_UPLOAD_FILE_SIZE_BYTES) {
-      Toast.error(`File vượt quá giới hạn ${MAX_UPLOAD_FILE_SIZE_MB} MB!`); return false;
+      Toast.error(`File vượt quá giới hạn ${MAX_UPLOAD_FILE_SIZE_GB} GB!`); return false;
     }
     selectedFiles.push(file);
     return true;
+  }
+
+  function uploadErrorMessage(err, file) {
+    const raw = String(err?.message || '');
+    if (/file too large|payload too large|413/i.test(raw)) {
+      return `${file?.name || 'File'} (${fmtSize(file?.size || 0)}) bị máy chủ từ chối do giới hạn dung lượng. Vui lòng liên hệ quản trị để cập nhật giới hạn 50 GB/file.`;
+    }
+    if (/forbidden|403/i.test(raw)) {
+      return 'Backend đang chặn quyền tải lên. Nếu mọi tài khoản đều được phép đăng Công khai hoặc Nội bộ khoa để chờ duyệt, cần bỏ yêu cầu quyền upload_documents khỏi endpoint upload.';
+    }
+    return raw || 'Lỗi không xác định';
   }
 
   function renderFilePreviews() {
@@ -498,6 +512,15 @@
   }
 
   async function extractAndFillDescription(file) {
+    if (!isPdfDocumentFile(file)) {
+      const statusEl = document.getElementById('pdf-extract-status');
+      if (statusEl) {
+        statusEl.textContent = '— file nén không trích xuất nội dung tự động';
+        statusEl.style.color = 'var(--gray-500)';
+      }
+      return;
+    }
+
     const extractedText = await extractPdfText(file);
     if (!extractedText || !selectedFiles.includes(file)) return;
 
@@ -624,6 +647,22 @@
   });
 
   /* ── Drop zone ──────────────────────────────────────────────── */
+  function applyVisibilityPermissions() {
+    const publicRadio = document.querySelector('input[name="doc-visibility"][value="public"]');
+    const departmentRadio = document.querySelector('input[name="doc-visibility"][value="department"]');
+    const departmentLabel = document.getElementById('label-visibility-department');
+    const hint = document.getElementById('visibility-hint');
+
+    departmentRadio.disabled = false;
+    departmentLabel.style.opacity = '';
+    departmentLabel.style.cursor = 'pointer';
+    departmentLabel.title = '';
+    hint.style.display = 'block';
+    hint.textContent = 'Công khai hoặc Nội bộ khoa đều sẽ được gửi lên để trưởng khoa/admin duyệt trước khi lưu chính thức.';
+
+    (document.querySelector('input[name="doc-visibility"]:checked') || publicRadio).dispatchEvent(new Event('change'));
+  }
+
   const dropEl  = document.getElementById('drop-zone');
   const inputEl = document.getElementById('file-input');
 
@@ -657,8 +696,13 @@
   /* ── Submit ─────────────────────────────────────────────────── */
   document.getElementById('btn-submit').addEventListener('click', async () => {
     if (selectedFiles.length === 0) { 
-      Toast.warning('Vui lòng chọn ít nhất một file PDF trước.'); 
+      Toast.warning('Vui lòng chọn ít nhất một file tài liệu trước.');
       return; 
+    }
+    const oversizedFile = selectedFiles.find(file => file.size > MAX_UPLOAD_FILE_SIZE_BYTES);
+    if (oversizedFile) {
+      Toast.error(`${oversizedFile.name} vượt quá giới hạn ${MAX_UPLOAD_FILE_SIZE_GB} GB (${fmtSize(oversizedFile.size)}).`);
+      return;
     }
     const title = document.getElementById('doc-title').value.trim();
     if (!title) { Toast.warning('Vui lòng nhập tiêu đề tài liệu.'); return; }
@@ -674,12 +718,7 @@
     btn.disabled          = true;
     progressEl.style.display = 'block';
 
-    // Fake progress
-    let prog  = 0;
-    const timer = setInterval(() => {
-      prog = Math.min(prog + Math.random() * 15, 85);
-      fillEl.style.width = prog + '%';
-    }, 200);
+    fillEl.style.width = '0%';
 
     // Get logged-in user's department
     const user = Auth.getUser();
@@ -687,7 +726,6 @@
     
     if (!userDeptId) {
       Toast.error('Không xác định được khoa/đơn vị của tài khoản. Vui lòng đăng nhập lại.');
-      clearInterval(timer);
       progressEl.style.display = 'none';
       btn.classList.remove('loading');
       btn.disabled = false;
@@ -698,6 +736,7 @@
     let successCount = 0;
     let failCount = 0;
     let lastError = null;
+    const failedFiles = [];
 
     for (let i = 0; i < selectedFiles.length; i++) {
       const file = selectedFiles[i];
@@ -715,7 +754,6 @@
       const summary       = document.getElementById('doc-summary').value.trim();
       const referenceNo   = document.getElementById('doc-reference-no').value.trim();
       const issuingUnit   = document.getElementById('doc-issuing-unit').value.trim();
-      const organizingBody= document.getElementById('doc-organizing-body').value.trim();
       const receivedDate  = document.getElementById('doc-received-date').value.trim();
       const documentNumber= document.getElementById('doc-document-number').value.trim();
       const securityLevel = document.getElementById('doc-security-level').value.trim();
@@ -731,27 +769,32 @@
       if (summary)          form.append('summary', summary);
       if (referenceNo)      form.append('referenceNo', referenceNo);
       if (issuingUnit)      form.append('issuingUnit', issuingUnit);
-      if (organizingBody)   form.append('organizingBody', organizingBody);
       if (receivedDate)     form.append('receivedDate', receivedDate);
       if (documentNumber)   form.append('documentNumber', documentNumber);
       if (securityLevel)    form.append('securityLevel', securityLevel);
       if (authorName)       form.append('authorName', authorName);
       if (issuedDate)       form.append('documentDate', issuedDate);
       if (visibility)       form.append('visibility', visibility);
+      if (tags.length)       form.append('tags', JSON.stringify(tags));
       
       // Note: Backend will handle approval logic based on visibility
 
       try {
-        await api.upload('/documents/upload', form);
+        await api.upload('/documents/upload', form, percent => {
+          fillEl.style.width = percent + '%';
+          document.getElementById('upload-progress-label').textContent = percent < 100
+            ? `Đang tải file ${i + 1}/${selectedFiles.length}: ${percent}%`
+            : 'Đã gửi file, đang xử lý và lưu trên máy chủ…';
+        });
         successCount++;
       } catch (err) {
         console.error(`Failed to upload ${file.name}:`, err);
-        lastError = err;
+        lastError = { err, file };
         failCount++;
+        failedFiles.push(file);
       }
     }
 
-    clearInterval(timer);
     fillEl.style.width = '100%';
     
     // Get visibility for success message
@@ -784,22 +827,34 @@
       Toast.warning(`Đã tải lên ${successCount}/${selectedFiles.length} file. ${failCount} file thất bại.`);
       
       // Remove successfully uploaded files from list
-      selectedFiles = selectedFiles.slice(successCount);
+      selectedFiles = failedFiles;
       renderFilePreviews();
     } else {
       // All failed
       progressEl.style.display = 'none';
       btn.classList.remove('loading');
       btn.disabled = false;
-      const errorMsg = lastError?.message || 'Lỗi không xác định';
+      const errorMsg = uploadErrorMessage(lastError?.err, lastError?.file);
       Toast.error(`Lỗi tải lên: ${errorMsg}`);
     }
   });
 
   /* ── Init ───────────────────────────────────────────────────── */
   document.addEventListener('DOMContentLoaded', () => {
+    const securitySelect = document.getElementById('doc-security-level');
+    const updateSecurityHelp = () => {
+      document.getElementById('security-level-help').textContent = ({
+        normal: 'Truy cập theo phạm vi và quyền hiện có.',
+        confidential: 'Giới hạn độ mật: admin, người tải lên và trưởng khoa cùng khoa.',
+        secret: 'Giới hạn độ mật: chỉ admin và người tải lên.',
+        top_secret: 'Giới hạn độ mật: chỉ admin và người tải lên.'
+      })[securitySelect.value] || '';
+    };
+    securitySelect.addEventListener('change', updateSecurityHelp);
+    updateSecurityHelp();
     // Set max date = hôm nay cho trường ngày hình thành
     document.getElementById('doc-issued-date').max = new Date().toISOString().slice(0, 10);
+    document.getElementById('file-input')?.setAttribute('accept', DOCUMENT_FILE_ACCEPT);
     
     // Auto-populate department from logged-in user
     const user = Auth.getUser();
@@ -807,7 +862,7 @@
       document.getElementById('doc-dept').value = user.department.id;
     }
 
-    document.querySelector('input[name="doc-visibility"]:checked')?.dispatchEvent(new Event('change'));
+    applyVisibilityPermissions();
     
     loadDocumentTypes();
   });

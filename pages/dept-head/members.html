@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Thành viên khoa — Trưởng Khoa</title>
+  <title>Thành viên khoa - Trưởng Khoa</title>
   <link rel="stylesheet" href="../../assets/css/style.css" />
-  <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
   <script>
     (function(){
       if(localStorage.getItem('lths_dark')==='1')
@@ -15,7 +14,6 @@
 </head>
 <body>
 <div class="app-shell">
-
   <nav class="sidebar"></nav>
 
   <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
@@ -23,7 +21,7 @@
     <div class="page-header">
       <h1>BỆNH VIỆN HỮU NGHỊ</h1>
       <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
-      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Quản lý tài khoản nhân viên trong khoa và phân quyền truy cập tài liệu.</p>
     </div>
 
     <div class="table-wrap">
@@ -33,56 +31,132 @@
             <th>Họ và tên</th>
             <th>Email</th>
             <th>Vai trò</th>
+            <th>Quyền</th>
             <th>Ngày tạo</th>
             <th>Trạng thái</th>
-            <th></th>
+            <th style="text-align:right">Thao tác</th>
           </tr>
         </thead>
         <tbody id="members-body">
-          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-400)">Đang tải…</td></tr>
+          <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--gray-400)">Đang tải...</td></tr>
         </tbody>
       </table>
     </div>
   </main>
 </div>
 
-<!-- Modal: đổi trạng thái -->
+<div class="modal-overlay" id="modal-permissions">
+  <div class="modal" style="max-width:640px">
+    <button class="modal-close" data-modal-close="modal-permissions">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="modal-title">Phân quyền nhân viên</h3>
+    <p class="modal-subtitle" id="permissions-user-name">-</p>
+    <div id="permissions-list" style="display:grid;gap:10px;margin-top:16px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-permissions">Huỷ</button>
+      <button class="btn btn-primary" id="btn-save-permissions">Lưu quyền</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-container"></div>
-<script src="../../assets/js/app.js?v=role-sync-12"></script>
-<script src="../../assets/js/sidebar.js?v=role-sync-12"></script>
+<script src="../../assets/js/app.js?v=fast-loading-24"></script>
+<script src="../../assets/js/sidebar.js?v=staff-approval-21"></script>
 <script>
   Auth.requireDeptHead();
 
+  const me = Auth.getUser();
+  const myDeptId = String(me?.departmentId || me?.department?.id || '');
 
-  /* esc() — see app.js */
-
-  const me       = Auth.getUser();
-  const myDeptId = me?.departmentId || me?.department?.id || null;
-
-  const ROLE_LABEL = { user: 'User', department_head: 'Trưởng Khoa', admin: 'Admin' };
+  const ROLE_LABEL = { user: 'Nhân viên', department_head: 'Trưởng Khoa', admin: 'Admin' };
   const ROLE_BADGE = { user: 'badge-pending', department_head: 'badge-stored', admin: 'badge-stored' };
+  const DEFAULT_PERMISSIONS = [
+    { key: 'view_department_documents', label: 'Xem tài liệu nội bộ khoa', description: 'Mở xem trực tiếp tài liệu nội bộ cùng khoa đã duyệt, không cần gửi yêu cầu.' },
+    { key: 'add_document_comments', label: 'Thêm ghi chú tài liệu', description: 'Thêm ghi chú vào tài liệu được phép tra cứu.' },
+    { key: 'approve_documents', label: 'Phê duyệt tài liệu tải lên', description: 'Xem hàng chờ, phê duyệt hoặc từ chối tài liệu tải lên trong khoa.' }
+  ];
 
   let _members = [];
+  let _assignablePermissions = [];
+  let _permissionUser = null;
+
+  function normalizePermissions(user = {}) {
+    const raw = user.permissions || user.userPermissions || user.permissionKeys || [];
+    if (Array.isArray(raw)) {
+      return raw.map(item => typeof item === 'string' ? item : (item.key || item.name || item.permission))
+        .map(key => key === 'request_document_view' ? 'view_department_documents' : key).filter(Boolean);
+    }
+    return [];
+  }
+
+  function normalizePermissionOptions(res) {
+    const list = Array.isArray(res) ? res : (res?.data || res?.items || res?.permissions || []);
+    return list.map(item => {
+      if (typeof item === 'string') {
+        const fallback = DEFAULT_PERMISSIONS.find(p => p.key === item);
+        return fallback || { key: item, label: item, description: '' };
+      }
+      const key = item.key || item.name || item.permission || item.value;
+      const fallback = DEFAULT_PERMISSIONS.find(p => p.key === key);
+      return {
+        key,
+        label: fallback?.label || item.label || item.title || key,
+        description: fallback?.description || item.description || item.note || ''
+      };
+    }).filter(p => p.key && !['upload_documents', 'request_document_view', 'download_documents'].includes(p.key));
+  }
+
+  function permissionSummary(user) {
+    const keys = normalizePermissions(user);
+    if (!keys.length) return '<span style="color:var(--gray-400)">Chưa cấp</span>';
+    const labels = keys.map(key => _assignablePermissions.find(p => p.key === key)?.label || key);
+    const shown = labels.slice(0, 2).map(esc).join(', ');
+    const more = labels.length > 2 ? ` +${labels.length - 2}` : '';
+    return `<span style="font-size:.82rem;color:var(--gray-700)">${shown}${more}</span>`;
+  }
+
+  async function loadAssignablePermissions() {
+    try {
+      const res = await api.get('/users/assignable-permissions');
+      const normalized = normalizePermissionOptions(res);
+      _assignablePermissions = normalized;
+    } catch (err) {
+      _assignablePermissions = [];
+      console.warn('Cannot load assignable permissions:', err);
+    }
+  }
+
+  function canManageUser(user) {
+    const deptId = String(user?.departmentId || user?.department?.id || '');
+    return user?.role === 'user' && !!myDeptId && deptId === myDeptId;
+  }
 
   async function loadMembers() {
     const tbody = document.getElementById('members-body');
     tbody.innerHTML = skeletonTable(4).match(/<tbody>([\s\S]*)<\/tbody>/)?.[1]
-      || '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-400)">Đang tải…</td></tr>';
+      || '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--gray-400)">Đang tải...</td></tr>';
 
     try {
-      const res      = await api.get('/users?limit=10000');
+      await loadAssignablePermissions();
+      const res = await api.get('/users?limit=10000');
       const allUsers = Array.isArray(res) ? res : (res.data || res.items || []);
-      _members       = myDeptId
-        ? allUsers.filter(u => (u.departmentId === myDeptId || u.department?.id === myDeptId) && u.id !== me.id)
-        : allUsers.filter(u => u.id !== me.id);
+      const myId = String(me?.id || me?._id || '');
+      _members = allUsers.filter(u => {
+        const deptId = String(u.departmentId || u.department?.id || '');
+        const userId = String(u.id || u._id || '');
+        return userId !== myId && (!myDeptId || deptId === myDeptId);
+      });
 
       if (!_members.length) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-400)">Chưa có thành viên nào trong khoa.</td></tr>`;
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--gray-400)">Chưa có thành viên nào trong khoa.</td></tr>';
         return;
       }
 
-      tbody.innerHTML = _members.map((u, i) => `
-        <tr data-idx="${i}" id="row-${esc(u.id)}">
+      tbody.innerHTML = _members.map((u, i) => {
+        const manageable = canManageUser(u);
+        return `
+        <tr data-idx="${i}" id="row-${esc(u.id || u._id)}">
           <td>
             <div style="display:flex;align-items:center;gap:10px">
               <div style="width:32px;height:32px;border-radius:50%;background:var(--navy);
@@ -90,30 +164,26 @@
                 font-family:var(--font-ui) !important;font-weight:700;font-size:.85rem;flex-shrink:0">
                 ${esc((u.fullName?.[0] || 'U').toUpperCase())}
               </div>
-              <div style="font-weight:600;font-size:.9rem">${esc(u.fullName || '—')}</div>
+              <div style="font-weight:600;font-size:.9rem">${esc(u.fullName || '-')}</div>
             </div>
           </td>
-          <td class="td-mono">${esc(u.email)}</td>
-          <td><span class="badge ${ROLE_BADGE[u.role] || 'badge-pending'}">${ROLE_LABEL[u.role] || esc(u.role)}</span></td>
+          <td class="td-mono">${esc(u.email || '-')}</td>
+          <td><span class="badge ${ROLE_BADGE[u.role] || 'badge-pending'}">${ROLE_LABEL[u.role] || esc(u.role || '-')}</span></td>
+          <td>${permissionSummary(u)}</td>
           <td class="td-mono">${fmtDate(u.createdAt)}</td>
           <td><span class="badge ${u.isActive ? 'badge-approved' : 'badge-rejected'}">${u.isActive ? 'Hoạt động' : 'Vô hiệu'}</span></td>
-          <td>
-            <button class="btn btn-ghost btn-sm" data-action="toggle" data-idx="${i}">
-              ${u.isActive ? 'Vô hiệu hoá' : 'Kích hoạt'}
-            </button>
+          <td style="text-align:right">
+            ${manageable ? `
+              <button class="btn btn-ghost btn-sm" data-action="permissions" data-idx="${i}">Phân quyền</button>
+              <button class="btn btn-ghost btn-sm" data-action="toggle" data-idx="${i}">
+                ${u.isActive ? 'Vô hiệu hoá' : 'Kích hoạt'}
+              </button>
+            ` : '<span style="font-size:.78rem;color:var(--gray-400)">Chỉ xem</span>'}
           </td>
-        </tr>`).join('');
-
-      // Event delegation
-      tbody.addEventListener('click', e => {
-        const btn = e.target.closest('[data-action="toggle"]');
-        if (!btn) return;
-        const u = _members[parseInt(btn.dataset.idx, 10)];
-        if (u) toggleActive(u.id, u.isActive, btn);
-      });
-
+        </tr>`;
+      }).join('');
     } catch(err) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--stamp-deny)">${esc(err.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--stamp-deny)">${esc(err.message)}</td></tr>`;
       Toast.error(err.message);
     }
   }
@@ -123,7 +193,7 @@
     try {
       await api.patch(`/users/${id}/active`, { isActive: !current });
       Toast.success(current ? 'Đã vô hiệu hoá.' : 'Đã kích hoạt.');
-      loadMembers();
+      await loadMembers();
     } catch(err) {
       Toast.error(err.message);
     } finally {
@@ -131,6 +201,70 @@
     }
   }
 
+  function openPermissions(user) {
+    if (!canManageUser(user)) {
+      Toast.warning('Trưởng khoa chỉ phân quyền cho nhân viên thường trong khoa.');
+      return;
+    }
+    if (!_assignablePermissions.length) {
+      Toast.warning('Không tải được danh sách quyền. Vui lòng tải lại trang và kiểm tra backend.');
+      return;
+    }
+    _permissionUser = user;
+    const selected = new Set(normalizePermissions(user));
+    document.getElementById('permissions-user-name').textContent = `${user.fullName || user.email || 'Nhân viên'} - ${user.email || ''}`;
+    const supportedKeys = new Set(_assignablePermissions.map(p => p.key));
+    const options = [
+      ...DEFAULT_PERMISSIONS,
+      ..._assignablePermissions.filter(p => !DEFAULT_PERMISSIONS.some(option => option.key === p.key))
+    ];
+    const missingCount = options.filter(p => !supportedKeys.has(p.key)).length;
+    document.getElementById('permissions-list').innerHTML = `
+      ${missingCount ? `<p role="status" style="font-size:.84rem;color:var(--gray-600);margin:0">${missingCount} quyền mới chưa khả dụng. Vui lòng liên hệ quản trị hệ thống để cập nhật chức năng phân quyền.</p>` : ''}
+      ${options.map(p => `
+      <label style="display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:12px;border:1px solid var(--gray-200);border-radius:var(--radius);${supportedKeys.has(p.key) ? 'cursor:pointer' : 'opacity:.6;cursor:not-allowed'}">
+        <input type="checkbox" data-permission-key="${esc(p.key)}" ${selected.has(p.key) ? 'checked' : ''} ${supportedKeys.has(p.key) ? '' : 'disabled'} style="margin-top:3px" />
+        <span>
+          <span style="display:block;font-weight:700;color:var(--navy)">${esc(p.label)}</span>
+          ${p.description ? `<span style="display:block;font-size:.82rem;color:var(--gray-600);margin-top:2px">${esc(p.description)}</span>` : ''}
+          ${supportedKeys.has(p.key) ? '' : '<span style="display:block;font-size:.76rem;color:var(--gray-600);margin-top:4px">Chưa khả dụng</span>'}
+        </span>
+      </label>
+    `).join('')}`;
+    Modal.open('modal-permissions');
+  }
+
+  async function savePermissions() {
+    if (!_permissionUser) return;
+    const btn = document.getElementById('btn-save-permissions');
+    const permissions = [...document.querySelectorAll('#permissions-list [data-permission-key]:checked')]
+      .filter(input => !input.disabled)
+      .map(input => input.dataset.permissionKey);
+    btn.classList.add('loading');
+    btn.disabled = true;
+    try {
+      await api.patch(`/users/${_permissionUser.id || _permissionUser._id}/permissions`, { permissions });
+      Toast.success('Đã cập nhật quyền nhân viên.');
+      Modal.close('modal-permissions');
+      _permissionUser = null;
+      await loadMembers();
+    } catch (err) {
+      Toast.error(err.message);
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('members-body').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const user = _members[parseInt(btn.dataset.idx, 10)];
+    if (!user) return;
+    if (btn.dataset.action === 'toggle') toggleActive(user.id || user._id, user.isActive, btn);
+    if (btn.dataset.action === 'permissions') openPermissions(user);
+  });
+  document.getElementById('btn-save-permissions').addEventListener('click', savePermissions);
   document.addEventListener('DOMContentLoaded', loadMembers);
 </script>
 </body>

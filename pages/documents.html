@@ -74,6 +74,143 @@
       gap: 12px;
       align-items: start;
     }
+    .document-search-card {
+      padding: 16px;
+      margin-bottom: 18px;
+      border: 1px solid rgba(64, 126, 181, .16);
+      box-shadow: 0 18px 42px rgba(27, 42, 74, .08);
+    }
+    .document-search-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .document-search-card .search-bar {
+      min-width: 0;
+    }
+    .document-search-card .search-bar .form-control {
+      height: 54px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: 14px;
+      padding-left: 48px;
+      font-size: 1rem;
+      font-weight: 600;
+      background: var(--white);
+    }
+    .document-search-card .search-icon {
+      left: 16px;
+      color: var(--blue);
+    }
+    .document-search-tip {
+      margin: 8px 0 0;
+      font-size: .82rem;
+      color: var(--gray-600);
+    }
+    .document-filter-panel {
+      display: none;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--gray-100);
+    }
+    .document-filter-panel.open {
+      display: grid;
+    }
+    .document-filter-panel .form-label {
+      margin-bottom: 7px;
+      font-size: .78rem;
+      letter-spacing: 0;
+      color: var(--gray-700);
+    }
+    .document-filter-actions {
+      display: flex;
+      align-items: end;
+      gap: 10px;
+    }
+    .document-filter-actions .btn {
+      min-height: 46px;
+      width: 100%;
+      justify-content: center;
+    }
+    .document-results-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin: 4px 0 12px;
+      color: var(--gray-600);
+      font-size: .86rem;
+    }
+    .document-status-tabs {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .document-status-tabs .filter-tab {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border: 1.5px solid var(--gray-300);
+      border-radius: 24px;
+      background: var(--white);
+      color: var(--navy);
+      font: inherit;
+      cursor: pointer;
+      transition: all .2s ease;
+    }
+    .document-status-tabs .filter-tab:hover,
+    .document-status-tabs .filter-tab.active {
+      border-color: var(--brass);
+      background: rgba(156,107,46,.08);
+      color: var(--brass);
+    }
+    .document-status-tabs .badge {
+      margin-left: 2px;
+    }
+    #tab-count-pending {
+      background: rgba(255,193,7,.15);
+      color: #f59e0b;
+    }
+    #tab-count-stored {
+      background: rgba(34,197,94,.15);
+      color: #22c55e;
+    }
+    #tab-count-rejected {
+      background: rgba(239,68,68,.15);
+      color: #ef4444;
+    }
+    .document-search-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .document-search-actions .btn {
+      min-height: 48px;
+      white-space: nowrap;
+    }
+    @media (max-width: 1120px) {
+      .document-filter-panel {
+        grid-template-columns: repeat(2, minmax(160px, 1fr));
+      }
+    }
+    @media (max-width: 720px) {
+      .document-search-main,
+      .document-filter-panel {
+        grid-template-columns: 1fr;
+      }
+      .document-search-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+      .document-search-card {
+        padding: 16px;
+      }
+    }
     @media (max-width: 560px) {
       .request-duration-grid {
         grid-template-columns: 1fr;
@@ -94,14 +231,73 @@
       </p>
     </div>
 
-    <div class="card" style="padding:20px;margin-bottom:20px">
-      <div class="search-bar">
-        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input class="form-control" type="search" id="kw-input" placeholder="Tìm theo tiêu đề, tên file, khoa..." autocomplete="off" style="border:none;box-shadow:none;padding-left:42px" />
+    <div class="card document-search-card">
+      <div class="document-search-main">
+        <div>
+          <div class="search-bar">
+            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="form-control" type="search" id="kw-input" placeholder="Tìm tiêu đề, tên file, khoa, loại hồ sơ, nội dung..." autocomplete="off" />
+          </div>
+        </div>
+        <div class="document-search-actions">
+          <button class="btn btn-ghost" type="button" id="btn-toggle-filters">Bộ lọc</button>
+          <button class="btn btn-ghost" type="button" id="btn-clear-filters">Xóa lọc</button>
+        </div>
+      </div>
+
+      <div class="document-filter-panel">
+        <div>
+          <label class="form-label" for="date-from-filter">Từ ngày lưu</label>
+          <input class="form-control" type="date" id="date-from-filter" />
+        </div>
+        <div>
+          <label class="form-label" for="date-to-filter">Đến ngày lưu</label>
+          <input class="form-control" type="date" id="date-to-filter" />
+        </div>
+        <div>
+          <label class="form-label" for="adv-reference-no">Số ký hiệu</label>
+          <input class="form-control" type="text" id="adv-reference-no" placeholder="VD: 4058" autocomplete="off" />
+        </div>
+        <div>
+          <label class="form-label" for="adv-document-number">Số văn bản</label>
+          <input class="form-control" type="text" id="adv-document-number" placeholder="VD: N31.12" autocomplete="off" />
+        </div>
+        <div>
+          <label class="form-label" for="adv-issuing-unit">Đơn vị ban hành</label>
+          <input class="form-control" type="text" id="adv-issuing-unit" placeholder="VD: Bộ Y tế" autocomplete="off" />
+        </div>
+        <div>
+          <label class="form-label" for="adv-author-name">Người soạn thảo</label>
+          <input class="form-control" type="text" id="adv-author-name" placeholder="Tên người soạn" autocomplete="off" />
+        </div>
       </div>
     </div>
 
-    <div id="result-count" style="font-size:.82rem;color:var(--gray-600);margin-bottom:12px"></div>
+    <div class="document-status-tabs" aria-label="Lọc tài liệu theo trạng thái và phạm vi">
+      <button class="filter-tab active" type="button" data-status="">
+        <span>▦</span><span>Tất cả</span><span class="badge" id="tab-count-all">0</span>
+      </button>
+      <button class="filter-tab" type="button" data-status="pending">
+        <span>◷</span><span>Chờ duyệt</span><span class="badge" id="tab-count-pending">0</span>
+      </button>
+      <button class="filter-tab" type="button" data-status="stored">
+        <span>✓</span><span>Đã duyệt</span><span class="badge" id="tab-count-stored">0</span>
+      </button>
+      <button class="filter-tab" type="button" data-status="rejected">
+        <span>×</span><span>Từ chối</span><span class="badge" id="tab-count-rejected">0</span>
+      </button>
+      <button class="filter-tab visibility-tab" type="button" data-visibility="public">
+        <span>◎</span><span>Công khai</span><span class="badge visibility-tab-badge visibility-tab-badge--public" id="visibility-count-public">0</span>
+      </button>
+      <button class="filter-tab visibility-tab" type="button" data-visibility="department">
+        <span>▤</span><span>Nội bộ</span><span class="badge visibility-tab-badge visibility-tab-badge--department" id="visibility-count-department">0</span>
+      </button>
+    </div>
+
+    <div class="document-results-head">
+      <div id="result-count"></div>
+      <div id="active-filter-hint"></div>
+    </div>
     <div id="doc-list"></div>
   </main>
 </div>
@@ -153,30 +349,107 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-document-comments">
+  <div class="modal" style="max-width:640px">
+    <button class="modal-close" data-modal-close="modal-document-comments" aria-label="Đóng">×</button>
+    <h2 class="modal-title">Ghi chú tài liệu</h2>
+    <p class="modal-subtitle" id="document-comments-title"></p>
+    <div id="document-comments-list" style="max-height:280px;overflow-y:auto;margin-bottom:16px"></div>
+    <label class="form-label" for="document-comment-text">Ghi chú mới</label>
+    <textarea class="form-control" id="document-comment-text" rows="3" maxlength="2000" placeholder="Nhập nội dung ghi chú…"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-modal-close="modal-document-comments">Đóng</button>
+      <button class="btn btn-primary" id="btn-document-comment-save">Gửi ghi chú</button>
+    </div>
+  </div>
+</div>
 <div class="toast-container"></div>
-<script src="../assets/js/app.js?v=role-sync-12"></script>
-<script src="../assets/js/sidebar.js?v=role-sync-12"></script>
+<script src="../assets/js/app.js?v=fast-loading-24"></script>
+<script src="../assets/js/sidebar.js?v=staff-approval-21"></script>
 <script>
   Auth.require();
 
   let allDocs = [];
   let visibleDocs = [];
+  let activeStatus = '';
+  let activeVisibility = '';
   let requestingDoc = null;
   let submittingRequest = false;
   let currentViewBlobUrl = null;
   const viewStatusByDocId = new Map();
-  const currentUser = Auth.getUser();
+  let viewStatusesLoading = false;
+  let documentLoadVersion = 0;
+  const ensureSearchContent = createDocumentContentSearch(() => allDocs, renderFiltered);
+  let commentDocument = null;
+  let commentRequest = 0;
+
+  async function openDocumentComments(doc) {
+    if (!Auth.hasPermission('add_document_comments')) {
+      Toast.warning('Bạn chưa được cấp quyền thêm ghi chú tài liệu.');
+      return;
+    }
+    commentDocument = doc;
+    document.getElementById('document-comments-title').textContent = displayDocTitle(doc);
+    document.getElementById('document-comment-text').value = '';
+    Modal.open('modal-document-comments');
+    await loadDocumentComments(doc);
+  }
+
+  async function loadDocumentComments(doc) {
+    const request = ++commentRequest;
+    const target = document.getElementById('document-comments-list');
+    target.textContent = 'Đang tải ghi chú…';
+    try {
+      const response = await api.get(`/documents/${encodeURIComponent(getDocumentId(doc))}/comments`);
+      if (request !== commentRequest) return;
+      const comments = normalizeList(response);
+      target.innerHTML = comments.length ? comments.map(comment => `
+        <div style="padding:12px 0;border-bottom:1px solid var(--gray-200)">
+          <strong>${esc(comment.author?.fullName || comment.author?.email || 'Nhân viên')}</strong>
+          <span style="font-size:.76rem;color:var(--gray-600)"> · ${fmtDate(comment.createdAt)}</span>
+          <div class="document-text-content">${esc(comment.content || '')}</div>
+        </div>`).join('') : '<p style="color:var(--gray-600)">Chưa có ghi chú.</p>';
+    } catch (err) {
+      if (request === commentRequest) target.textContent = 'Không tải được ghi chú: ' + err.message;
+    }
+  }
+
+  document.getElementById('btn-document-comment-save').addEventListener('click', async function () {
+    const doc = commentDocument;
+    const input = document.getElementById('document-comment-text');
+    if (!doc || !input.value.trim() || !Auth.hasPermission('add_document_comments')) return;
+    this.disabled = true;
+    try {
+      await api.post(`/documents/${encodeURIComponent(getDocumentId(doc))}/comments`, { content: input.value.trim() });
+      if (commentDocument === doc) {
+        input.value = '';
+        await loadDocumentComments(doc);
+      }
+      Toast.success('Đã thêm ghi chú.');
+    } catch (err) {
+      Toast.error(err.message);
+    } finally {
+      this.disabled = false;
+    }
+  });
+  function getCurrentUser() {
+    return Auth.getUser();
+  }
 
   if (typeof pdfjsLib !== 'undefined') {
     pdfjsLib.GlobalWorkerOptions.workerSrc = '../assets/js/vendor/pdf.worker.min.js';
   }
 
-  function normalizeList(res) {
-    return Array.isArray(res) ? res
-      : Array.isArray(res?.data) ? res.data
-      : Array.isArray(res?.documents) ? res.documents
-      : Array.isArray(res?.items) ? res.items
-      : [];
+  function normalizeList(res, depth = 0) {
+    if (Array.isArray(res)) return res;
+    if (!res || typeof res !== 'object' || depth >= 4) return [];
+    for (const key of ['records', 'data', 'documents', 'items', 'results', 'result']) {
+      if (res[key] !== undefined) {
+        const list = normalizeList(res[key], depth + 1);
+        if (list.length || Array.isArray(res[key])) return list;
+      }
+    }
+    return [];
   }
 
   function normalizeText(value = '') {
@@ -200,6 +473,7 @@
   }
 
   function isOwnDocument(doc) {
+    const currentUser = getCurrentUser();
     const myIds = [
       currentUser?.id,
       currentUser?._id,
@@ -207,22 +481,69 @@
       currentUser?.sub,
     ].map(normalizeId).filter(Boolean);
     const myEmail = String(currentUser?.email || '').toLowerCase();
-    const uploader = doc?.uploader || doc?.uploadedBy || doc?.owner || doc?.createdBy || doc?.user || {};
-    const docUserIds = [
+    const ownerFields = [
+      doc?.uploader,
+      doc?.uploadedBy,
+      doc?.owner,
+      doc?.createdBy,
+      doc?.user,
+      doc?.createdUser,
+      doc?.author,
+      doc?.uploaderInfo,
+      doc?.uploadedByInfo,
+      doc?.ownerInfo,
+      doc?.createdUserInfo,
+      doc?.documentOwner,
+    ].filter(Boolean);
+
+    const rawIdFields = [
       doc?.uploaderId,
       doc?.uploadedById,
       doc?.ownerId,
       doc?.createdById,
+      doc?.createdByUserId,
       doc?.userId,
-      uploader?.id,
-      uploader?._id,
-      uploader?.userId,
-    ].map(normalizeId).filter(Boolean);
-    const docEmail = String(
-      doc?.uploaderEmail || doc?.uploadedByEmail || doc?.ownerEmail || uploader?.email || ''
-    ).toLowerCase();
+      doc?.owner_id,
+      doc?.uploader_id,
+      doc?.uploaded_by_id,
+      doc?.created_by_id,
+      doc?.created_by_user_id,
+      doc?.user_id,
+      ...ownerFields.flatMap(owner => {
+        if (typeof owner === 'object') {
+          return [
+            owner.id,
+            owner._id,
+            owner.userId,
+            owner.user_id,
+            owner.sub,
+            owner.ownerId,
+            owner.uploaderId,
+            owner.uploadedById,
+          ];
+        }
+        return [owner];
+      })
+    ];
+    const docUserIds = rawIdFields.map(normalizeId).filter(Boolean);
 
-    return docUserIds.some(id => myIds.includes(id)) || (!!myEmail && docEmail === myEmail);
+    const rawEmailFields = [
+      doc?.uploaderEmail,
+      doc?.uploadedByEmail,
+      doc?.ownerEmail,
+      doc?.createdByEmail,
+      doc?.email,
+      doc?.user?.email,
+      doc?.uploader?.email,
+      doc?.uploadedBy?.email,
+      doc?.owner?.email,
+      doc?.createdBy?.email,
+      doc?.author?.email,
+      ...ownerFields.map(owner => typeof owner === 'object' ? owner.email : owner),
+    ];
+    const docEmails = rawEmailFields.map(value => String(value || '').toLowerCase()).filter(Boolean);
+
+    return docUserIds.some(id => myIds.includes(id)) || (!!myEmail && docEmails.includes(myEmail));
   }
 
   function normalizeViewStatus(res) {
@@ -245,6 +566,8 @@
 
     return {
       status,
+      canView: data.canView === true,
+      accessSource: data.accessSource || '',
       requestId: normalizeId(request.id || request._id || request.requestId || data.id || data._id || data.requestId),
       reason: request.reason || data.reason || request.requestReason || data.requestReason || '',
       decisionNote: request.decisionNote || data.decisionNote || request.rejectReason || data.rejectReason || request.note || data.note || '',
@@ -277,7 +600,7 @@
       : [];
   }
 
-  async function loadViewStatusesFromRequests(docs) {
+  async function loadViewStatusesFromRequests(docs, target = viewStatusByDocId) {
     const endpoints = [
       '/view-requests',
       '/view-requests?status=pending',
@@ -303,52 +626,64 @@
 
     docs.forEach(doc => {
       const docId = getDocumentId(doc);
-      viewStatusByDocId.set(docId, byDocId.get(docId) || { status: 'none' });
+      target.set(docId, byDocId.get(docId) || { status: 'none' });
     });
   }
 
   async function loadViewStatuses(docs) {
-    viewStatusByDocId.clear();
-    const firstDocId = getDocumentId(docs[0]);
-    if (firstDocId) {
-      try {
-        const firstStatus = normalizeViewStatus(await api.get(`/documents/${firstDocId}/view-status`));
-        viewStatusByDocId.set(firstDocId, firstStatus);
-      } catch (err) {
-        if (String(err.message || '').includes('404')) {
-          console.warn('[View status] Endpoint missing, fallback to /view-requests.');
-          await loadViewStatusesFromRequests(docs);
-          return;
-        }
-        console.warn('[View status] Failed:', { documentId: firstDocId, message: err.message });
-        viewStatusByDocId.set(firstDocId, { status: 'none' });
-      }
-    }
-
-    const pairs = await Promise.all(docs.map(async doc => {
-      const docId = getDocumentId(doc);
-      if (viewStatusByDocId.has(docId)) return [docId, viewStatusByDocId.get(docId)];
-      if (!docId) return ['', { status: 'none' }];
-      try {
-        const status = normalizeViewStatus(await api.get(`/documents/${docId}/view-status`));
-        return [docId, status];
-      } catch (err) {
-        console.warn('[View status] Failed:', { documentId: docId, message: err.message });
-        return [docId, { status: 'none' }];
-      }
-    }));
-    pairs.forEach(([id, status]) => {
-      if (id) viewStatusByDocId.set(id, status);
+    const statuses = new Map();
+    const candidates = docs.filter(doc => {
+      const immediate = getImmediateDocumentViewStatus(doc);
+      if (immediate) statuses.set(getDocumentId(doc), immediate);
+      return !immediate && canAccessDocumentSecurity(doc);
     });
+    if (!candidates.length) return statuses;
+    const first = candidates[0];
+    try {
+      statuses.set(getDocumentId(first), normalizeViewStatus(await api.get('/documents/' + getDocumentId(first) + '/view-status')));
+    } catch (err) {
+      if (String(err.message || '').includes('404')) {
+        await loadViewStatusesFromRequests(candidates, statuses);
+        return statuses;
+      }
+      statuses.set(getDocumentId(first), { status: 'none' });
+    }
+    const entries = await mapWithConcurrency(candidates.slice(1), async doc => {
+      const id = getDocumentId(doc);
+      try { return [id, normalizeViewStatus(await api.get('/documents/' + id + '/view-status'))]; }
+      catch (_) { return [id, { status: 'none' }]; }
+    });
+    entries.forEach(([id, status]) => statuses.set(id, status));
+    return statuses;
   }
 
   async function loadDocs() {
+    const version = ++documentLoadVersion;
+    await Auth.ensureFresh();
+    if (version !== documentLoadVersion) return;
     document.getElementById('doc-list').innerHTML = skeletonTable(6);
     try {
-      const res = await api.get('/documents/search?limit=10000&status=stored');
-      allDocs = normalizeList(res).filter(d => d.status === 'stored' || d.status === 'approved');
-      await loadViewStatuses(allDocs);
+      const res = await api.get('/documents/search?limit=10000');
+      if (version !== documentLoadVersion) return;
+      allDocs = normalizeList(res).filter(d =>
+        ['pending', 'stored', 'approved', 'rejected'].includes(String(d.status || '').toLowerCase())
+      );
+      updateDocumentTabCounts();
+      viewStatusByDocId.clear();
+      viewStatusesLoading = true;
       renderFiltered();
+      loadViewStatuses(allDocs.filter(d => ['stored', 'approved'].includes(String(d.status || '').toLowerCase())))
+        .then(statuses => {
+          if (version !== documentLoadVersion) return;
+          statuses.forEach((status, id) => viewStatusByDocId.set(id, status));
+          viewStatusesLoading = false;
+          renderFiltered();
+        }).catch(err => {
+          if (version !== documentLoadVersion) return;
+          viewStatusesLoading = false;
+          console.warn('[View status]', err);
+          renderFiltered();
+        });
     } catch (err) {
       document.getElementById('doc-list').innerHTML = emptyStatePro(
         '⚠', 'Không thể tải tài liệu', esc(err.message),
@@ -360,15 +695,165 @@
   }
 
   function renderFiltered() {
-    const kw = normalizeText(document.getElementById('kw-input').value);
-    visibleDocs = allDocs.filter(d => {
-      if (!kw) return true;
-      return normalizeText([
-        d.title, d.originalFilename, d.description, d.department?.name,
-        d.documentType?.name, d.documentType?.code
-      ].filter(Boolean).join(' ')).includes(kw);
-    });
+    const kw = document.getElementById('kw-input').value;
+    ensureSearchContent(kw);
+    const fromDate = toDateOnly(document.getElementById('date-from-filter')?.value);
+    const toDate = toDateOnly(document.getElementById('date-to-filter')?.value);
+    const advancedFilters = getAdvancedSearchFilters();
+    visibleDocs = allDocs
+      .filter(d => !activeStatus || String(d.status || '').toLowerCase() === activeStatus
+        || (activeStatus === 'stored' && String(d.status || '').toLowerCase() === 'approved'))
+      .filter(d => !activeVisibility || getDocumentVisibility(d) === activeVisibility)
+      .filter(d => docMatchesSmartKeyword(d, kw))
+      .filter(d => docMatchesAdvancedFields(d, advancedFilters))
+      .filter(d => {
+        const date = toDateOnly(d.approvedAt || d.createdAt || d.updatedAt);
+        if (fromDate && (!date || date < fromDate)) return false;
+        if (toDate && (!date || date > toDate)) return false;
+        return true;
+      });
+    if (kw.trim()) {
+      visibleDocs.sort((a, b) => docSearchRelevance(b, kw) - docSearchRelevance(a, kw));
+    }
+    renderActiveFilterHint();
     renderTable(visibleDocs);
+  }
+
+  function getDocumentVisibility(doc) {
+    const value = normalizeText(doc.visibility || doc.accessLevel || doc.scope || doc.permission || '');
+    if (['department', 'internal', 'noi bo', 'private'].includes(value)) return 'department';
+    return 'public';
+  }
+
+  function updateDocumentTabCounts() {
+    const counts = {
+      all: allDocs.length,
+      pending: allDocs.filter(doc => String(doc.status || '').toLowerCase() === 'pending').length,
+      stored: allDocs.filter(doc => ['stored', 'approved'].includes(String(doc.status || '').toLowerCase())).length,
+      rejected: allDocs.filter(doc => String(doc.status || '').toLowerCase() === 'rejected').length,
+      public: allDocs.filter(doc => getDocumentVisibility(doc) === 'public').length,
+      department: allDocs.filter(doc => getDocumentVisibility(doc) === 'department').length
+    };
+    document.getElementById('tab-count-all').textContent = counts.all;
+    document.getElementById('tab-count-pending').textContent = counts.pending;
+    document.getElementById('tab-count-stored').textContent = counts.stored;
+    document.getElementById('tab-count-rejected').textContent = counts.rejected;
+    document.getElementById('visibility-count-public').textContent = counts.public;
+    document.getElementById('visibility-count-department').textContent = counts.department;
+  }
+
+  function searchTerms(keyword) {
+    return normalizeSearchText(keyword).split(/\s+/).filter(Boolean);
+  }
+
+  function docMatchesSmartKeyword(doc, keyword) {
+    const terms = searchTerms(keyword);
+    if (!terms.length) return true;
+    const haystack = docSearchText(doc);
+    return terms.every(term => haystack.includes(term));
+  }
+
+  function docSearchRelevance(doc, keyword) {
+    const terms = searchTerms(keyword);
+    if (!terms.length) return 0;
+    const title = normalizeSearchText(displayDocTitle(doc));
+    const filename = normalizeSearchText(displayDocFilename(doc));
+    const type = normalizeSearchText(doc.documentType?.name || doc.documentType?.code || '');
+    const dept = normalizeSearchText(doc.department?.name || doc.department?.code || '');
+    const metadata = normalizeSearchText([
+      doc.referenceNo,
+      doc.documentNumber,
+      doc.issuingUnit,
+      doc.authorName,
+      doc.summary,
+      doc.description,
+      doc.originalFilename
+    ].filter(Boolean).join(' '));
+    const full = docSearchText(doc);
+    const phrase = normalizeSearchText(keyword);
+
+    let score = 0;
+    if (title === phrase || filename === phrase) score += 80;
+    if (title.includes(phrase)) score += 45;
+    if (filename.includes(phrase)) score += 40;
+    if (type.includes(phrase)) score += 24;
+    if (dept.includes(phrase)) score += 20;
+    if (metadata.includes(phrase)) score += 18;
+
+    terms.forEach(term => {
+      if (title.includes(term)) score += 12;
+      if (filename.includes(term)) score += 10;
+      if (metadata.includes(term)) score += 7;
+      if (type.includes(term) || dept.includes(term)) score += 5;
+      if (full.includes(term)) score += 1;
+    });
+    return score;
+  }
+
+  function getAdvancedSearchFilters() {
+    return {
+      referenceNo: document.getElementById('adv-reference-no')?.value || '',
+      documentNumber: document.getElementById('adv-document-number')?.value || '',
+      issuingUnit: document.getElementById('adv-issuing-unit')?.value || '',
+      authorName: document.getElementById('adv-author-name')?.value || ''
+    };
+  }
+
+  function toDateOnly(value) {
+    if (!value) return '';
+    return String(value).slice(0, 10);
+  }
+
+  function hasSearchFilters() {
+    return !!(
+      document.getElementById('kw-input')?.value.trim() ||
+      document.getElementById('date-from-filter')?.value ||
+      document.getElementById('date-to-filter')?.value ||
+      Object.values(getAdvancedSearchFilters()).some(value => String(value || '').trim()) ||
+      activeStatus ||
+      activeVisibility
+    );
+  }
+
+  function renderActiveFilterHint() {
+    const el = document.getElementById('active-filter-hint');
+    if (!el) return;
+    const kw = document.getElementById('kw-input')?.value.trim();
+    el.textContent = hasSearchFilters()
+      ? (kw ? `Ưu tiên kết quả khớp với "${kw}"` : 'Đang lọc theo điều kiện tìm kiếm')
+      : 'Nhập một từ khóa bất kỳ để tìm nhanh';
+  }
+
+  function resetSearchFilters() {
+    [
+      'kw-input',
+      'date-from-filter',
+      'date-to-filter',
+      'adv-reference-no',
+      'adv-document-number',
+      'adv-issuing-unit',
+      'adv-author-name'
+    ].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    activeStatus = '';
+    activeVisibility = '';
+    document.querySelectorAll('.document-status-tabs [data-status]').forEach(button => {
+      button.classList.toggle('active', button.dataset.status === '');
+    });
+    document.querySelectorAll('.document-status-tabs .visibility-tab').forEach(button => {
+      button.classList.remove('active');
+    });
+    renderFiltered();
+  }
+
+  function toggleFilterPanel() {
+    const panel = document.querySelector('.document-filter-panel');
+    const btn = document.getElementById('btn-toggle-filters');
+    panel?.classList.toggle('open');
+    const open = panel?.classList.contains('open');
+    if (btn) btn.textContent = open ? 'Ẩn lọc' : 'Bộ lọc';
   }
 
   function renderTable(docs) {
@@ -384,7 +869,7 @@
         <table>
           <thead>
             <tr>
-              <th>Tài liệu</th><th>Khoa</th><th>Loại hồ sơ</th><th>Ngày lưu</th><th>Kích thước</th><th>Quyền xem</th>
+              <th>Tài liệu</th><th>Người tải lên</th><th>Khoa</th><th>Loại hồ sơ</th><th>Ngày gửi</th><th>Kích thước</th><th>Trạng thái</th><th>Quyền xem</th>
             </tr>
           </thead>
           <tbody>
@@ -394,10 +879,12 @@
                   <div style="font-weight:600;font-size:.9rem">${esc(displayDocTitle(d))}</div>
                   <div class="td-mono">${esc(displayDocFilename(d))}</div>
                 </td>
+                <td>${esc(d.uploader?.fullName || d.uploader?.email || '—')}</td>
                 <td>${esc(d.department?.name || '—')}</td>
                 <td>${esc(d.documentType?.name || '—')}</td>
                 <td class="td-mono">${fmtDate(d.approvedAt || d.createdAt)}</td>
                 <td class="td-mono">${fmtSize(d)}</td>
+                <td>${renderDocumentStatus(d)}</td>
                 <td>${renderViewAction(d, i)}</td>
               </tr>`).join('')}
           </tbody>
@@ -405,7 +892,32 @@
       </div>`;
   }
 
+  function renderDocumentStatus(doc) {
+    const status = String(doc?.status || '').toLowerCase();
+    if (status === 'pending') return '<span class="badge badge-pending">Chờ duyệt</span>';
+    return statusBadge(status);
+  }
+
   function renderViewAction(doc, idx) {
+    if (!canAccessDocumentSecurity(doc)) {
+      return '<span style="font-size:.76rem;color:var(--gray-600)">Không được truy cập ở độ mật này</span>';
+    }
+    const actions = [renderViewAccessAction(doc, idx)];
+    if (Auth.hasPermission('download_documents') && hasApprovedViewAccess(doc)
+      && ['approved', 'stored'].includes(String(doc.status || '').toLowerCase())) {
+      actions.push(`<button class="btn btn-ghost btn-sm" data-action="download" data-idx="${idx}">↓ Tải về</button>`);
+    }
+    if (Auth.hasPermission('add_document_comments')) {
+      actions.push(`<button class="btn btn-ghost btn-sm" data-action="comments" data-idx="${idx}">Ghi chú</button>`);
+    }
+    return `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${actions.join('')}</div>`;
+  }
+
+  function renderViewAccessAction(doc, idx) {
+    if (!canAccessDocumentSecurity(doc)) return '<span>Không được truy cập ở độ mật này</span>';
+    if (String(doc?.status || '').toLowerCase() === 'pending') {
+      return '<span style="font-size:.76rem;color:var(--gray-600)">Chỉ xem được sau khi duyệt</span>';
+    }
     if (isOwnDocument(doc)) {
       return `
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start">
@@ -419,9 +931,10 @@
     const st = String(status.status || 'none').toLowerCase();
     const expired = status.expiresAt && new Date(status.expiresAt) <= new Date();
 
-    if ((st === 'approved' || st === 'active') && !expired) {
-      const remaining = formatViewRemaining(status);
-      const extend = canShowExtend(status)
+    if (hasApprovedViewAccess(doc)) {
+      const directDepartmentAccess = hasDirectDepartmentViewAccess(doc);
+      const remaining = directDepartmentAccess ? 'Được xem trực tiếp theo quyền trong khoa' : formatViewRemaining(status);
+      const extend = !directDepartmentAccess && canShowExtend(status)
         ? `<button class="btn btn-ghost btn-sm" data-action="extend" data-idx="${idx}">Xin gia hạn</button>`
         : '';
       return `
@@ -433,8 +946,12 @@
           </div>
         </div>`;
     }
+    if (viewStatusesLoading && !viewStatusByDocId.has(docId)) return '<span>Đang kiểm tra quyền xem…</span>';
     if (st === 'pending') {
       return '<span class="badge badge-pending">Đang chờ duyệt</span>';
+    }
+    if (!Auth.hasPermission('request_document_view')) {
+      return '<span style="font-size:.76rem;color:var(--gray-600)">Chưa được cấp quyền xem tài liệu này</span>';
     }
     if (st === 'rejected' || st === 'expired' || expired) {
       const note = status.decisionNote || (expired ? 'Quyền xem đã hết hạn.' : 'Yêu cầu đã bị từ chối.');
@@ -447,7 +964,42 @@
     return `<button class="btn btn-primary btn-sm" data-action="request" data-idx="${idx}">Yêu cầu xem</button>`;
   }
 
+  function hasDirectDepartmentViewAccess(doc) {
+    if (!canAccessDocumentSecurity(doc)) return false;
+    const user = Auth.getUser();
+    const userDepartmentId = String(user?.departmentId || user?.department?.id || '');
+    const documentDepartmentId = String(doc?.departmentId || doc?.department?.id || '');
+    return user?.role === 'user'
+      && !!userDepartmentId && userDepartmentId === documentDepartmentId
+      && ['department', 'public'].includes(String(doc?.visibility || '').toLowerCase())
+      && ['stored', 'approved'].includes(String(doc?.status || '').toLowerCase())
+      && (Auth.hasPermission('view_department_documents') || Auth.hasPermission('request_document_view'));
+  }
+
+  function hasApprovedViewAccess(doc) {
+    if (!canAccessDocumentSecurity(doc)) return false;
+    if (isOwnDocument(doc)) return true;
+    if (hasDirectDepartmentViewAccess(doc)) return true;
+    const docId = getDocumentId(doc);
+    const status = viewStatusByDocId.get(docId) || { status: 'none' };
+    const st = String(status.status || 'none').toLowerCase();
+    const expired = status.expiresAt && new Date(status.expiresAt) <= new Date();
+    if (!['approved', 'active'].includes(st) || expired) return false;
+    if (status.canView === true || ['department_permission', 'document_review'].includes(status.accessSource)) return true;
+
+    return !!(
+      status.requestId ||
+      status.reason ||
+      status.expiresAt ||
+      status.approvedDuration ||
+      status.remainingText ||
+      status.remainingSeconds != null ||
+      status.remainingHours != null
+    );
+  }
+
   function formatViewRemaining(status) {
+    if (status.accessSource === 'department_permission') return 'Được xem theo quyền nội bộ khoa';
     if (status.remainingText) return `Còn hạn xem: ${status.remainingText}`;
     if (status.remainingSeconds != null) {
       const seconds = Number(status.remainingSeconds);
@@ -463,6 +1015,7 @@
   }
 
   function canShowExtend(status) {
+    if (!Auth.hasPermission('request_document_view')) return false;
     if (!status?.canExtend || !status.requestId) return false;
     if (status.maxExtensions != null && status.extensionCount != null) {
       return Number(status.extensionCount) < Number(status.maxExtensions);
@@ -482,16 +1035,13 @@
     try {
       const docId = getDocumentId(doc);
       if (!docId) throw new Error('Không xác định được mã tài liệu.');
+      if (!hasApprovedViewAccess(doc)) {
+        throw new Error('Bạn chưa được cấp quyền xem tài liệu này.');
+      }
       openViewOnlyModal(doc.title || doc.originalFilename || 'Xem tài liệu');
       const token = Auth.getToken();
-      const endpoint = isOwnDocument(doc) ? 'download' : 'view';
-      const res = await fetch(`${API}/documents/${docId}/${endpoint}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${res.status}`);
-      }
+      const endpoints = isOwnDocument(doc) ? ['view', 'download'] : ['view'];
+      const res = await fetchDocumentForView(docId, endpoints, token, isOwnDocument(doc));
 
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
@@ -508,6 +1058,23 @@
       closeViewOnlyModal();
       Toast.error('Không thể mở tài liệu: ' + err.message);
     }
+  }
+
+  async function fetchDocumentForView(docId, endpoints, token, isOwner) {
+    let lastError = null;
+    for (const endpoint of endpoints) {
+      const res = await fetch(`${API}/documents/${docId}/${endpoint}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) return res;
+      const errorData = await res.json().catch(() => ({}));
+      lastError = new Error(errorData.message || `HTTP ${res.status}`);
+    }
+
+    if (isOwner) {
+      throw new Error('Backend đang chặn cả quyền xem và tải với chủ tài liệu. Cần cho phép người tải lên được xem tài liệu của chính mình.');
+    }
+    throw lastError || new Error('Không thể mở tài liệu.');
   }
 
   function openViewOnlyModal(title) {
@@ -604,6 +1171,10 @@
   }
 
   function openRequestModal(doc) {
+    if (!Auth.hasPermission('request_document_view')) {
+      Toast.warning('Bạn chưa được cấp quyền gửi yêu cầu xem tài liệu.');
+      return;
+    }
     requestingDoc = doc;
     submittingRequest = false;
     document.getElementById('request-doc-title').textContent = doc.title || doc.originalFilename || '';
@@ -655,6 +1226,10 @@
     if (!doc) return;
     if (btn.dataset.action === 'view') openApprovedDocument(doc);
     if (btn.dataset.action === 'request') openRequestModal(doc);
+    if (btn.dataset.action === 'comments') openDocumentComments(doc);
+    if (btn.dataset.action === 'download' && Auth.hasPermission('download_documents') && hasApprovedViewAccess(doc)) {
+      api.download(`/documents/${encodeURIComponent(getDocumentId(doc))}/download`, displayDocFilename(doc));
+    }
     if (btn.dataset.action === 'extend') {
       const status = viewStatusByDocId.get(getDocumentId(doc));
       requestExtension(status, btn);
@@ -662,6 +1237,10 @@
   });
 
   async function requestExtension(status, btn) {
+    if (!Auth.hasPermission('request_document_view')) {
+      Toast.warning('Bạn chưa được cấp quyền gửi yêu cầu xem tài liệu.');
+      return;
+    }
     if (!status?.requestId) {
       Toast.warning('Không xác định được yêu cầu xem hiện tại.');
       return;
@@ -720,9 +1299,46 @@
     }
   });
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
+    await Auth.ensureFresh();
     renderBreadcrumb([{ label: 'Trang chủ', href: 'dashboard.html' }, { label: 'Tài liệu' }]);
-    document.getElementById('kw-input').addEventListener('input', debounce(renderFiltered, 300));
+    const debouncedRender = debounce(renderFiltered, 250);
+    document.querySelectorAll('.document-status-tabs [data-status]').forEach(button => {
+      button.addEventListener('click', () => {
+        activeStatus = button.dataset.status || '';
+        activeVisibility = '';
+        document.querySelectorAll('.document-status-tabs .visibility-tab').forEach(tab => {
+          tab.classList.remove('active');
+        });
+        document.querySelectorAll('.document-status-tabs [data-status]').forEach(tab => {
+          tab.classList.toggle('active', tab === button);
+        });
+        renderFiltered();
+      });
+    });
+    document.querySelectorAll('.document-status-tabs .visibility-tab').forEach(button => {
+      button.addEventListener('click', () => {
+        activeVisibility = button.dataset.visibility;
+        activeStatus = '';
+        document.querySelectorAll('.document-status-tabs [data-status]').forEach(tab => {
+          tab.classList.toggle('active', tab.dataset.status === '');
+        });
+        document.querySelectorAll('.document-status-tabs .visibility-tab').forEach(tab => {
+          tab.classList.toggle('active', tab === button);
+        });
+        renderFiltered();
+      });
+    });
+    document.getElementById('kw-input').addEventListener('input', debouncedRender);
+    ['adv-reference-no', 'adv-document-number', 'adv-issuing-unit', 'adv-author-name'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', debouncedRender);
+    });
+    ['date-from-filter', 'date-to-filter'].forEach(id => {
+      document.getElementById(id)?.addEventListener('change', renderFiltered);
+    });
+    document.getElementById('btn-toggle-filters')?.addEventListener('click', toggleFilterPanel);
+    document.getElementById('btn-clear-filters')?.addEventListener('click', resetSearchFilters);
+    renderActiveFilterHint();
     loadDocs();
   });
 </script>

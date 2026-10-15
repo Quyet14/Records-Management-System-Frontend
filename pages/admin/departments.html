@@ -104,7 +104,7 @@
 </div>
 
 <div class="toast-container"></div>
-<script src="../../assets/js/app.js?v=role-sync-12"></script>
+<script src="../../assets/js/app.js?v=fast-loading-24"></script>
 <script src="../../assets/js/sidebar.js?v=role-sync-12"></script>
 <script>
   Auth.requireAdmin();
@@ -499,8 +499,8 @@
           if (!row) return;
           const d = _deptDocs[parseInt(row.dataset.idx, 10)];
           if (!d) return;
-          if (dlBtn) { e.stopPropagation(); downloadFile(d.id, d.originalFilename || 'document.pdf'); return; }
-          previewFile(d.id, d.title || d.originalFilename);
+          if (dlBtn) { e.stopPropagation(); downloadFile(d.id, d.originalFilename || 'document'); return; }
+          previewFile(d.id, d.originalFilename || d.title, { doc: d });
         });
       }
     } else {

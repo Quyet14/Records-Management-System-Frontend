@@ -63,12 +63,36 @@ const Auth = {
     const u = Auth.getUser();
     return u && (u.role === 'admin' || u.role === 'department_head');
   },
+  permissions: () => {
+    const u = Auth.getUser() || {};
+    const raw = u.permissions || u.userPermissions || u.permissionKeys || [];
+    if (!Array.isArray(raw)) return [];
+    return raw.map(item => typeof item === 'string' ? item : (item.key || item.name || item.permission)).filter(Boolean);
+  },
+  hasPermission: (permission) => {
+    const u = Auth.getUser();
+    if (!u) return false;
+    if (u.role === 'admin' || u.role === 'department_head') return true;
+    return Auth.permissions().includes(permission);
+  },
   refreshUser: async () => {
     const token = Auth.getToken();
     if (!token) return null;
 
     const cachedUser = Auth.getUser();
     const cachedUserId = cachedUser?.id || cachedUser?._id || cachedUser?.userId || cachedUser?.sub;
+    try {
+      const profileResponse = await fetch(API + '/users/me', {
+        headers: { Authorization: `Bearer ${token}` }, cache: 'no-store'
+      });
+      if (profileResponse.ok) {
+        const user = Auth.extractUser(await profileResponse.json());
+        if (user?.id && user?.role) {
+          localStorage.setItem('lths_user', JSON.stringify(user));
+          return user;
+        }
+      }
+    } catch (_) {}
     const refreshEndpoints = ['/auth/refresh', '/auth/refresh-token'];
     for (const endpoint of refreshEndpoints) {
       try {
@@ -141,11 +165,13 @@ const Auth = {
     return payload?.user || payload?.currentUser || payload?.profile || payload || null;
   },
   refreshReady: null,
-  ensureFresh: () => {
+  refreshedUntil: 0,
+  ensureFresh: (force = false) => {
+    if (!force && !Auth.refreshReady && Date.now() < Auth.refreshedUntil) return Promise.resolve(Auth.getUser());
     if (!Auth.refreshReady) {
-      Auth.refreshReady = Auth.refreshUser().finally(() => {
-        setTimeout(() => { Auth.refreshReady = null; }, 0);
-      });
+      Auth.refreshReady = Auth.refreshUser()
+        .then(user => { Auth.refreshedUntil = Date.now() + 10000; return user; })
+        .finally(() => { Auth.refreshReady = null; });
     }
     return Auth.refreshReady;
   },
@@ -219,6 +245,14 @@ const Auth = {
 
 if (Auth.getToken()) Auth.ensureFresh().then(() => Auth.syncRoleRoute());
 
+window.addEventListener('focus', async () => {
+  if (!Auth.getToken()) return;
+  const before = JSON.stringify([Auth.getUser()?.role, Auth.permissions().slice().sort()]);
+  await Auth.ensureFresh(true);
+  const after = JSON.stringify([Auth.getUser()?.role, Auth.permissions().slice().sort()]);
+  if (Auth.getToken() && before !== after) window.location.reload();
+});
+
 const AuthRoleChannel = (() => {
   const CHANNEL = 'lths_role_changed';
   const onMessage = (detail) => Auth.handleExternalRoleChange(detail);
@@ -250,7 +284,16 @@ const AuthRoleChannel = (() => {
 })();
 
 /* ── HTTP wrapper ────────────────────────────────────────────── */
+let documentSearchContentUnsupported = false;
+
 async function http(method, path, body, isForm = false) {
+  const documentSearchUrl = method === 'GET' && /^\/documents(?:\/search)?\?/.test(path)
+    ? new URL(path, API)
+    : null;
+  if (documentSearchContentUnsupported && documentSearchUrl?.searchParams.has('includeContent')) {
+    documentSearchUrl.searchParams.delete('includeContent');
+    path = documentSearchUrl.pathname + documentSearchUrl.search;
+  }
   const headers = {};
   const token = Auth.getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -266,51 +309,156 @@ async function http(method, path, body, isForm = false) {
   if (res.status === 401) { Auth.clear(); window.location.href = _pagesRoot() + 'login.html'; }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
+    const messages = Array.isArray(err.message) ? err.message : [err.message];
+    if (res.status === 400 && documentSearchUrl?.searchParams.has('includeContent')
+      && messages.length === 1 && messages[0] === 'property includeContent should not exist') {
+      const shouldNotify = !documentSearchContentUnsupported;
+      documentSearchContentUnsupported = true;
+      documentSearchUrl.searchParams.delete('includeContent');
+      const result = await http(method, documentSearchUrl.pathname + documentSearchUrl.search, body, isForm);
+      if (shouldNotify) Toast.warning('Backend chưa cập nhật API tìm kiếm. Đã tải danh sách; tìm theo nội dung có thể chưa đầy đủ.');
+      return result;
+    }
     throw new Error(err.message || `HTTP ${res.status}`);
   }
   if (res.status === 204) return null;
   return res.json();
 }
 
+function authDownloadUrl(path) {
+  const token = Auth.getToken();
+  const url = API + path;
+  if (!token) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
+}
+
+function uploadWithProgress(path, form, onProgress) {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open('POST', API + path);
+    request.responseType = 'json';
+    const token = Auth.getToken();
+    if (token) request.setRequestHeader('Authorization', `Bearer ${token}`);
+    request.upload.onprogress = event => {
+      if (event.lengthComputable && event.total > 0) {
+        onProgress(Math.min(100, Math.round(event.loaded * 100 / event.total)));
+      }
+    };
+    request.onload = () => {
+      if (request.status === 401) {
+        Auth.clear();
+        window.location.href = _pagesRoot() + 'login.html';
+      }
+      if (request.status >= 200 && request.status < 300) {
+        resolve(request.response);
+      } else {
+        const error = new Error(request.response?.message || `HTTP ${request.status}`);
+        error.status = request.status;
+        reject(error);
+      }
+    };
+    request.onerror = () => reject(new Error('Mất kết nối khi tải file. Vui lòng kiểm tra kết nối và thử lại.'));
+    request.onabort = () => reject(new Error('Đã hủy tải file.'));
+    request.ontimeout = () => reject(new Error('Hết thời gian tải file.'));
+    // Send the File through FormData; never read the complete file into JavaScript memory.
+    request.send(form);
+  });
+}
+
+const pendingGetRequests = new Map();
+function getWithoutDuplicateRequests(path) {
+  const url = new URL(path, API);
+  url.searchParams.sort();
+  const key = `${Auth.getToken() || ''}:${url.pathname}${url.search}`;
+  if (pendingGetRequests.has(key)) return pendingGetRequests.get(key);
+  const request = http('GET', path).finally(() => pendingGetRequests.delete(key));
+  pendingGetRequests.set(key, request);
+  return request;
+}
+
+async function mapWithConcurrency(items, mapper, concurrency = 6) {
+  const result = new Array(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++;
+      result[index] = await mapper(items[index], index);
+    }
+  }));
+  return result;
+}
+
+function createDocumentContentSearch(getDocuments, onReady) {
+  const hydrated = new WeakSet();
+  let loading = false;
+  let status;
+  function showStatus(message) {
+    if (!status && !message) return;
+    if (!status) {
+      const input = document.getElementById('kw-input') || document.getElementById('search-input');
+      if (!input) return;
+      status = document.createElement('small');
+      status.setAttribute('role', 'status');
+      status.style.cssText = 'display:block;color:var(--gray-600);margin-top:6px';
+      (input.closest('.search-bar') || input).after(status);
+    }
+    status.textContent = message;
+  }
+  return query => {
+    if (!String(query || '').trim()) { showStatus(''); return; }
+    const docs = getDocuments();
+    if (!docs.length || docs.every(doc => hydrated.has(doc))) { showStatus(''); return; }
+    showStatus('Đang tìm thêm trong nội dung tài liệu…');
+    if (loading) return;
+    loading = true;
+    api.get('/documents/search?includeContent=true&limit=10000').then(response => {
+      let payload = response;
+      for (let depth = 0; depth < 4 && !Array.isArray(payload); depth++) {
+        payload = payload?.data || payload?.documents || payload?.items || payload?.results || [];
+      }
+      const byId = new Map((Array.isArray(payload) ? payload : []).map(doc => [getDocumentId(doc), doc]));
+      getDocuments().forEach(doc => {
+        const full = byId.get(getDocumentId(doc));
+        if (full && Object.hasOwn(full, 'description')) {
+          doc.description = full.description;
+          hydrated.add(doc);
+        }
+      });
+      loading = false;
+      showStatus('');
+      // Mark unmatched records too: the API may exclude them after access changes.
+      getDocuments().forEach(doc => hydrated.add(doc));
+      onReady();
+    }).catch(() => {
+      loading = false;
+      showStatus('Chưa tải được nội dung để tìm đầy đủ. Nhập lại từ khóa để thử lại.');
+    });
+  };
+}
+
 const api = {
   post:   (p, b)    => http('POST',   p, b),
-  get:    (p)       => http('GET',    p),
+  get:    (p)       => getWithoutDuplicateRequests(p),
   patch:  (p, b)    => http('PATCH',  p, b),
   del:    (p)       => http('DELETE', p),
-  upload: (p, form) => http('POST',   p, form, true),
+  upload: (p, form, onProgress) => typeof onProgress === 'function'
+    ? uploadWithProgress(p, form, onProgress)
+    : http('POST', p, form, true),
   
-  // Download file as blob
-  download: async (path, filename = 'document.pdf') => {
-    const token = Auth.getToken();
-    const headers = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    
-    const res = await fetch(API + path, { method: 'GET', headers });
-    
-    if (res.status === 401) { 
-      Auth.clear(); 
-      window.location.href = _pagesRoot() + 'login.html'; 
-      return;
-    }
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || `HTTP ${res.status}`);
-    }
-    
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
+  // Let the browser handle large downloads instead of buffering the full file in JS.
+  download: async (path, filename = 'document') => {
     const a = document.createElement('a');
-    a.href = url;
+    a.href = authDownloadUrl(path);
     a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
     a.click();
-    window.URL.revokeObjectURL(url);
+    setTimeout(() => a.remove(), 1000);
   },
   
   // View file in new tab
   view: (path) => {
-    const token = Auth.getToken();
-    const url = `${API}${path}${token ? `?token=${token}` : ''}`;
-    window.open(url, '_blank');
+    window.open(authDownloadUrl(path), '_blank');
   }
 };
 
@@ -411,8 +559,15 @@ function initDropZone(dropEl, inputEl, onFile) {
 
 /* ── Preview PDF in modal ────────────────────────────────────── */
 async function previewFile(docId, filename, options = {}) {
+  if (options.doc && !canAccessDocumentSecurity(options.doc)) {
+    Toast.warning('Bạn không có quyền truy cập tài liệu ở độ mật này.');
+    return;
+  }
   const canDownload = options.canDownload ?? Auth.isStaff();
   const endpoint = options.endpoint || (canDownload ? 'download' : 'view');
+  const doc = options.doc || {};
+  const previewName = documentFileNameForType(doc, filename);
+  const downloadName = previewName || filename || doc.title || 'document';
   // Create or reuse preview modal
   let overlay = document.getElementById('modal-pdf-preview');
   if (!overlay) {
@@ -456,12 +611,39 @@ async function previewFile(docId, filename, options = {}) {
     });
   }
 
-  document.getElementById('pdf-preview-title').textContent = filename || 'Xem tài liệu';
+  document.getElementById('pdf-preview-title').textContent = filename || doc.title || previewName || 'Xem tài liệu';
   document.getElementById('pdf-preview-body').innerHTML = '<div style="color:#fff;font-size:.9rem">Đang tải…</div>';
   const downloadBtn = document.getElementById('pdf-download-btn');
   downloadBtn.style.display = canDownload ? 'inline-flex' : 'none';
   downloadBtn.onclick = null;
   overlay.classList.add('open');
+
+  if (isArchiveDocumentFile(previewName) || isArchiveMimeType(documentMimeType(doc))) {
+    const body = document.getElementById('pdf-preview-body');
+    if (canDownload) {
+      downloadBtn.onclick = async () => {
+        const oldHtml = downloadBtn.innerHTML;
+        downloadBtn.disabled = true;
+        downloadBtn.innerHTML = 'Đang tải...';
+        try {
+          await downloadFile(docId, downloadName);
+        } finally {
+          downloadBtn.disabled = false;
+          downloadBtn.innerHTML = oldHtml;
+        }
+      };
+      body.innerHTML = `<div style="color:#fff;text-align:center;padding:40px">
+        <div style="font-weight:700;margin-bottom:8px">File nén không hỗ trợ xem trực tiếp.</div>
+        <div style="font-size:.86rem;color:#ddd">Bấm "Tải về" để tải file gốc. Frontend sẽ không tải trước file nén nên mở nhanh hơn.</div>
+      </div>`;
+    } else {
+      body.innerHTML = `<div style="color:#fff;text-align:center;padding:40px">
+        <div style="font-weight:700;margin-bottom:8px">File nén không hỗ trợ xem trực tiếp.</div>
+        <div style="font-size:.86rem;color:#ddd">Vui lòng gửi yêu cầu quyền xem/tải nếu cần truy cập file.</div>
+      </div>`;
+    }
+    return;
+  }
 
   try {
     const token = Auth.getToken();
@@ -532,17 +714,37 @@ async function renderPreviewBlob(blob, filename, canDownload, downloadBtn, overl
   const type = (blob.type || '').toLowerCase();
   const isPdf = type.includes('pdf') || /\.pdf($|\?)/i.test(filename || '');
   const isImage = type.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(filename || '');
+  const isArchive = isArchiveDocumentFile(filename);
+
+  if (canDownload && (isPdf || isImage)) {
+    const blobUrl = URL.createObjectURL(blob);
+    overlay._previewBlobUrl = blobUrl;
+    body.innerHTML = isPdf
+      ? `<iframe src="${blobUrl}" style="width:100%;height:75vh;border:none"></iframe>`
+      : `<img src="${blobUrl}" alt="${esc(filename || 'TÃ i liá»‡u')}" style="max-width:100%;max-height:75vh;object-fit:contain;background:#fff" />`;
+    downloadBtn.onclick = () => {
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename || 'document';
+      a.click();
+    };
+    return;
+  }
 
   if (canDownload) {
     const blobUrl = URL.createObjectURL(blob);
     overlay._previewBlobUrl = blobUrl;
-    body.innerHTML = `<iframe src="${blobUrl}" style="width:100%;height:75vh;border:none"></iframe>`;
     downloadBtn.onclick = () => {
       const a = document.createElement('a');
       a.href = blobUrl;
-      a.download = filename || 'document.pdf';
+      a.download = filename || 'document';
       a.click();
     };
+    const fileType = isArchive ? 'file nÃ©n' : 'Ä‘á»‹nh dáº¡ng nÃ y';
+    body.innerHTML = `<div style="color:#fff;text-align:center;padding:40px">
+      <div style="font-weight:700;margin-bottom:8px">KhÃ´ng xem trá»±c tiáº¿p ${fileType}.</div>
+      <div style="font-size:.86rem;color:#ddd">Vui lÃ²ng báº¥m "Táº£i vá»" Ä‘á»ƒ láº¥y file gá»‘c.</div>
+    </div>`;
     return;
   }
 
@@ -587,6 +789,128 @@ function getDocumentId(doc) {
   return String(id || '');
 }
 
+async function loadDocumentDetail(doc) {
+  const id = getDocumentId(doc);
+  if (!id) throw new Error('Không xác định được tài liệu.');
+  const response = await api.get(`/documents/${encodeURIComponent(id)}`);
+  const payload = response?.data || response?.result || response;
+  const detail = payload?.document || payload?.doc || payload;
+  if (!detail || typeof detail !== 'object' || Array.isArray(detail) || getDocumentId(detail) !== id) {
+    throw new Error('Dữ liệu chi tiết tài liệu không hợp lệ.');
+  }
+  return { ...doc, ...detail };
+}
+
+function documentSecurityLevel(value) {
+  if (value == null) return 'normal';
+  if (typeof value !== 'string') return null;
+  const text = value.trim().toLowerCase();
+  const aliases = {
+    normal: ['', 'normal', 'none', 'thuong', 'thường'],
+    confidential: ['confidential', 'mat', 'mật'],
+    secret: ['secret', 'highly_confidential', 'toi_mat', 'toi mat', 'tối mật', 'tối_mật'],
+    top_secret: ['top_secret', 'top secret', 'tuyet_mat', 'tuyet mat', 'tuyệt mật', 'tuyệt_mật']
+  };
+  return Object.keys(aliases).find(level => aliases[level].includes(text)) || null;
+}
+
+function documentSecurityLabel(value) {
+  return ({ normal: 'Thường', confidential: 'Mật', secret: 'Tối mật', top_secret: 'Tuyệt mật' })[documentSecurityLevel(value)] || 'Chưa xác định';
+}
+
+function canAccessDocumentSecurity(doc, user = Auth.getUser()) {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  const userId = String(user.id || user._id || user.userId || '');
+  const uploaderId = String(doc.uploader?.id || doc.uploaderId || '');
+  if (userId && uploaderId === userId) return true;
+  const level = documentSecurityLevel(doc.securityLevel ?? doc.security_level);
+  if (level === 'normal') return true;
+  const departmentId = String(user.departmentId || user.department?.id || '');
+  return level === 'confidential' && user.role === 'department_head'
+    && !!departmentId && String(doc.department?.id || doc.departmentId || '') === departmentId;
+}
+
+function configureDocumentSecuritySelect(select, currentValue) {
+  const labels = { normal: 'Thường', confidential: 'Mật', secret: 'Tối mật', top_secret: 'Tuyệt mật' };
+  const levels = Object.keys(labels);
+  const current = documentSecurityLevel(currentValue);
+  const isAdmin = Auth.isAdmin();
+  select.innerHTML = levels.map((level, index) =>
+    `<option value="${level}"${!isAdmin && (current == null || index < levels.indexOf(current)) ? ' disabled' : ''}>${labels[level]}</option>`
+  ).join('');
+  if (!current) {
+    const unknown = document.createElement('option');
+    unknown.value = String(currentValue ?? '');
+    unknown.textContent = 'Chưa xác định — cần admin cập nhật';
+    select.appendChild(unknown);
+  }
+  select.value = current || String(currentValue ?? '');
+  select.disabled = !current && !isAdmin;
+  select.dataset.originalSecurityLevel = select.value;
+}
+
+function documentLongTextHtml(value) {
+  const text = String(value || '—');
+  if (text.length <= 280) return `<div class="document-text-content">${esc(text)}</div>`;
+  return `<details class="document-long-text">
+    <summary>
+      <span class="document-text-preview">${esc(text.slice(0, 280))}…</span>
+      <span class="document-text-more">Xem đầy đủ nội dung</span>
+      <span class="document-text-less">Thu gọn</span>
+    </summary>
+    <div class="document-text-content document-text-scroll">${esc(text)}</div>
+  </details>`;
+}
+
+function documentMetadataHtml(doc) {
+  const sources = [doc, doc.metadata, doc.documentMetadata, doc.file?.metadata]
+    .filter(value => value && typeof value === 'object');
+  const value = (...keys) => {
+    for (const key of keys) {
+      for (const source of sources) {
+        if (source[key] !== undefined && source[key] !== null && source[key] !== '') return source[key];
+      }
+    }
+    return '';
+  };
+  const field = (label, content, fullWidth = false) => `
+    <div${fullWidth ? ' style="grid-column:1/-1"' : ''}>
+      <span style="color:var(--gray-600);font-size:.75rem">${esc(label)}:</span><br>
+      ${fullWidth ? documentLongTextHtml(content) : `<span style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(content === '' ? '—' : content)}</span>`}
+    </div>`;
+  const date = (...keys) => value(...keys) ? fmtDate(value(...keys)) : '';
+  const type = value('documentType', 'documentTypeInfo', 'document_type');
+  const typeName = typeof type === 'object' ? [type.code && `[${type.code}]`, type.name].filter(Boolean).join(' ') : type;
+  const visibility = value('visibility', 'accessLevel', 'scope');
+  let tags = value('tags');
+  if (typeof tags === 'string') {
+    try { tags = JSON.parse(tags); } catch (_) { tags = tags.split(','); }
+  }
+  const tagNames = (Array.isArray(tags) ? tags : [tags])
+    .map(tag => typeof tag === 'object' && tag !== null ? tag.name : tag)
+    .filter(Boolean).join(', ');
+  return `
+    <div style="margin-top:16px;padding:12px 14px;background:rgba(27,42,74,.04);border:1px solid var(--gray-200);border-radius:var(--radius-lg)">
+      <div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-600);margin-bottom:10px">📄 Thông tin hồ sơ</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:.84rem">
+        ${field('Tiêu đề tài liệu', value('title') || displayDocTitle(doc))}
+        ${field('Số ký hiệu', value('referenceNo', 'referenceNumber', 'reference_no'))}
+        ${field('Đơn vị ban hành', value('issuingUnit', 'issuingAgency', 'issuing_unit'))}
+        ${field('Ngày đến', date('receivedDate', 'received_date'))}
+        ${field('Số văn bản', value('documentNumber', 'docNumber', 'document_number'))}
+        ${field('Độ mật', documentSecurityLabel(value('securityLevel', 'security_level')))}
+        ${field('Người soạn thảo', value('authorName', 'author_name'))}
+        ${field('Loại hồ sơ', typeName)}
+        ${field('Ngày hình thành tài liệu', date('documentDate', 'issuedDate', 'document_date'))}
+        ${field('Trích yếu / tóm tắt', value('summary', 'abstract'), true)}
+        ${field('Mô tả', value('description'), true)}
+        ${field('Phạm vi', ({ public: 'Công khai', department: 'Nội bộ khoa', private: 'Riêng tư' })[visibility] || visibility)}
+        ${field('Từ khóa', tagNames, true)}
+      </div>
+    </div>`;
+}
+
 function normalizeViewStatus(res) {
   let data = res?.data || res || {};
   if (Array.isArray(data)) {
@@ -620,19 +944,27 @@ function canViewFromStatus(status) {
 }
 
 async function loadViewStatusMap(docs) {
-  docs = docs || [];
+  const immediate = new Map();
+  docs = (docs || []).filter(doc => {
+    const status = getImmediateDocumentViewStatus(doc);
+    if (status) immediate.set(getDocumentId(doc), status);
+    return !status && canAccessDocumentSecurity(doc);
+  });
   const firstId = getDocumentId(docs[0]);
   if (firstId) {
     try {
-      await api.get(`/documents/${firstId}/view-status`);
+      immediate.set(firstId, normalizeViewStatus(await api.get(`/documents/${firstId}/view-status`)));
     } catch (err) {
       if (String(err.message || '').includes('404')) {
-        return loadViewStatusMapFromRequests(docs);
+        const fallback = await loadViewStatusMapFromRequests(docs);
+        fallback.forEach((status, id) => immediate.set(id, status));
+        return immediate;
       }
+      immediate.set(firstId, { status: 'none' });
     }
   }
 
-  const entries = await Promise.all(docs.map(async doc => {
+  const entries = await mapWithConcurrency(docs.slice(firstId ? 1 : 0), async doc => {
     const id = getDocumentId(doc);
     if (!id) return ['', { status: 'none' }];
     try {
@@ -640,8 +972,26 @@ async function loadViewStatusMap(docs) {
     } catch (_) {
       return [id, { status: 'none' }];
     }
-  }));
-  return new Map(entries.filter(([id]) => id));
+  });
+  entries.forEach(([id, status]) => { if (id) immediate.set(id, status); });
+  return immediate;
+}
+
+function getImmediateDocumentViewStatus(doc) {
+  const user = Auth.getUser();
+  if (!user || !canAccessDocumentSecurity(doc)) return null;
+  const userId = String(user.id || user._id || user.userId || '');
+  if (userId && String(doc.uploader?.id || doc.uploaderId || '') === userId) return { status: 'approved', expiresAt: null };
+  if (!['approved', 'stored'].includes(String(doc.status || '').toLowerCase())) return null;
+  if (user.role === 'admin') return { status: 'approved', expiresAt: null };
+  const departmentId = String(user.departmentId || user.department?.id || '');
+  if (!departmentId || departmentId !== String(doc.departmentId || doc.department?.id || '')) return null;
+  if (user.role === 'department_head' || Auth.hasPermission('approve_documents')) return { status: 'approved', expiresAt: null };
+  if (['department', 'public'].includes(String(doc.visibility || '').toLowerCase())
+    && (Auth.hasPermission('view_department_documents') || Auth.hasPermission('request_document_view'))) {
+    return { status: 'approved', expiresAt: null };
+  }
+  return null;
 }
 
 function getRequestDocumentId(request) {
@@ -680,19 +1030,13 @@ async function loadViewStatusMapFromRequests(docs) {
 
 async function downloadFile(docId, filename) {
   try {
-    const token = Auth.getToken();
-    const res = await fetch(`${API}/documents/${docId}/download`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = filename || 'document.pdf';
+    a.href = authDownloadUrl(`/documents/${docId}/download`);
+    a.download = filename || 'document';
+    a.rel = 'noopener';
     document.body.appendChild(a);
     a.click();
-    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    setTimeout(() => a.remove(), 1000);
   } catch (err) {
     Toast.error('Không thể tải file: ' + err.message);
   }
@@ -1149,6 +1493,220 @@ function displayDocFilename(doc = {}) {
     ? (extension && !title.toLowerCase().endsWith(extension.toLowerCase()) ? title + extension : title)
     : filename;
   return displayText(filename, fallback);
+}
+
+const DOCUMENT_FILE_ACCEPT = [
+  '.pdf',
+  '.zip',
+  '.rar',
+  '.7z',
+  '.tar',
+  '.gz',
+  '.tgz',
+  '.tar.gz',
+  'application/pdf',
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/vnd.rar',
+  'application/x-rar-compressed',
+  'application/x-7z-compressed',
+  'application/x-tar',
+  'application/gzip',
+  'application/x-gzip'
+].join(',');
+
+const DOCUMENT_FILE_EXTENSIONS = ['.pdf', '.zip', '.rar', '.7z', '.tar', '.gz', '.tgz', '.tar.gz'];
+const ARCHIVE_FILE_EXTENSIONS = ['.zip', '.rar', '.7z', '.tar', '.gz', '.tgz', '.tar.gz'];
+
+function getDocumentFileExtension(filename = '') {
+  const name = String(filename).toLowerCase();
+  if (name.endsWith('.tar.gz')) return '.tar.gz';
+  return name.match(/\.[a-z0-9]+$/i)?.[0]?.toLowerCase() || '';
+}
+
+function isAllowedDocumentFile(fileOrName) {
+  const filename = typeof fileOrName === 'string' ? fileOrName : fileOrName?.name;
+  return DOCUMENT_FILE_EXTENSIONS.includes(getDocumentFileExtension(filename));
+}
+
+function isPdfDocumentFile(fileOrName) {
+  const filename = typeof fileOrName === 'string' ? fileOrName : fileOrName?.name;
+  return getDocumentFileExtension(filename) === '.pdf';
+}
+
+function isArchiveDocumentFile(fileOrName) {
+  const filename = typeof fileOrName === 'string' ? fileOrName : fileOrName?.name;
+  return ARCHIVE_FILE_EXTENSIONS.includes(getDocumentFileExtension(filename));
+}
+
+function documentFileNameForType(doc = {}, fallback = '') {
+  const metadata = doc.metadata || {};
+  const file = doc.file || {};
+  const candidates = [
+    fallback,
+    doc.originalFilename,
+    doc.filename,
+    doc.fileName,
+    doc.name,
+    doc.storagePath,
+    doc.storageKey,
+    doc.path,
+    doc.url,
+    doc.fileUrl,
+    file.originalFilename,
+    file.filename,
+    file.fileName,
+    file.name,
+    file.path,
+    metadata.originalFilename,
+    metadata.filename,
+    metadata.fileName,
+    metadata.storagePath,
+    metadata.storageKey
+  ];
+
+  return candidates.find(value => getDocumentFileExtension(value)) || fallback || '';
+}
+
+function documentMimeType(doc = {}) {
+  const metadata = doc.metadata || {};
+  const file = doc.file || {};
+  return String(
+    doc.mimeType ||
+    doc.mimetype ||
+    doc.contentType ||
+    doc.fileType ||
+    file.mimeType ||
+    file.mimetype ||
+    file.contentType ||
+    metadata.mimeType ||
+    metadata.mimetype ||
+    metadata.contentType ||
+    ''
+  ).toLowerCase();
+}
+
+function isArchiveMimeType(type = '') {
+  return /(zip|rar|7z|x-tar|tar|gzip|x-gzip)/i.test(String(type));
+}
+
+function normalizeSearchText(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/đ/g, 'd')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function flattenDocumentSearchValue(value) {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        return flattenDocumentSearchValue(JSON.parse(trimmed));
+      } catch (_) {}
+    }
+  }
+  if (Array.isArray(value)) return value.flatMap(flattenDocumentSearchValue);
+  if (value && typeof value === 'object') {
+    return Object.values(value).flatMap(flattenDocumentSearchValue);
+  }
+  return [value];
+}
+
+function findDocumentSearchFieldValues(source, aliases) {
+  if (!source || typeof source !== 'object') return [];
+  const aliasKeys = new Set(aliases.map(alias => alias.toLowerCase().replace(/[^a-z0-9]/g, '')));
+  return Object.entries(source).flatMap(([key, value]) => {
+    const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+    let nestedValue = value;
+    if (typeof nestedValue === 'string' && /^[\[{]/.test(nestedValue.trim())) {
+      try {
+        nestedValue = JSON.parse(nestedValue);
+      } catch (_) {}
+    }
+    const values = aliasKeys.has(normalizedKey)
+      ? flattenDocumentSearchValue(nestedValue)
+      : [];
+    return nestedValue && typeof nestedValue === 'object'
+      ? values.concat(findDocumentSearchFieldValues(nestedValue, aliases))
+      : values;
+  });
+}
+
+function docFieldValue(doc = {}, field) {
+  const aliases = {
+    title: ['title'],
+    filename: ['originalFilename', 'filename', 'fileName'],
+    description: ['description'],
+    summary: ['summary', 'description'],
+    referenceNo: ['referenceNo', 'referenceNumber', 'symbolNo', 'reference_no'],
+    documentNumber: ['documentNumber', 'docNumber', 'number', 'document_number'],
+    issuingUnit: ['issuingUnit', 'issuer', 'issuingAgency', 'issuing_unit'],
+    receivedDate: ['receivedDate', 'received_date'],
+    issuedDate: ['issuedDate', 'documentDate', 'document_date', 'issued_date'],
+    securityLevel: ['securityLevel', 'security_level'],
+    authorName: ['authorName', 'author', 'createdByName', 'author_name'],
+    tags: ['tags']
+  }[field] || [field];
+
+  return findDocumentSearchFieldValues(doc, aliases)
+    .filter(value => value != null && value !== '');
+}
+
+function docSearchText(doc = {}) {
+  const values = [
+    doc.title,
+    doc.originalFilename,
+    doc.filename,
+    doc.fileName,
+    doc.description,
+    doc.summary,
+    doc.referenceNo,
+    doc.documentNumber,
+    doc.issuingUnit,
+    doc.receivedDate,
+    doc.issuedDate,
+    doc.documentDate,
+    doc.securityLevel,
+    doc.authorName,
+    doc.visibility,
+    doc.department?.name,
+    doc.department?.code,
+    doc.documentType?.name,
+    doc.documentType?.code,
+    doc.documentTypeId,
+    doc.uploader?.fullName,
+    doc.uploader?.email,
+    ...(Array.isArray(doc.tags) ? doc.tags : []),
+    ...['title', 'filename', 'description', 'summary', 'referenceNo', 'documentNumber',
+      'issuingUnit', 'receivedDate', 'issuedDate', 'securityLevel',
+      'authorName', 'tags'].flatMap(field => docFieldValue(doc, field)),
+  ];
+
+  values.push(...flattenDocumentSearchValue(doc.metadata));
+  values.push(...flattenDocumentSearchValue(doc.documentMetadata));
+  values.push(...flattenDocumentSearchValue(doc.file));
+
+  return normalizeSearchText(values.filter(value => value != null && value !== '').join(' '));
+}
+
+function docMatchesKeyword(doc, keyword) {
+  const kw = normalizeSearchText(keyword);
+  if (!kw) return true;
+  const haystack = docSearchText(doc);
+  return kw.split(' ').every(term => haystack.includes(term));
+}
+
+function docMatchesAdvancedFields(doc, filters = {}) {
+  return Object.entries(filters).every(([field, raw]) => {
+    const value = normalizeSearchText(raw);
+    if (!value) return true;
+    const haystack = normalizeSearchText(docFieldValue(doc, field).join(' '));
+    return haystack.includes(value);
+  });
 }
 
 function fmtDate(iso) {

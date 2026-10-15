@@ -165,7 +165,7 @@
 </div>
 
 <div class="toast-container"></div>
-<script src="../../assets/js/app.js?v=role-sync-12"></script>
+<script src="../../assets/js/app.js?v=fast-loading-24"></script>
 <script src="../../assets/js/sidebar.js?v=role-sync-12"></script>
 <script>
   Auth.requireAdmin();
@@ -177,6 +177,8 @@
   let searchQuery = '';
 
   /* ── Search functionality ───────────────────────────────────── */
+  const ensureSearchContent = createDocumentContentSearch(() => allDocs, performSearch);
+
   function performSearch() {
     const query = document.getElementById('search-input').value.trim();
     if (!query || query.length < 2) {
@@ -185,6 +187,7 @@
     }
 
     searchQuery = query;
+    ensureSearchContent(query);
     currentView = 'search';
 
     // Hide other views
@@ -198,16 +201,9 @@
     document.getElementById('btn-clear-search').style.display = 'inline-flex';
 
     // Search in documents
-    const lowerQuery = query.toLowerCase();
     const results = allDocs.filter(d => {
       if (!d.storagePath) return false; // Only stored documents
-      const title = (d.title || '').toLowerCase();
-      const filename = (d.originalFilename || '').toLowerCase();
-      const desc = (d.description || '').toLowerCase();
-      
-      return title.includes(lowerQuery) || 
-             filename.includes(lowerQuery) || 
-             desc.includes(lowerQuery);
+      return docMatchesKeyword(d, query);
     }).sort((a,b) => new Date(b.approvedAt || b.createdAt) - new Date(a.approvedAt || a.createdAt));
 
     renderSearchResults(results);

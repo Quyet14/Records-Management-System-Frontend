@@ -84,8 +84,8 @@
 </div>
 
 <div class="toast-container"></div>
-<script src="../assets/js/app.js?v=role-sync-12"></script>
-<script src="../assets/js/sidebar.js?v=role-sync-12"></script>
+<script src="../assets/js/app.js?v=fast-loading-24"></script>
+<script src="../assets/js/sidebar.js?v=staff-approval-21"></script>
 <script>
   Auth.require();
 
@@ -182,7 +182,7 @@
           e.preventDefault();
           e.stopPropagation();
           const doc = recent[parseInt(viewBtn.dataset.idx, 10)];
-          if (doc) previewFile(getDocumentId(doc), doc.title || doc.originalFilename);
+          if (doc) previewFile(getDocumentId(doc), doc.originalFilename || doc.title, { doc });
           return;
         }
 
