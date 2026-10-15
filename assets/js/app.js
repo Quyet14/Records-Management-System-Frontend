@@ -172,6 +172,7 @@ const Auth = {
       Auth.refreshReady = Auth.refreshUser()
         .then(user => { Auth.refreshedUntil = Date.now() + 10000; return user; })
         .finally(() => { Auth.refreshReady = null; });
+      window.NavigationShell?.track(Auth.refreshReady);
     }
     return Auth.refreshReady;
   },
@@ -245,12 +246,20 @@ const Auth = {
 
 if (Auth.getToken()) Auth.ensureFresh().then(() => Auth.syncRoleRoute());
 
+let authFocusRefreshRunning = false;
 window.addEventListener('focus', async () => {
-  if (!Auth.getToken()) return;
-  const before = JSON.stringify([Auth.getUser()?.role, Auth.permissions().slice().sort()]);
-  await Auth.ensureFresh(true);
-  const after = JSON.stringify([Auth.getUser()?.role, Auth.permissions().slice().sort()]);
-  if (Auth.getToken() && before !== after) window.location.reload();
+  // The first profile refresh already updates the page during navigation.
+  // Comparing its pending result on initial focus could reload the new page again.
+  if (!Auth.getToken() || !Auth.refreshedUntil || Auth.refreshReady || authFocusRefreshRunning) return;
+  authFocusRefreshRunning = true;
+  try {
+    const before = JSON.stringify([Auth.getUser()?.role, Auth.permissions().slice().sort()]);
+    await Auth.ensureFresh(true);
+    const after = JSON.stringify([Auth.getUser()?.role, Auth.permissions().slice().sort()]);
+    if (Auth.getToken() && before !== after) window.location.reload();
+  } finally {
+    authFocusRefreshRunning = false;
+  }
 });
 
 const AuthRoleChannel = (() => {
@@ -372,6 +381,7 @@ function getWithoutDuplicateRequests(path) {
   const key = `${Auth.getToken() || ''}:${url.pathname}${url.search}`;
   if (pendingGetRequests.has(key)) return pendingGetRequests.get(key);
   const request = http('GET', path).finally(() => pendingGetRequests.delete(key));
+  window.NavigationShell?.track(request);
   pendingGetRequests.set(key, request);
   return request;
 }

@@ -140,21 +140,16 @@
         </a>`;
     }).join('');
 
-    // Calculate base for assets (images)
-    const inSub = window.location.pathname.includes('/admin/') ||
-                  window.location.pathname.includes('/dept-head/');
-    const assetsBase = inSub ? '../' : './';
-
     const avatarLetter = e((user?.fullName || user?.email || 'U')[0].toUpperCase());
 
     return `
-      <div class="sidebar-logo" role="button" tabindex="0" id="sb-logo" aria-label="Về trang chủ">
-        <img src="${assetsBase}../assets/images/logo.png" alt="Logo bệnh viện" class="sidebar-logo-img" />
+      <a class="sidebar-logo" href="${pathPrefix}${cfg.prefix}dashboard.html" id="sb-logo" aria-label="Về trang chủ">
+        <img src="/assets/images/logo.png" alt="Logo bệnh viện" class="sidebar-logo-img" />
         <div class="sidebar-logo-text">
           <h2>HỆ THỐNG</h2>
           <span>LƯU TRỮ HỒ SƠ</span>
         </div>
-      </div>
+      </a>
 
       <nav class="sidebar-nav" aria-label="Menu chính">
         <span class="nav-section">${e(cfg.section)}</span>
@@ -198,18 +193,6 @@
     const sidebar  = nav;
     const backdrop = document.getElementById('sidebar-backdrop');
 
-    // Logo → home
-    document.getElementById('sb-logo')?.addEventListener('click', () => {
-      const inSub = window.location.pathname.includes('/admin/') ||
-                    window.location.pathname.includes('/dept-head/');
-      const base  = inSub ? '../' : './';
-      const cfg   = NAV[role] || NAV.user;
-      window.location.href = base + cfg.prefix + 'dashboard.html';
-    });
-    document.getElementById('sb-logo')?.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') e.currentTarget.click();
-    });
-
     // Logout
     document.getElementById('btn-logout')?.addEventListener('click', () => {
       localStorage.removeItem('lths_token');
@@ -230,7 +213,7 @@
     if (backdrop) backdrop.onclick = closeSidebar;
 
     // Close sidebar on nav-item click (mobile)
-    nav.querySelectorAll('.nav-item').forEach(a => a.addEventListener('click', closeSidebar));
+    nav.querySelectorAll('a[href]').forEach(a => a.addEventListener('click', closeSidebar));
 
     // Escape key
     if (sidebarCloseOnEscape) document.removeEventListener('keydown', sidebarCloseOnEscape);
@@ -289,15 +272,25 @@
     };
     const renderShell = user => {
       const role = user?.role || 'user';
-      nav.innerHTML = buildSidebar(role, user);
+      const signature = window.NavigationShell?.signature(user) || JSON.stringify([
+        user?.id || user?._id || '', role, user?.fullName || '', user?.email || '',
+        user?.departmentId || user?.department?.id || '', user?.department?.name || '',
+        (Array.isArray(user?.permissions) ? user.permissions : []).map(item => typeof item === 'string' ? item : item?.key || item?.name || item?.permission).filter(Boolean).sort()
+      ]);
+      if (nav.dataset.navigationSignature !== signature) {
+        nav.innerHTML = buildSidebar(role, user);
+        nav.dataset.navigationSignature = signature;
+      }
       const activeEl = nav.querySelector('.nav-item.active');
       buildMobileTopbar(activeEl?.dataset.label || 'LTHS');
       wireEvents(nav, role);
       _injectDarkModeBtn();
       _injectBreadcrumb(role);
+      window.NavigationShell?.remember(nav, user);
+      return signature;
     };
     const initialUser = readUser();
-    renderShell(initialUser);
+    const initialSignature = renderShell(initialUser);
 
     if (typeof Auth !== 'undefined' && Auth.ensureFresh) {
       try {
@@ -307,7 +300,8 @@
     }
 
     const refreshedUser = readUser();
-    if (JSON.stringify(refreshedUser) !== JSON.stringify(initialUser)) renderShell(refreshedUser);
+    const refreshedSignature = window.NavigationShell?.signature(refreshedUser);
+    if (refreshedSignature ? refreshedSignature !== initialSignature : JSON.stringify(refreshedUser) !== JSON.stringify(initialUser)) renderShell(refreshedUser);
 
     // Load queue badge nếu có
     const badge = document.getElementById('sb-queue-badge');
@@ -320,7 +314,7 @@
   const prefetchedPages = new Set();
   let navigationIndicator;
   function navigationLink(event) {
-    const link = event.target?.closest?.('.sidebar a.nav-item');
+    const link = event.target?.closest?.('.sidebar a[href], .main-content a[href]');
     if (!link || link.target || link.hasAttribute('download')) return null;
     const url = new URL(link.href, window.location.href);
     return url.origin === window.location.origin && url.pathname.endsWith('.html') ? { link, url } : null;

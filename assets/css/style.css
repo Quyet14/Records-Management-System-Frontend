@@ -63,18 +63,30 @@
 
 /* Keep the application shell visually stable during document navigation. */
 @view-transition { navigation: auto; }
-html { scrollbar-gutter: stable; }
-.app-shell > .sidebar { view-transition-name: application-sidebar; }
-.app-shell > .main-content { view-transition-name: application-content; }
-::view-transition-old(root), ::view-transition-new(root),
-::view-transition-old(application-sidebar), ::view-transition-new(application-sidebar) {
+html { scrollbar-gutter: stable; background-color: var(--paper); }
+/* Use one complete snapshot: empty menus and loading placeholders on the
+   destination must not be exposed before its initialization has finished. */
+::view-transition-group(root) { animation: none; }
+::view-transition-old(root), ::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
 }
-::view-transition-old(application-content) { animation: content-exit 100ms ease-out both; }
-::view-transition-new(application-content) { animation: content-enter 140ms ease-out both; }
-@keyframes content-exit { to { opacity: 0; } }
-@keyframes content-enter { from { opacity: 0; } to { opacity: 1; } }
+.navigation-pending::view-transition-old(root) {
+  z-index: 1;
+  opacity: 1;
+  clip-path: inset(3px 0 0);
+  animation: hold-navigation 3s linear both;
+}
+.navigation-pending::view-transition-new(root) { opacity: 0; }
+.navigation-pending::view-transition {
+  background: linear-gradient(var(--brass), var(--brass)) -50% 0 / 32% 3px no-repeat;
+  animation: snapshot-progress 2.8s .15s linear both;
+}
+@keyframes hold-navigation { from, to { opacity: 1; } }
+@keyframes snapshot-progress {
+  from { background-position: -50% 0; }
+  to { background-position: 150% 0; }
+}
 .page-is-navigating::after {
   content: '';
   position: fixed;
@@ -90,7 +102,7 @@ html { scrollbar-gutter: stable; }
 }
 @keyframes navigation-progress { from { transform: translateX(-100%); } to { transform: translateX(320%); } }
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(application-content), ::view-transition-new(application-content) { animation: none; }
+  .navigation-pending::view-transition { animation: none; background-position: 0 0; background-size: 100% 3px; }
   .page-is-navigating::after { width: 100%; animation: none; }
 }
 
@@ -415,8 +427,8 @@ a:hover { color: var(--brass-light); text-decoration: underline; }
   flex: 1;
   padding: var(--content-pad);
   max-width: calc(100vw - var(--sidebar-w));
-  /* Fade-in on load */
-  animation: pageFadeIn .3s var(--ease-out) both;
+  /* Keep content visible when the browser captures the incoming page. */
+  animation: none;
 }
 
 /* ── Mobile topbar ──────────────────────────────────────────── */
