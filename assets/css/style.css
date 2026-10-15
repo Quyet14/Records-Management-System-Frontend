@@ -61,6 +61,39 @@
   --content-pad-sm: 20px;
 }
 
+/* Keep the application shell visually stable during document navigation. */
+@view-transition { navigation: auto; }
+html { scrollbar-gutter: stable; }
+.app-shell > .sidebar { view-transition-name: application-sidebar; }
+.app-shell > .main-content { view-transition-name: application-content; }
+::view-transition-old(root), ::view-transition-new(root),
+::view-transition-old(application-sidebar), ::view-transition-new(application-sidebar) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(application-content) { animation: content-exit 100ms ease-out both; }
+::view-transition-new(application-content) { animation: content-enter 140ms ease-out both; }
+@keyframes content-exit { to { opacity: 0; } }
+@keyframes content-enter { from { opacity: 0; } to { opacity: 1; } }
+.page-is-navigating::after {
+  content: '';
+  position: fixed;
+  z-index: 10000;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 32%;
+  border-radius: 0 3px 3px 0;
+  background: var(--brass);
+  animation: navigation-progress 1.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes navigation-progress { from { transform: translateX(-100%); } to { transform: translateX(320%); } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(application-content), ::view-transition-new(application-content) { animation: none; }
+  .page-is-navigating::after { width: 100%; animation: none; }
+}
+
 /* ── Reset ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 

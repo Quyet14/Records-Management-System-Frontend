@@ -391,6 +391,7 @@ async function mapWithConcurrency(items, mapper, concurrency = 6) {
 function createDocumentContentSearch(getDocuments, onReady) {
   const hydrated = new WeakSet();
   let loading = false;
+  let activeQuery = '';
   let status;
   function showStatus(message) {
     if (!status && !message) return;
@@ -405,7 +406,8 @@ function createDocumentContentSearch(getDocuments, onReady) {
     status.textContent = message;
   }
   return query => {
-    if (!String(query || '').trim()) { showStatus(''); return; }
+    activeQuery = String(query || '').trim();
+    if (!activeQuery) { showStatus(''); return; }
     const docs = getDocuments();
     if (!docs.length || docs.every(doc => hydrated.has(doc))) { showStatus(''); return; }
     showStatus('Đang tìm thêm trong nội dung tài liệu…');
@@ -428,10 +430,10 @@ function createDocumentContentSearch(getDocuments, onReady) {
       showStatus('');
       // Mark unmatched records too: the API may exclude them after access changes.
       getDocuments().forEach(doc => hydrated.add(doc));
-      onReady();
+      if (activeQuery) onReady();
     }).catch(() => {
       loading = false;
-      showStatus('Chưa tải được nội dung để tìm đầy đủ. Nhập lại từ khóa để thử lại.');
+      showStatus(activeQuery ? 'Chưa tải được nội dung để tìm đầy đủ. Nhập lại từ khóa để thử lại.' : '');
     });
   };
 }
@@ -682,26 +684,29 @@ async function previewFile(docId, filename, options = {}) {
   }
 }
 
+const documentLibraryRequests = new Map();
+function loadDocumentLibrary(globalName, filename) {
+  if (window[globalName]) return Promise.resolve(window[globalName]);
+  if (documentLibraryRequests.has(globalName)) return documentLibraryRequests.get(globalName);
+  const request = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = new URL('../assets/js/vendor/' + filename, new URL(_pagesRoot(), window.location.href)).href;
+    script.onload = () => {
+      if (window[globalName]) resolve(window[globalName]);
+      else { script.remove(); reject(new Error('Không tải được thư viện xem tài liệu.')); }
+    };
+    script.onerror = () => { script.remove(); reject(new Error('Không tải được thư viện xem tài liệu.')); };
+    document.head.appendChild(script);
+  }).catch(err => { documentLibraryRequests.delete(globalName); throw err; });
+  documentLibraryRequests.set(globalName, request);
+  return request;
+}
+
 async function ensurePdfJsLoaded() {
-  if (typeof pdfjsLib !== 'undefined') {
-    pdfjsLib.GlobalWorkerOptions.workerSrc ||= '../assets/js/vendor/pdf.worker.min.js';
-    return;
-  }
-  await new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[data-pdfjs-loader]');
-    if (existing) {
-      existing.addEventListener('load', resolve, { once: true });
-      existing.addEventListener('error', reject, { once: true });
-      return;
-    }
-    const s = document.createElement('script');
-    s.src = '../assets/js/vendor/pdf.min.js';
-    s.dataset.pdfjsLoader = '1';
-    s.onload = resolve;
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '../assets/js/vendor/pdf.worker.min.js';
+  const library = await loadDocumentLibrary('pdfjsLib', 'pdf.min.js');
+  library.GlobalWorkerOptions.workerSrc = new URL('../assets/js/vendor/pdf.worker.min.js', new URL(_pagesRoot(), window.location.href)).href;
+  return library;
 }
 
 async function renderPreviewBlob(blob, filename, canDownload, downloadBtn, overlay) {

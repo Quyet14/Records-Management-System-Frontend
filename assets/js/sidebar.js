@@ -127,13 +127,12 @@
       const target = new URL(pathPrefix + cfg.prefix + link.href, window.location.origin);
       const isActive = target.pathname.split('/').pop() === current
         && target.searchParams.get('feature') === new URLSearchParams(window.location.search).get('feature');
-      target.searchParams.set('v', Date.now());
       const href = target.pathname + target.search;
       const badge    = link.badgeId
         ? `<span class="sb-badge" id="${link.badgeId}" style="display:none">0</span>`
         : '';
       return `
-        <a href="${href}" class="nav-item${isActive ? ' active' : ''}"
+        <a href="${href}" class="nav-item${isActive ? ' active' : ''}"${isActive ? ' aria-current="page"' : ''}
            data-label="${e(link.label)}">
           ${svgIcon(link.icon)}
           <span>${e(link.label)}</span>
@@ -194,6 +193,7 @@
   }
 
   /* ── Wire events ──────────────────────────────────────────── */
+  let sidebarCloseOnEscape = null;
   function wireEvents(nav, role) {
     const sidebar  = nav;
     const backdrop = document.getElementById('sidebar-backdrop');
@@ -227,15 +227,17 @@
       e.stopPropagation();
       sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
     });
-    backdrop?.addEventListener('click', closeSidebar);
+    if (backdrop) backdrop.onclick = closeSidebar;
 
     // Close sidebar on nav-item click (mobile)
     nav.querySelectorAll('.nav-item').forEach(a => a.addEventListener('click', closeSidebar));
 
     // Escape key
-    document.addEventListener('keydown', e => {
+    if (sidebarCloseOnEscape) document.removeEventListener('keydown', sidebarCloseOnEscape);
+    sidebarCloseOnEscape = e => {
       if (e.key === 'Escape' && sidebar.classList.contains('open')) closeSidebar();
-    });
+    };
+    document.addEventListener('keydown', sidebarCloseOnEscape);
   }
 
   /* ── Queue badge ──────────────────────────────────────────── */
@@ -281,6 +283,22 @@
     const nav = document.querySelector('nav.sidebar');
     if (!nav) return; // trang không có sidebar (login, etc.)
 
+    const readUser = () => {
+      try { return JSON.parse(localStorage.getItem('lths_user') || 'null'); }
+      catch (_) { return null; }
+    };
+    const renderShell = user => {
+      const role = user?.role || 'user';
+      nav.innerHTML = buildSidebar(role, user);
+      const activeEl = nav.querySelector('.nav-item.active');
+      buildMobileTopbar(activeEl?.dataset.label || 'LTHS');
+      wireEvents(nav, role);
+      _injectDarkModeBtn();
+      _injectBreadcrumb(role);
+    };
+    const initialUser = readUser();
+    renderShell(initialUser);
+
     if (typeof Auth !== 'undefined' && Auth.ensureFresh) {
       try {
         await Auth.ensureFresh();
@@ -288,23 +306,8 @@
       if (Auth.enforceRoute && !Auth.enforceRoute()) return;
     }
 
-    // Đọc user/role — Auth có thể chưa sẵn sàng nếu load order khác
-    let user = null;
-    try {
-      user = JSON.parse(localStorage.getItem('lths_user') || 'null');
-    } catch (_) {}
-    const role = user?.role || 'user';
-
-    // Render sidebar
-    nav.innerHTML = buildSidebar(role, user);
-
-    // Tìm active link label để đặt vào mobile-topbar
-    const activeEl    = nav.querySelector('.nav-item.active');
-    const activeLabel = activeEl?.dataset.label || 'LTHS';
-    buildMobileTopbar(activeLabel);
-
-    // Wire all events
-    wireEvents(nav, role);
+    const refreshedUser = readUser();
+    if (JSON.stringify(refreshedUser) !== JSON.stringify(initialUser)) renderShell(refreshedUser);
 
     // Load queue badge nếu có
     const badge = document.getElementById('sb-queue-badge');
@@ -312,12 +315,44 @@
     const viewBadge = document.getElementById('sb-view-requests-badge');
     if (viewBadge) loadViewRequestsBadge(viewBadge);
 
-    // Dark mode button — inject vào body (fixed position)
-    _injectDarkModeBtn();
-
-    // Breadcrumb — inject tự động theo trang hiện tại
-    _injectBreadcrumb(role);
   }
+
+  const prefetchedPages = new Set();
+  let navigationIndicator;
+  function navigationLink(event) {
+    const link = event.target?.closest?.('.sidebar a.nav-item');
+    if (!link || link.target || link.hasAttribute('download')) return null;
+    const url = new URL(link.href, window.location.href);
+    return url.origin === window.location.origin && url.pathname.endsWith('.html') ? { link, url } : null;
+  }
+  function prefetchNavigation(event) {
+    const target = navigationLink(event);
+    if (!target || window.navigator?.connection?.saveData || prefetchedPages.has(target.url.href)) return;
+    if (target.url.pathname === window.location.pathname && target.url.search === window.location.search) return;
+    prefetchedPages.add(target.url.href);
+    const hint = document.createElement('link');
+    hint.rel = 'prefetch';
+    hint.as = 'document';
+    hint.href = target.url.href;
+    document.head.appendChild(hint);
+  }
+  document.addEventListener('pointerover', prefetchNavigation, { passive: true });
+  document.addEventListener('focusin', prefetchNavigation);
+  document.addEventListener('click', event => {
+    if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    const target = navigationLink(event);
+    if (!target) return;
+    if (target.url.pathname === window.location.pathname && target.url.search === window.location.search) {
+      event.preventDefault();
+      return;
+    }
+    clearTimeout(navigationIndicator);
+    navigationIndicator = setTimeout(() => document.documentElement.classList.add('page-is-navigating'), 120);
+  });
+  window.addEventListener('pageshow', () => {
+    clearTimeout(navigationIndicator);
+    document.documentElement.classList.remove('page-is-navigating');
+  });
 
   /* ── Dark mode button ─────────────────────────────────────── */
   function _injectDarkModeBtn() {

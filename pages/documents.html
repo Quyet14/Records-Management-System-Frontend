@@ -4,8 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tài liệu — BV Hữu Nghị</title>
-  <link rel="stylesheet" href="../assets/css/style.css" />
-  <script src="../assets/js/vendor/pdf.min.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css?v=smooth-nav-25" />
   <script>
     (function(){
       if(localStorage.getItem('lths_dark')==='1')
@@ -365,7 +364,7 @@
 </div>
 <div class="toast-container"></div>
 <script src="../assets/js/app.js?v=fast-loading-24"></script>
-<script src="../assets/js/sidebar.js?v=staff-approval-21"></script>
+<script src="../assets/js/sidebar.js?v=smooth-nav-25"></script>
 <script>
   Auth.require();
 
@@ -1143,9 +1142,7 @@
   }
 
   async function renderPdfCanvas(blob) {
-    if (typeof pdfjsLib === 'undefined') {
-      throw new Error('PDF viewer chưa được tải.');
-    }
+    await ensurePdfJsLoaded();
 
     const body = document.getElementById('view-only-body');
     body.innerHTML = '<div class="view-only-pages" id="view-only-pages"></div>';

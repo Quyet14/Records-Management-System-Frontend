@@ -4,11 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tải lên tài liệu — BV Hữu Nghị</title>
-  <link rel="stylesheet" href="../assets/css/style.css" />
-  <!-- PDF.js (local copy) for text extraction -->
-  <script src="../assets/js/vendor/pdf.min.js"></script>
-  <!-- Tesseract.js for OCR (scan documents) -->
-  <script src="../assets/js/vendor/tesseract.min.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css?v=smooth-nav-25" />
   <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
   <script>
     (function(){
@@ -270,7 +266,7 @@
 
 <div class="toast-container"></div>
 <script src="../assets/js/app.js?v=fast-loading-24"></script>
-<script src="../assets/js/sidebar.js?v=staff-approval-21"></script>
+<script src="../assets/js/sidebar.js?v=smooth-nav-25"></script>
 <script>
   Auth.require();
 
@@ -283,12 +279,6 @@
   const SUPPORTED_UPLOAD_LABEL = 'PDF, ZIP, RAR, 7Z, TAR, GZ, TGZ, TAR.GZ';
   
   // PDF.js worker setup (local files)
-  if (typeof pdfjsLib !== 'undefined') {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '../assets/js/vendor/pdf.worker.min.js';
-    console.log('[PDF.js] Loaded from local, version:', pdfjsLib.version);
-  } else {
-    console.error('[PDF.js] Failed to load');
-  }
 
   /* ── PDF Text Extraction with OCR Fallback ────────────────── */
   async function extractPdfText(file) {
@@ -298,15 +288,6 @@
       return null;
     }
     
-    // Check if PDF.js is loaded
-    if (typeof pdfjsLib === 'undefined') {
-      console.error('PDF.js library not loaded');
-      if (statusEl) {
-        statusEl.textContent = '— lỗi: thư viện PDF.js chưa tải';
-        statusEl.style.color = 'var(--stamp-deny)';
-      }
-      return null;
-    }
     
     if (statusEl) {
       statusEl.textContent = `— đang đọc nội dung ${file.name}…`;
@@ -314,6 +295,7 @@
     }
     
     try {
+      await ensurePdfJsLoaded();
       console.log('[PDF Extract] Starting extraction for:', file.name);
       const arrayBuffer = await file.arrayBuffer();
       console.log('[PDF Extract] File loaded, size:', arrayBuffer.byteLength);
@@ -390,15 +372,12 @@
   
   /* ── OCR Text Extraction using Tesseract.js ──────────────── */
   async function extractTextWithOCR(pdf, maxPages) {
-    if (typeof Tesseract === 'undefined') {
-      console.error('[OCR] Tesseract.js not loaded');
-      return null;
-    }
     
     const statusEl = document.getElementById('pdf-extract-status');
     let fullText = '';
     
     try {
+      await loadDocumentLibrary('Tesseract', 'tesseract.min.js');
       // Create Tesseract worker
       const worker = await Tesseract.createWorker('vie', 1, {
         logger: m => {
