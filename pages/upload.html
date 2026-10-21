@@ -77,8 +77,42 @@
       font-family: 'Inter', sans-serif; color: var(--navy);
       background: transparent; min-width: 120px; flex: 1;
     }
+    .doc-type-picker { position: relative; }
+    .doc-type-picker select { display: none; }
+    .doc-type-options {
+      position: absolute;
+      z-index: 20;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      max-height: 280px;
+      overflow-y: auto;
+      padding: 4px;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      background: var(--white);
+      box-shadow: var(--shadow-md);
+    }
+    .doc-type-options[hidden] { display: none; }
+    .doc-type-option {
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      color: var(--navy);
+      cursor: pointer;
+      font-size: .9rem;
+    }
+    .doc-type-option:hover,
+    .doc-type-option[aria-selected="true"] {
+      color: var(--white);
+      background: var(--navy-light);
+    }
+    .doc-type-empty {
+      padding: 8px 10px;
+      color: var(--gray-600);
+      font-size: .85rem;
+    }
   </style>
-  <script src="../assets/js/navigation-shell.js?v=ready-navigation-29"></script>
+  <script src="../assets/js/navigation-shell.js?v=device-1"></script>
 </head>
 <body>
 <div class="app-shell">
@@ -114,7 +148,7 @@
         <!-- Form fields -->
         <div id="form-fields" style="margin-top:24px;display:none">
           <div class="form-group">
-            <label class="form-label" for="doc-title">Tiêu đề tài liệu <span style="color:var(--stamp-deny)">*</span></label>
+            <label class="form-label form-label-required" for="doc-title">Tiêu đề tài liệu <span style="color:var(--stamp-deny)">*</span></label>
             <input class="form-control" type="text" id="doc-title" placeholder="Nhập tiêu đề…" required />
           </div>
 
@@ -140,12 +174,11 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="doc-security-level">Độ mật</label>
-            <select class="form-control" id="doc-security-level">
+            <label class="form-label form-label-required" for="doc-security-level">Độ mật <span style="color:var(--stamp-deny)">*</span></label>
+            <select class="form-control" id="doc-security-level" required>
               <option value="normal">Thường</option>
               <option value="confidential">Mật</option>
               <option value="secret">Tối mật</option>
-              <option value="top_secret">Tuyệt mật</option>
             </select>
             <small id="security-level-help" role="status" style="color:var(--gray-600)"></small>
           </div>
@@ -160,13 +193,23 @@
 
           <!-- Loại hồ sơ (TT33/2025/TT-BYT) -->
           <div class="form-group">
-            <label class="form-label" for="doc-type">
+            <label class="form-label form-label-required" for="doc-type-search">
               Loại hồ sơ <span style="color:var(--stamp-deny)">*</span>
               <span style="color:var(--gray-400);font-weight:400;font-size:.78rem">(theo TT 33/2025/TT-BYT)</span>
             </label>
-            <select class="form-control" id="doc-type" required>
-              <option value="">— Chọn loại hồ sơ —</option>
-            </select>
+            <div class="doc-type-picker">
+              <input class="form-control" type="text" id="doc-type-search"
+                placeholder="— Chọn loại hồ sơ —" autocomplete="off"
+                role="combobox" aria-autocomplete="list" aria-expanded="false"
+                aria-controls="doc-type-options" aria-describedby="doc-type-search-help" />
+              <select id="doc-type" aria-hidden="true" tabindex="-1">
+                <option value="">— Chọn loại hồ sơ —</option>
+              </select>
+              <div id="doc-type-options" class="doc-type-options" role="listbox" hidden></div>
+            </div>
+            <small id="doc-type-search-help" style="display:block;margin-top:5px;color:var(--gray-600)">
+              Nhập mã hoặc tên để tìm loại hồ sơ.
+            </small>
             <div id="doc-type-hint" style="display:none;margin-top:6px;padding:8px 12px;
               background:rgba(27,42,74,.05);border-radius:var(--radius-sm);font-size:.78rem;color:var(--gray-600)">
             </div>
@@ -266,10 +309,14 @@
 </div>
 
 <div class="toast-container"></div>
-<script src="../assets/js/app.js?v=ready-navigation-29"></script>
-<script src="../assets/js/sidebar.js?v=ready-navigation-29"></script>
+<script src="../assets/js/device-session.js?v=3"></script>
+<script src="../assets/js/app.js?v=device-3"></script>
+<script src="../assets/js/sidebar.js?v=device-2"></script>
 <script>
-  Auth.require();
+(async () => {
+  Object.assign(window, { extractPdfText, extractTextWithOCR, addFilePreview, uploadErrorMessage, renderFilePreviews, extractAndFillDescription, addTag, removeTag, loadDocumentTypes, applyVisibilityPermissions });
+
+  await Auth.require();
 
   let selectedFiles = [];
   let tags = [];
@@ -577,10 +624,117 @@
   });
 
   /* ── Load document types ────────────────────────────────────── */
+  const docTypeSearch = document.getElementById('doc-type-search');
+  const docTypeSelect = document.getElementById('doc-type');
+  const docTypeOptions = document.getElementById('doc-type-options');
+  let activeDocTypeIndex = -1;
+
+  function normalizeDocTypeSearch(value) {
+    return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLocaleLowerCase('vi');
+  }
+
+  function renderDocumentTypeOptions(query = '') {
+    const normalizedQuery = normalizeDocTypeSearch(query.trim());
+    const options = Array.from(docTypeSelect.options).filter(option => option.value);
+    const matches = options.filter(option => normalizeDocTypeSearch(option.textContent).includes(normalizedQuery));
+    docTypeOptions.replaceChildren();
+    docTypeSearch.removeAttribute('aria-activedescendant');
+    activeDocTypeIndex = -1;
+
+    if (!matches.length) {
+      const empty = document.createElement('div');
+      empty.className = 'doc-type-empty';
+      empty.textContent = 'Không tìm thấy loại hồ sơ phù hợp.';
+      docTypeOptions.appendChild(empty);
+      return;
+    }
+
+    matches.forEach((option, index) => {
+      const item = document.createElement('div');
+      item.className = 'doc-type-option';
+      item.id = `doc-type-option-${index}`;
+      item.setAttribute('role', 'option');
+      item.setAttribute('aria-selected', 'false');
+      item.dataset.value = option.value;
+      item.textContent = option.textContent;
+      docTypeOptions.appendChild(item);
+    });
+  }
+
+  function openDocumentTypeOptions(query = '') {
+    renderDocumentTypeOptions(query);
+    docTypeOptions.hidden = false;
+    docTypeSearch.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeDocumentTypeOptions() {
+    docTypeOptions.hidden = true;
+    docTypeSearch.setAttribute('aria-expanded', 'false');
+    docTypeSearch.removeAttribute('aria-activedescendant');
+    activeDocTypeIndex = -1;
+  }
+
+  function selectDocumentType(value) {
+    const option = Array.from(docTypeSelect.options).find(item => item.value === value);
+    if (!option) return;
+    docTypeSelect.value = value;
+    docTypeSearch.value = option.textContent;
+    closeDocumentTypeOptions();
+    docTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  docTypeSearch.addEventListener('focus', () => {
+    if (docTypeSelect.value) docTypeSearch.select();
+    openDocumentTypeOptions();
+  });
+
+  docTypeSearch.addEventListener('input', () => {
+    if (docTypeSelect.value) {
+      docTypeSelect.value = '';
+      docTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    openDocumentTypeOptions(docTypeSearch.value);
+  });
+
+  docTypeSearch.addEventListener('keydown', event => {
+    const options = Array.from(docTypeOptions.querySelectorAll('.doc-type-option'));
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (docTypeOptions.hidden) openDocumentTypeOptions(docTypeSearch.value);
+      const visibleOptions = Array.from(docTypeOptions.querySelectorAll('.doc-type-option'));
+      if (!visibleOptions.length) return;
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      activeDocTypeIndex = activeDocTypeIndex < 0
+        ? (direction > 0 ? 0 : visibleOptions.length - 1)
+        : (activeDocTypeIndex + direction + visibleOptions.length) % visibleOptions.length;
+      visibleOptions.forEach((option, index) => option.setAttribute('aria-selected', String(index === activeDocTypeIndex)));
+      const activeOption = visibleOptions[activeDocTypeIndex];
+      if (activeOption) {
+        docTypeSearch.setAttribute('aria-activedescendant', activeOption.id);
+        activeOption.scrollIntoView({ block: 'nearest' });
+      }
+    } else if (event.key === 'Enter' && !docTypeOptions.hidden && options[activeDocTypeIndex]) {
+      event.preventDefault();
+      selectDocumentType(options[activeDocTypeIndex].dataset.value);
+    } else if (event.key === 'Escape') {
+      closeDocumentTypeOptions();
+      docTypeSearch.value = docTypeSelect.selectedOptions[0]?.textContent || '';
+    }
+  });
+
+  docTypeOptions.addEventListener('pointerdown', event => event.preventDefault());
+  docTypeOptions.addEventListener('click', event => {
+    const option = event.target.closest('.doc-type-option');
+    if (option) selectDocumentType(option.dataset.value);
+  });
+  docTypeSearch.addEventListener('blur', () => {
+    closeDocumentTypeOptions();
+    if (!docTypeSelect.value) docTypeSearch.value = '';
+  });
+
   function loadDocumentTypes() {
     api.get('/document-types').then(res => {
       const types = Array.isArray(res) ? res : (res.data || []);
-      const sel   = document.getElementById('doc-type');
       types.forEach(t => {
         const opt = document.createElement('option');
         opt.value = t.id;
@@ -588,9 +742,12 @@
         opt.dataset.retentionYears = t.retentionYears || '';
         opt.dataset.basis          = t.retentionBasis || '';
         opt.textContent = `${t.code ? `[${t.code}] ` : ''}${t.name}`;
-        sel.appendChild(opt);
+        docTypeSelect.appendChild(opt);
       });
-    }).catch(() => {});
+    }).catch(error => {
+      console.error('Không thể tải danh sách loại hồ sơ:', error);
+      Toast.error('Không thể tải danh sách loại hồ sơ. Vui lòng tải lại trang.');
+    });
   }
 
   // Hiển thị gợi ý thời hạn khi chọn loại hồ sơ
@@ -820,7 +977,7 @@
   });
 
   /* ── Init ───────────────────────────────────────────────────── */
-  document.addEventListener('DOMContentLoaded', () => {
+  onPageReady(() => {
     const securitySelect = document.getElementById('doc-security-level');
     const updateSecurityHelp = () => {
       document.getElementById('security-level-help').textContent = ({
@@ -846,6 +1003,8 @@
     
     loadDocumentTypes();
   });
+
+})().catch(Auth.showError);
 </script>
 </body>
 </html>

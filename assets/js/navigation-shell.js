@@ -1,7 +1,6 @@
-/* Restore the signed-in user's navigation before the main page is parsed. */
+/* Track page transitions; navigation uses only the restored in-memory session. */
 (function () {
-  const VERSION = 29;
-  const STORAGE_KEY = 'lths_navigation_shell';
+  const VERSION = 30;
 
   // Keep the outgoing snapshot until the destination's first data requests
   // have rendered. The normal page lifecycle and permission checks still run.
@@ -69,42 +68,14 @@
     ]);
   }
 
-  function readUser() {
-    try { return JSON.parse(localStorage.getItem('lths_user') || 'null'); }
-    catch (_) { return null; }
-  }
-
+  function readUser() { return window.Auth?.getUser() || null; }
   function restore(nav) {
-    if (!nav || !localStorage.getItem('lths_token')) return;
-    const userSignature = signature(readUser());
-    if (!userSignature) return;
-    try {
-      const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
-      if (!saved || saved.signature !== userSignature || typeof saved.html !== 'string') return;
-      nav.innerHTML = saved.html;
-      nav.dataset.navigationSignature = userSignature;
-      const current = new URL(window.location.href);
-      nav.querySelectorAll('a.nav-item').forEach(link => {
-        const target = new URL(link.getAttribute('href'), current);
-        const active = target.pathname === current.pathname
-          && target.searchParams.get('feature') === current.searchParams.get('feature');
-        link.classList.toggle('active', active);
-        if (active) link.setAttribute('aria-current', 'page');
-        else link.removeAttribute('aria-current');
-      });
-    } catch (_) {
-      // Navigation remains available through the normal sidebar initializer.
-    }
+    // No cached user/HTML is treated as an authenticated navigation snapshot.
+    if (!nav || !window.Auth?.getToken()) return;
+    nav.dataset.navigationSignature = signature(readUser());
   }
-
   function remember(nav, user) {
-    if (!nav || !user || !localStorage.getItem('lths_token')) return;
-    try {
-      // A department head also visits pages outside dept-head/. Resolve assets
-      // before saving so the next page cannot interpret them at another depth.
-      nav.querySelectorAll('img[src]').forEach(img => img.setAttribute('src', img.src));
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ signature: signature(user), html: nav.innerHTML }));
-    } catch (_) {}
+    if (nav && user && window.Auth?.getToken()) nav.dataset.navigationSignature = signature(user);
   }
 
   window.NavigationShell = { signature, restore, remember, track };

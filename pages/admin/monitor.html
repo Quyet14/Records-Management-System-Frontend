@@ -81,7 +81,7 @@
     .checksum-row.ok     { background: rgba(47,111,78,.06);  color: var(--stamp-ok); }
     .checksum-row.error  { background: rgba(163,59,59,.08);  color: var(--stamp-deny); }
   </style>
-  <script src="../../assets/js/navigation-shell.js?v=ready-navigation-29"></script>
+  <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
 </head>
 <body>
 <div class="app-shell">
@@ -320,10 +320,14 @@
 </div>
 
 <div class="toast-container"></div>
-<script src="../../assets/js/app.js?v=ready-navigation-29"></script>
-<script src="../../assets/js/sidebar.js?v=ready-navigation-29"></script>
+<script src="../../assets/js/device-session.js?v=3"></script>
+<script src="../../assets/js/app.js?v=device-3"></script>
+<script src="../../assets/js/sidebar.js?v=device-2"></script>
 <script>
-  Auth.requireAdmin();
+(async () => {
+  Object.assign(window, { nameFromUser, getDocumentReviewerName, getDocumentUploaderName, getActionActorName, getActionReason, renderAuditDetail, setHealth, loadMonitor, loadRetentionAlerts, _renderExpiringRows, loadHistory });
+
+  await Auth.requireAdmin();
 
 
   /* esc() — see app.js */
@@ -548,7 +552,7 @@
     }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  onPageReady(() => {
     document.getElementById('btn-refresh').addEventListener('click', async function () {
       this.classList.add('loading');
       await loadMonitor();
@@ -780,6 +784,8 @@
       </td></tr>`;
     }
   }
+
+})().catch(Auth.showError);
 </script>
 </body>
 </html>

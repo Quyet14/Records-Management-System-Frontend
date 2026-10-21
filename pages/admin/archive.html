@@ -84,7 +84,7 @@
       font-weight: 600;
     }
   </style>
-  <script src="../../assets/js/navigation-shell.js?v=ready-navigation-29"></script>
+  <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
 </head>
 <body>
 <div class="app-shell">
@@ -107,6 +107,11 @@
       <h1>BỆNH VIỆN HỮU NGHỊ</h1>
       <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
       <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+      <a class="btn btn-ghost" href="../destruction.html?view=destroyed">Đã hủy — xem thông tin hồ sơ</a>
+      <a class="btn btn-primary" href="../destruction.html?view=create">Lập đề nghị hủy</a>
     </div>
 
     <!-- Search bar -->
@@ -166,10 +171,14 @@
 </div>
 
 <div class="toast-container"></div>
-<script src="../../assets/js/app.js?v=ready-navigation-29"></script>
-<script src="../../assets/js/sidebar.js?v=ready-navigation-29"></script>
+<script src="../../assets/js/device-session.js?v=3"></script>
+<script src="../../assets/js/app.js?v=device-3"></script>
+<script src="../../assets/js/sidebar.js?v=device-2"></script>
 <script>
-  Auth.requireAdmin();
+(async () => {
+  Object.assign(window, { performSearch, renderSearchResults, clearSearch, loadDocuments, renderYearsView });
+
+  await Auth.requireAdmin();
 
   let allDocs = [];
   let currentView = 'years'; // 'years' | 'days' | 'files' | 'search'
@@ -519,7 +528,9 @@
   };
 
   /* ── Init ───────────────────────────────────────────────────── */
-  document.addEventListener('DOMContentLoaded', loadDocuments);
+  onPageReady(loadDocuments);
+
+})().catch(Auth.showError);
 </script>
 </body>
 </html>

@@ -12,7 +12,7 @@
         document.documentElement.setAttribute('data-theme','dark');
     })();
   </script>
-  <script src="../../assets/js/navigation-shell.js?v=ready-navigation-29"></script>
+  <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
 </head>
 <body>
 <div class="app-shell">
@@ -128,7 +128,7 @@
     <p class="modal-subtitle" id="assign-doctype-name"></p>
     <p style="font-size:.8rem;color:var(--brass);margin-bottom:16px" id="assign-doctype-current"></p>
     <div class="form-group">
-      <label class="form-label">Loại hồ sơ *</label>
+      <label class="form-label form-label-required">Loại hồ sơ *</label>
       <select class="form-control" id="assign-doctype-select">
         <option value="">— Chọn loại hồ sơ —</option>
       </select>
@@ -141,10 +141,14 @@
 </div>
 
 <div class="toast-container"></div>
-<script src="../../assets/js/app.js?v=ready-navigation-29"></script>
-<script src="../../assets/js/sidebar.js?v=ready-navigation-29"></script>
+<script src="../../assets/js/device-session.js?v=3"></script>
+<script src="../../assets/js/app.js?v=device-3"></script>
+<script src="../../assets/js/sidebar.js?v=device-2"></script>
 <script>
-  Auth.requireDeptHead();
+(async () => {
+  Object.assign(window, { loadAll, updateTabCounts, normalizeText, getDocumentVisibility, getDocumentBasisDate, toDateOnly, renderFiltered, renderTable, visibilityBadge, attachTableEvents, markAsReviewed, loadComments, submitComment, loadVersions, showDetail, openDocumentFromUrl, loadDocumentTypes, openAssignDoctype });
+
+  await Auth.requireDeptHead();
 
 
   /* esc() — see app.js */
@@ -659,7 +663,7 @@
   }
 
   /* ── Init ───────────────────────────────────────────────────── */
-  document.addEventListener('DOMContentLoaded', () => {
+  onPageReady(() => {
     attachTableEvents(); // Attach once
     loadAll().then(openDocumentFromUrl);
     loadDocumentTypes(); // Load document types for assign modal
@@ -729,6 +733,8 @@
       }
     });
   });
+
+})().catch(Auth.showError);
 </script>
 </body>
 </html>

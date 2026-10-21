@@ -11,22 +11,7 @@
         document.documentElement.setAttribute('data-theme','dark');
     })();
   </script>
-  <script>
-    (function(){
-      try {
-        const user = JSON.parse(localStorage.getItem('lths_user') || 'null');
-        const role = user?.role || 'user';
-        const target = role === 'admin'
-          ? 'admin/dashboard.html'
-          : role === 'department_head'
-            ? 'dept-head/dashboard.html'
-            : 'dashboard.html';
-        window.location.replace(target);
-      } catch (_) {
-        window.location.replace('dashboard.html');
-      }
-    })();
-  </script>
+
   <style>
     .storage-stats {
       display: grid;
@@ -277,7 +262,7 @@
 
     /* Upload zone compact - REMOVED */
   </style>
-  <script src="../assets/js/navigation-shell.js?v=ready-navigation-29"></script>
+  <script src="../assets/js/navigation-shell.js?v=device-1"></script>
 </head>
 <body>
 <div class="app-shell">
@@ -386,10 +371,16 @@
 </div>
 
 <div class="toast-container"></div>
-<script src="../assets/js/app.js?v=ready-navigation-29"></script>
-<script src="../assets/js/sidebar.js?v=ready-navigation-29"></script>
+<script src="../assets/js/device-session.js?v=3"></script>
+<script src="../assets/js/app.js?v=device-3"></script>
+<script src="../assets/js/sidebar.js?v=device-2"></script>
 <script>
-  Auth.require();
+(async () => {
+  Object.assign(window, { getFileType, getFileIcon, getDisplayName, getOriginalFilename, loadFiles, updateStats, renderFiles, openDetail, openModal, closeModal });
+
+  await Auth.require();
+  window.location.replace(Auth.roleHome(Auth.getUser()?.role));
+  return;
 
   let allFiles = [];
   let currentFileId = null;
@@ -778,6 +769,8 @@
 
   /* ── Init ──────────────────────────────────────────────────── */
   loadFiles();
+
+})().catch(Auth.showError);
 </script>
 </body>
 </html>

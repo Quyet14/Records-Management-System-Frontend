@@ -20,7 +20,7 @@
     .queue-card-meta  { font-size:.8rem;color:var(--gray-600);display:flex;gap:14px;flex-wrap:wrap; }
     .queue-card-actions { display:flex;gap:8px;flex-shrink:0; }
   </style>
-  <script src="../assets/js/navigation-shell.js?v=ready-navigation-29"></script>
+  <script src="../assets/js/navigation-shell.js?v=device-1"></script>
 </head>
 <body>
 <div class="app-shell">
@@ -78,7 +78,7 @@
       <div class="stamp stamp-rejected stamp-lg">TỪ<br>CHỐI</div>
     </div>
     <div class="form-group">
-      <label class="form-label">Lý do từ chối <span style="color:var(--stamp-deny)">*</span></label>
+      <label class="form-label form-label-required">Lý do từ chối <span style="color:var(--stamp-deny)">*</span></label>
       <textarea class="form-control" id="reject-reason" placeholder="Nêu lý do để người tải lên biết cần chỉnh sửa gì…"></textarea>
     </div>
     <div class="modal-actions">
@@ -89,10 +89,14 @@
 </div>
 
 <div class="toast-container"></div>
-<script src="../assets/js/app.js?v=ready-navigation-29"></script>
-<script src="../assets/js/sidebar.js?v=ready-navigation-29"></script>
+<script src="../assets/js/device-session.js?v=3"></script>
+<script src="../assets/js/app.js?v=device-3"></script>
+<script src="../assets/js/sidebar.js?v=device-2"></script>
 <script>
-  Auth.require();
+(async () => {
+  Object.assign(window, { loadQueue, openApprove, openReject, removeCard });
+
+  await Auth.require();
 
 
   /* esc() — see app.js */
@@ -251,7 +255,9 @@
     }
   });
 
-  document.addEventListener('DOMContentLoaded', loadQueue);
+  onPageReady(loadQueue);
+
+})().catch(Auth.showError);
 </script>
 </body>
 </html>

@@ -204,12 +204,12 @@
   <!-- Form -->
   <div class="login-form-panel">
     <h2>Đăng nhập</h2>
-    <p class="sub">Nhập thông tin tài khoản của bạn</p>
+    <p class="sub">Đăng nhập bằng email và mật khẩu</p>
 
     <div id="login-error"></div>
 
     <!-- Login Form -->
-    <form id="login-form" autocomplete="on">
+    <form id="login-form" autocomplete="on" data-managed-loading>
       <div class="form-group">
         <label class="form-label" for="email">Email</label>
         <input class="form-control" type="email" id="email" name="email"
@@ -219,14 +219,13 @@
         <label class="form-label" for="password">Mật khẩu</label>
         <div style="position:relative">
           <input class="form-control" type="password" id="password" name="password"
-                 placeholder="••••••••" required autocomplete="current-password"
-                 style="padding-right:44px" />
+                  placeholder="Không bắt buộc — đăng nhập bằng OTP" autocomplete="current-password" style="padding-right:44px" />
           <button type="button" id="btn-toggle-pw"
-            style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray-400);padding:4px;display:flex;align-items:center"
-            aria-label="Hiện/ẩn mật khẩu">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
+                  style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray-400);padding:4px;display:flex;align-items:center"
+                  aria-label="Hiện mật khẩu" aria-pressed="false">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" />
+              <circle cx="12" cy="12" r="3" />
             </svg>
           </button>
         </div>
@@ -236,9 +235,9 @@
         <div class="captcha-row">
           <img class="captcha-image" id="captcha-image" alt="Mã xác nhận" />
           <button class="btn btn-ghost captcha-refresh" type="button" id="captcha-refresh" aria-label="Tạo mã xác nhận mới" title="Tạo mã mới">↻</button>
-          <input class="form-control captcha-input" type="text" id="captcha-input" maxlength="6" required autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="captcha-help" />
+          <input class="form-control captcha-input" type="text" id="captcha-input" maxlength="5" required autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="captcha-help" />
         </div>
-        <small id="captcha-help" style="display:block;margin-top:6px;color:var(--gray-500);font-size:.75rem">Nhập đúng 6 ký tự trong hình.</small>
+        <small id="captcha-help" style="display:block;margin-top:6px;color:var(--gray-500);font-size:.75rem">Nhập đúng 5 ký tự trong hình.</small>
       </div>
       <button class="btn btn-primary login-btn" type="submit" id="login-btn">
         Đăng nhập
@@ -281,291 +280,10 @@
 </div>
 
 <div class="toast-container"></div>
-<script src="../assets/js/app.js?v=stable-shell-27"></script>
-<script src="../assets/js/sidebar.js?v=smooth-nav-25"></script>
-<script src="../assets/js/auth-flow.js?v=auth6"></script>
-<script>
-  // Redirect nếu đã đăng nhập
-  if (Auth.getToken()) {
-    const role = Auth.getUser()?.role;
-    if (role === 'admin')            window.location.href = 'admin/dashboard.html';
-    else if (role === 'department_head') window.location.href = 'dept-head/dashboard.html';
-    else window.location.href = 'dashboard.html';
-  }
-
-  /* ── Toggle hiện/ẩn mật khẩu ───────────────────────────────── */
-  const SVG_EYE = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-    <circle cx="12" cy="12" r="3"/>
-  </svg>`;
-  const SVG_EYE_OFF = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
-    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
-    <line x1="1" y1="1" x2="23" y2="23"/>
-  </svg>`;
-
-  document.getElementById('btn-toggle-pw').addEventListener('click', () => {
-    const input = document.getElementById('password');
-    const btn   = document.getElementById('btn-toggle-pw');
-    const isHidden = input.type === 'password';
-    input.type   = isHidden ? 'text' : 'password';
-    btn.innerHTML = isHidden ? SVG_EYE_OFF : SVG_EYE;
-    btn.setAttribute('aria-label', isHidden ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
-  });
-
-  /* ── Form submit ────────────────────────────────────────────── */
-  let _pendingUserId = '';
-  let _pendingEmail = '';
-  let _pendingPassword = '';
-  let _captchaId = '';
-
-  async function loadCaptcha() {
-    const captcha = await api.get('/auth/captcha');
-    _captchaId = captcha.captcha_id;
-    const image = captcha.image || captcha.svg;
-    if (!_captchaId || !image) throw new Error('Không tải được mã xác nhận.');
-    document.getElementById('captcha-image').src = image.startsWith('data:')
-      ? image
-      : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(image)}`;
-    document.getElementById('captcha-input').value = '';
-  }
-
-  loadCaptcha().catch(error => {
-    document.getElementById('login-error').textContent = error.message;
-    document.getElementById('login-error').style.display = 'block';
-  });
-  document.getElementById('captcha-refresh').addEventListener('click', () => {
-    loadCaptcha().catch(error => {
-      document.getElementById('login-error').textContent = error.message;
-      document.getElementById('login-error').style.display = 'block';
-    });
-  });
-  
-  document.getElementById('login-form').addEventListener('submit', async e => {
-    e.preventDefault();
-    const btn   = document.getElementById('login-btn');
-    const errEl = document.getElementById('login-error');
-    errEl.style.display = 'none';
-    btn.classList.add('loading');
-    btn.disabled = true;
-
-    try {
-      const captchaCode = document.getElementById('captcha-input').value.trim();
-      if (!_captchaId || !captchaCode) throw new Error('Vui lòng nhập mã xác nhận.');
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      const isNewAccount = localStorage.getItem(`lths_new_account_${email.trim().toLowerCase()}`) === '1';
-      
-      const res = await api.post('/auth/login', {
-        email,
-        password,
-        captcha_id: _captchaId,
-        captcha_code: captchaCode
-      });
-      const mustChangePassword = requiresPasswordChange(res);
-
-      // Tài khoản mới phải đổi mật khẩu trước, sau đó mới xác thực OTP.
-      if (mustChangePassword) {
-        if (res.reset_token) sessionStorage.setItem('lths_force_reset_token', res.reset_token);
-        sessionStorage.setItem('lths_force_email', email.trim().toLowerCase());
-        authRouteAfterStep(res, res.user_id || res.user?.id, email);
-        return;
-      }
-
-      // Fallback cho tài khoản vừa tạo trên cùng trình duyệt khi backend chưa trả cờ.
-      if (isNewAccount) {
-        sessionStorage.setItem('lths_user_id', res.user_id || '');
-        sessionStorage.setItem('lths_force_user_id', res.user_id || '');
-        sessionStorage.setItem('lths_force_email_hint', res.email_hint || email);
-        sessionStorage.setItem('lths_force_email', email.trim().toLowerCase());
-        window.location.href = 'force-change-password.html';
-        return;
-      }
-
-      // Các lần đăng nhập sau: xác thực OTP ngay trên trang đăng nhập.
-      if (res.requires_otp === true) {
-        _pendingUserId = res.user_id || '';
-        _pendingEmail = email;
-        _pendingPassword = password;
-        showOtpPanel(res.email_hint || email, res.expires_in);
-        Toast.success('Mã OTP đã được gửi về email của bạn');
-        btn.classList.remove('loading');
-        btn.disabled = false;
-        return;
-      }
-      if (authRouteAfterStep(res, res.user_id, email)) return;
-    } catch (err) {
-      errEl.textContent   = err.message || 'Email hoặc mật khẩu không đúng.';
-      errEl.style.display = 'block';
-      loadCaptcha().catch(() => {});
-      btn.classList.remove('loading');
-      btn.disabled = false;
-    }
-  });
-
-  /* ── OTP Panel Functions ────────────────────────────────────── */
-  function showOtpPanel(emailHint, expiresIn) {
-    document.getElementById('login-form').style.display = 'none';
-    document.getElementById('otp-panel').style.display = 'block';
-    document.getElementById('otp-email').textContent = emailHint;
-    
-    // Hiển thị thời gian hết hạn nếu có
-    if (expiresIn) {
-      const minutes = Math.floor(expiresIn / 60);
-      const infoEl = document.querySelector('.otp-info');
-      infoEl.innerHTML = `Mã xác thực OTP đã được gửi đến email <strong>${emailHint}</strong>.<br>
-        <small style="opacity:0.8">Mã có hiệu lực trong ${minutes} phút.</small>`;
-    }
-    
-    // Focus first input
-    document.querySelector('.otp-input[data-index="0"]').focus();
-    // Clear all inputs
-    document.querySelectorAll('.otp-input').forEach(input => input.value = '');
-  }
-
-  function hideOtpPanel() {
-    document.getElementById('login-form').style.display = 'block';
-    document.getElementById('otp-panel').style.display = 'none';
-    document.getElementById('login-error').style.display = 'none';
-    document.querySelector('.otp-input-group').style.display = 'flex';
-    document.querySelector('.otp-actions').style.display = 'flex';
-    document.getElementById('btn-resend-otp').closest('p').style.display = 'block';
-    _pendingUserId = '';
-    _pendingEmail = '';
-    _pendingPassword = '';
-  }
-
-  /* ── OTP Input Auto-advance ─────────────────────────────────── */
-  const otpInputs = document.querySelectorAll('.otp-input');
-  otpInputs.forEach((input, idx) => {
-    input.addEventListener('input', e => {
-      const val = e.target.value;
-      // Chỉ cho phép số
-      if (val && !/^\d$/.test(val)) {
-        e.target.value = '';
-        return;
-      }
-      // Auto-advance to next input
-      if (val && idx < otpInputs.length - 1) {
-        otpInputs[idx + 1].focus();
-      }
-    });
-    
-    input.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        verifyOtp();
-        return;
-      }
-      // Backspace: move to previous input if current is empty
-      if (e.key === 'Backspace' && !e.target.value && idx > 0) {
-        otpInputs[idx - 1].focus();
-      }
-      // Arrow keys navigation
-      if (e.key === 'ArrowLeft' && idx > 0) {
-        e.preventDefault();
-        otpInputs[idx - 1].focus();
-      }
-      if (e.key === 'ArrowRight' && idx < otpInputs.length - 1) {
-        e.preventDefault();
-        otpInputs[idx + 1].focus();
-      }
-    });
-    
-    // Paste support
-    input.addEventListener('paste', e => {
-      e.preventDefault();
-      const pasteData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-      if (pasteData.length === 6) {
-        otpInputs.forEach((inp, i) => {
-          inp.value = pasteData[i] || '';
-        });
-        otpInputs[5].focus();
-      }
-    });
-  });
-
-  /* ── Verify OTP ──────────────────────────────────────────────── */
-  async function verifyOtp() {
-    const button = document.getElementById('btn-verify-otp');
-    if (button.disabled) return;
-    const otp = Array.from(otpInputs).map(inp => inp.value).join('');
-    
-    if (otp.length !== 6) {
-      Toast.warning('Vui lòng nhập đầy đủ 6 số mã OTP');
-      return;
-    }
-    
-    if (!_pendingUserId) {
-      Toast.error('Phiên đăng nhập đã hết hạn. Vui lòng thử lại.');
-      hideOtpPanel();
-      return;
-    }
-    
-    const errEl = document.getElementById('login-error');
-    errEl.style.display = 'none';
-    button.classList.add('loading');
-    button.disabled = true;
-    
-    try {
-      // Backend expect: { user_id, otp }
-      const res = await api.post('/auth/verify-otp', {
-        user_id: _pendingUserId,
-        otp: otp
-      });
-
-      await authRouteAfterStep(res, res.user_id || res.user?.id || _pendingUserId, _pendingEmail);
-    } catch (err) {
-      errEl.textContent = err.message || 'Mã OTP không đúng hoặc đã hết hạn';
-      errEl.style.display = 'block';
-      button.classList.remove('loading');
-      button.disabled = false;
-      // Clear OTP inputs
-      otpInputs.forEach(inp => inp.value = '');
-      otpInputs[0].focus();
-    }
-  }
-
-  document.getElementById('btn-verify-otp').addEventListener('click', verifyOtp);
-
-  function completeLogin(res) {
-    if (!res.access_token || !res.user) {
-      throw new Error('Backend không trả về thông tin đăng nhập đầy đủ');
-    }
-    if (res.must_change_password === true || res.mustChangePassword === true
-      || res.user.must_change_password === true || res.user.mustChangePassword === true) {
-      sessionStorage.setItem('lths_force_user_id', res.user_id || res.user.id || _pendingUserId);
-      window.location.href = 'force-change-password.html';
-      return;
-    }
-    Auth.setSession(res.access_token, res.user);
-    Toast.success('Đăng nhập thành công!');
-    setTimeout(() => {
-      if (res.user.role === 'admin')                window.location.href = 'admin/dashboard.html';
-      else if (res.user.role === 'department_head') window.location.href = 'dept-head/dashboard.html';
-      else                                          window.location.href = 'dashboard.html';
-    }, 600);
-  }
-
-  /* ── Cancel OTP ──────────────────────────────────────────────── */
-  document.getElementById('btn-cancel-otp').addEventListener('click', () => {
-    hideOtpPanel();
-  });
-
-  /* ── Resend OTP ──────────────────────────────────────────────── */
-  document.getElementById('btn-resend-otp').addEventListener('click', async function() {
-    if (!_pendingEmail || !_pendingPassword) {
-      Toast.error('Không thể gửi lại OTP. Vui lòng đăng nhập lại.');
-      hideOtpPanel();
-      return;
-    }
-    
-    hideOtpPanel();
-    document.getElementById('email').value = _pendingEmail;
-    document.getElementById('password').value = _pendingPassword;
-    await loadCaptcha();
-    Toast.info('Vui lòng nhập mã xác nhận mới để nhận lại OTP');
-  });
-</script>
+<script src="../assets/js/device-session.js?v=3"></script>
+<script src="../assets/js/app.js?v=device-3"></script>
+<script src="../assets/js/sidebar.js?v=device-2"></script>
+<script src="../assets/js/auth-flow.js?v=device-1"></script>
+<script src="../assets/js/login.js?v=device-2"></script>
 </body>
 </html>

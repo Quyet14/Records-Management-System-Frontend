@@ -21,6 +21,7 @@
         { href: 'documents.html',    icon: 'search',    label: 'Tài liệu' },
         { href: 'upload.html',       icon: 'upload',    label: 'Tải lên tài liệu' },
         { href: 'my-documents.html', icon: 'file',      label: 'Tài liệu của tôi' },
+        { href: 'destruction.html', icon: 'archive', label: 'Yêu cầu hủy hồ sơ' },
         { href: 'approval.html', icon: 'check', label: 'Chờ phê duyệt', permission: 'approve_documents', badgeId: 'sb-queue-badge' },
       ],
     },
@@ -33,6 +34,7 @@
         { href: '../view-requests-admin.html?v=view-requests-2', icon: 'clock', label: 'Yêu cầu xem', badgeId: 'sb-view-requests-badge' },
         { href: 'search.html',          icon: 'search',     label: 'Tìm kiếm toàn hệ thống' },
         { href: 'archive.html',         icon: 'archive',    label: 'Kho lưu trữ' },
+        { href: '../destruction.html',  icon: 'archive',    label: 'Hủy hồ sơ' },
         { href: 'users.html',           icon: 'users',      label: 'Quản lý người dùng' },
         { href: 'departments.html',     icon: 'briefcase',  label: 'Quản lý Khoa' },
         { href: 'document-types.html',  icon: 'clock',      label: 'Danh mục loại hồ sơ' },
@@ -50,6 +52,7 @@
         { href: '../view-requests-admin.html?v=view-requests-2', icon: 'clock', label: 'Yêu cầu xem', badgeId: 'sb-view-requests-badge' },
         { href: 'members.html',    icon: 'users',  label: 'Thành viên khoa' },
         { href: 'documents.html',  icon: 'file',   label: 'Tài liệu khoa' },
+        { href: '../destruction.html', icon: 'archive', label: 'Hủy hồ sơ' },
         { href: 'document-types.html', icon: 'clock', label: 'Danh mục hồ sơ' },
       ],
     },
@@ -123,7 +126,7 @@
     // This prevents URL issues when navigating between pages
     const pathPrefix = '/pages/';
     
-    const links = cfg.links.filter(canUseLink).map(link => {
+    const links = [...cfg.links, { href: '../'.repeat(cfg.prefix ? 1 : 0) + 'devices.html', icon: 'users', label: 'Thiết bị đăng nhập' }].filter(canUseLink).map(link => {
       const target = new URL(pathPrefix + cfg.prefix + link.href, window.location.origin);
       const isActive = target.pathname.split('/').pop() === current
         && target.searchParams.get('feature') === new URLSearchParams(window.location.search).get('feature');
@@ -194,12 +197,14 @@
     const backdrop = document.getElementById('sidebar-backdrop');
 
     // Logout
-    document.getElementById('btn-logout')?.addEventListener('click', () => {
-      localStorage.removeItem('lths_token');
-      localStorage.removeItem('lths_user');
-      const inSub = window.location.pathname.includes('/admin/') ||
-                    window.location.pathname.includes('/dept-head/');
-      window.location.href = (inSub ? '../' : './') + 'login.html';
+    document.getElementById('btn-logout')?.addEventListener('click', async event => {
+      const button = event.currentTarget;
+      if (button.disabled) return;
+      button.disabled = true;
+      try {
+        await Auth.logout();
+        window.location.href = _pagesRoot() + 'login.html';
+      } catch (error) { Toast.error(error.message); button.disabled = false; }
     });
 
     // Mobile toggle
@@ -266,10 +271,7 @@
     const nav = document.querySelector('nav.sidebar');
     if (!nav) return; // trang không có sidebar (login, etc.)
 
-    const readUser = () => {
-      try { return JSON.parse(localStorage.getItem('lths_user') || 'null'); }
-      catch (_) { return null; }
-    };
+    const readUser = () => Auth.getUser();
     const renderShell = user => {
       const role = user?.role || 'user';
       const signature = window.NavigationShell?.signature(user) || JSON.stringify([
@@ -289,6 +291,7 @@
       window.NavigationShell?.remember(nav, user);
       return signature;
     };
+    try { await Auth.require(); } catch (error) { Auth.showError(error); return; }
     const initialUser = readUser();
     const initialSignature = renderShell(initialUser);
 

@@ -39,7 +39,7 @@
       margin-left: 8px;
     }
   </style>
-  <script src="../../assets/js/navigation-shell.js?v=ready-navigation-29"></script>
+  <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
 </head>
 <body>
 <div class="app-shell">
@@ -113,7 +113,7 @@
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group" style="grid-column:1/-1;margin-bottom:0">
-          <label class="form-label" style="font-size:.78rem">Loại hồ sơ <span style="color:var(--stamp-deny)">*</span></label>
+          <label class="form-label form-label-required" style="font-size:.78rem">Loại hồ sơ <span style="color:var(--stamp-deny)">*</span></label>
           <select class="form-control" id="approve-doc-type" style="font-size:.85rem">
             <option value="">— Chọn loại hồ sơ —</option>
           </select>
@@ -159,7 +159,7 @@
       <div class="stamp stamp-rejected stamp-lg">TỪ<br>CHỐI</div>
     </div>
     <div class="form-group">
-      <label class="form-label">Lý do từ chối <span style="color:var(--stamp-deny)">*</span></label>
+      <label class="form-label form-label-required">Lý do từ chối <span style="color:var(--stamp-deny)">*</span></label>
       <textarea class="form-control" id="reject-reason" placeholder="Nêu lý do để người dùng biết cách chỉnh sửa và gửi lại…"></textarea>
     </div>
     <div class="modal-actions">
@@ -178,7 +178,7 @@
     <h3 class="modal-title">Từ chối hàng loạt</h3>
     <p class="modal-subtitle" id="bulk-reject-subtitle">Lý do sẽ áp dụng cho tất cả tài liệu được chọn.</p>
     <div class="form-group">
-      <label class="form-label">Lý do từ chối <span style="color:var(--stamp-deny)">*</span></label>
+      <label class="form-label form-label-required">Lý do từ chối <span style="color:var(--stamp-deny)">*</span></label>
       <textarea class="form-control" id="bulk-reject-reason"
         placeholder="Nêu lý do chung cho tất cả tài liệu…"></textarea>
     </div>
@@ -190,10 +190,14 @@
 </div>
 
 <div class="toast-container"></div>
-<script src="../../assets/js/app.js?v=ready-navigation-29"></script>
-<script src="../../assets/js/sidebar.js?v=ready-navigation-29"></script>
+<script src="../../assets/js/device-session.js?v=3"></script>
+<script src="../../assets/js/app.js?v=device-3"></script>
+<script src="../../assets/js/sidebar.js?v=device-2"></script>
 <script>
-  Auth.requireAdmin();
+(async () => {
+  Object.assign(window, { loadQueue, updateBulkBar, loadDocTypes, openApprove, openReject, removeCardAndUpdateCount });
+
+  await Auth.requireAdmin();
 
   let _queueDocs    = [];
   let _pendingDocId = null;
@@ -536,7 +540,7 @@
       document.getElementById('btn-confirm-reject').click();
   });
 
-  document.addEventListener('DOMContentLoaded', () => {
+  onPageReady(() => {
     loadDocTypes();
     loadQueue();
 
@@ -567,6 +571,8 @@
       previewFile(d.id, d.originalFilename || d.title, { doc: d });
     });
   });
+
+})().catch(Auth.showError);
 </script>
 </body>
 </html>

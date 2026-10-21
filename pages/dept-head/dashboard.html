@@ -12,7 +12,7 @@
         document.documentElement.setAttribute('data-theme','dark');
     })();
   </script>
-  <script src="../../assets/js/navigation-shell.js?v=ready-navigation-29"></script>
+  <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
 </head>
 <body>
 <div class="app-shell">
@@ -77,10 +77,14 @@
 </div>
 
 <div class="toast-container"></div>
-<script src="../../assets/js/app.js?v=ready-navigation-29"></script>
-<script src="../../assets/js/sidebar.js?v=ready-navigation-29"></script>
+<script src="../../assets/js/device-session.js?v=3"></script>
+<script src="../../assets/js/app.js?v=device-3"></script>
+<script src="../../assets/js/sidebar.js?v=device-2"></script>
 <script>
-  Auth.requireDeptHead();
+(async () => {
+  Object.assign(window, { loadStats });
+
+  await Auth.requireDeptHead();
 
 
   /* esc() — see app.js */
@@ -94,6 +98,7 @@
   let _recentDocs = [];
 
   async function loadStats() {
+    document.getElementById('members-retry')?.remove();
     // Skeleton stats
     ['stat-pending','stat-stored','stat-rejected','stat-members'].forEach(id => {
       const el = document.getElementById(id);
@@ -135,9 +140,20 @@
       document.getElementById('stat-members').textContent = members.length;
     } else {
       document.getElementById('stat-members').textContent = '—';
+      const retry = document.createElement('button');
+      retry.type = 'button'; retry.className = 'btn btn-ghost'; retry.id = 'members-retry'; retry.textContent = 'Thử tải lại thành viên';
+      retry.addEventListener('click', loadStats); document.querySelector('.main-content').prepend(retry);
+      Toast.error('Không tải được thành viên: ' + usersResult.reason?.message);
     }
 
     // ── Render recent docs ───────────────────────────────────────
+    if (docsResult.status === 'rejected') {
+      ['stat-pending','stat-stored','stat-rejected'].forEach(id => { document.getElementById(id).textContent = '—'; });
+      const wrap = document.getElementById('recent-wrap');
+      wrap.innerHTML = `<p role="alert">${esc(docsResult.reason?.message || 'Không tải được tài liệu.')}</p><button type="button" class="btn btn-ghost" id="dashboard-retry">Thử lại</button>`;
+      document.getElementById('dashboard-retry').addEventListener('click', loadStats);
+      return;
+    }
     _recentDocs = docs.slice(0, 6);
     const wrap  = document.getElementById('recent-wrap');
 
@@ -189,7 +205,9 @@
     });
   }
 
-  document.addEventListener('DOMContentLoaded', loadStats);
+  onPageReady(loadStats);
+
+})().catch(Auth.showError);
 </script>
 </body>
 </html>

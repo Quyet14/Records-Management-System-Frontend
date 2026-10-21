@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hủy hồ sơ — BV Hữu Nghị</title>
+  <link rel="stylesheet" href="../assets/css/style.css?v=destruction-1" />
+  <link rel="stylesheet" href="../assets/css/destruction.css?v=2" />
+  <script>if(localStorage.getItem('lths_dark')==='1') document.documentElement.setAttribute('data-theme','dark');</script>
+  <script src="../assets/js/navigation-shell.js?v=device-1"></script>
+</head>
+<body>
+<div class="app-shell">
+  <nav class="sidebar"></nav>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <main class="main-content destruction-page">
+    <div class="page-header">
+      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">
+        Vietnam-HuuNghi Hospital
+      </p>
+    </div>
+    <ol class="destruction-steps" aria-label="Quy trình hủy hồ sơ">
+      <li><strong>1. Lập đề nghị</strong></li>
+      <li><strong id="destruction-wait-title">2. Duyệt và chờ 24 giờ</strong></li>
+      <li><strong>3. Đóng hồ sơ</strong></li>
+    </ol>
+    <p id="service-status" class="destruction-notice" role="status">Đang kiểm tra dịch vụ hủy hồ sơ…</p>
+    <nav class="destruction-tabs" aria-label="Chức năng hủy hồ sơ">
+      <button type="button" class="btn btn-primary" data-tab="requests" aria-pressed="true">Đề nghị hủy</button>
+      <button type="button" class="btn btn-ghost" data-tab="create" aria-pressed="false" disabled>Lập đề nghị</button>
+      <button type="button" class="btn btn-ghost" data-tab="destroyed" aria-pressed="false">Đã hủy</button>
+    </nav>
+
+    <section id="panel-requests" aria-label="Danh sách đề nghị">
+      <form id="requests-filter" class="destruction-toolbar" data-managed-loading>
+        <div><label class="form-label" for="request-status">Trạng thái</label>
+          <select id="request-status" class="form-control">
+            <option value="">Tất cả</option><option value="draft">Nháp</option><option value="pending">Chờ duyệt</option>
+            <option value="partially_approved">Chờ duyệt bổ sung</option><option value="scheduled">Đã duyệt — chờ hủy</option>
+            <option value="processing">Đang hủy</option><option value="destroyed">Đã hủy — chờ biên bản</option>
+            <option value="completed">Đã hoàn tất</option><option value="rejected">Từ chối</option>
+            <option value="withdrawn">Đã thu hồi</option><option value="failed">Hủy lỗi — cần xử lý</option>
+          </select>
+        </div>
+        <button class="btn btn-ghost" type="submit">Tải lại</button>
+      </form>
+      <div id="requests-list" class="card" aria-live="polite"></div>
+      <div id="requests-pagination" class="destruction-pagination"></div>
+      <section id="request-detail" class="card destruction-detail" hidden aria-label="Chi tiết đề nghị" tabindex="-1"></section>
+    </section>
+
+    <section id="panel-create" hidden aria-label="Lập đề nghị hủy">
+      <div class="card">
+        <h2>Chọn hồ sơ</h2>
+        <form id="eligible-filter" class="destruction-toolbar" data-managed-loading>
+          <div class="destruction-grow"><label class="form-label" for="eligible-query">Tên, mã hoặc loại hồ sơ</label>
+            <input id="eligible-query" class="form-control" type="search" maxlength="200" placeholder="Tìm hồ sơ…" />
+          </div>
+          <button type="submit" class="btn btn-ghost">Tìm kiếm</button>
+        </form>
+        <div id="eligible-list" aria-live="polite"></div>
+        <div id="eligible-pagination" class="destruction-pagination"></div>
+        <p id="selection-count" role="status">Đã chọn 0 hồ sơ</p>
+        <div id="selected-documents" class="destruction-selection"></div>
+      </div>
+      <form id="create-form" class="card destruction-detail" data-managed-loading>
+        <h2>Thông tin đề nghị</h2>
+        <div class="destruction-fields">
+          <div class="form-group"><label class="form-label form-label-required" for="decision-number">Số quyết định *</label>
+            <input class="form-control" id="decision-number" maxlength="100" required />
+          </div>
+          <div class="form-group"><label class="form-label form-label-required" for="decision-date">Ngày quyết định *</label>
+            <input class="form-control" id="decision-date" type="date" required />
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label form-label-required" for="destruction-reason">Lý do đề nghị hủy *</label>
+          <textarea class="form-control" id="destruction-reason" rows="3" maxlength="4000" required></textarea>
+        </div>
+        <div class="form-group"><label class="form-label form-label-required" for="decision-file">Quyết định hủy — PDF scan có dấu, chữ ký *</label>
+          <input class="form-control" id="decision-file" type="file" accept=".pdf,application/pdf" required />
+        </div>
+        <div class="form-group"><label class="form-label" for="council-file">Biên bản họp hội đồng (PDF, tùy chọn)</label>
+          <input class="form-control" id="council-file" type="file" accept=".pdf,application/pdf" />
+        </div>
+        <p id="pdf-limit" class="destruction-muted"></p>
+        <details class="destruction-policy">
+          <summary>Chính sách sao lưu</summary>
+          <div id="backup-policy" class="destruction-muted"></div>
+        </details>
+        <label class="destruction-check"><input id="signed-confirmation" type="checkbox" required />
+          Tôi đã kiểm tra dấu, chữ ký, danh sách hồ sơ và chính sách sao lưu.
+        </label>
+        <button type="submit" id="create-submit" class="btn btn-primary" disabled>Gửi đề nghị duyệt</button>
+      </form>
+    </section>
+
+    <section id="panel-destroyed" hidden aria-label="Hồ sơ đã hủy">
+      <p class="destruction-muted">Nội dung hồ sơ đã hủy không thể xem hoặc tải xuống.</p>
+      <form id="destroyed-filter" class="destruction-toolbar" data-managed-loading>
+        <div class="destruction-grow"><label class="form-label" for="destroyed-query">Tên hoặc mã hồ sơ</label>
+          <input class="form-control" id="destroyed-query" type="search" maxlength="200" />
+        </div>
+        <button type="submit" class="btn btn-ghost">Tìm kiếm</button>
+      </form>
+      <div id="destroyed-list" class="card" aria-live="polite"></div>
+      <div id="destroyed-pagination" class="destruction-pagination"></div>
+    </section>
+  </main>
+</div>
+<dialog id="attachment-preview" class="destruction-preview">
+  <div class="destruction-toolbar"><strong id="attachment-preview-title">Chứng từ PDF</strong><button type="button" id="close-preview" class="btn btn-ghost">Đóng</button></div>
+  <iframe title="Xem chứng từ PDF" id="attachment-frame"></iframe>
+</dialog>
+<div class="toast-container"></div>
+<script src="../assets/js/device-session.js?v=3"></script>
+<script src="../assets/js/app.js?v=device-3"></script>
+<script src="../assets/js/sidebar.js?v=device-2"></script>
+<script src="../assets/js/destruction-rules.js?v=6"></script>
+<script src="../assets/js/destruction.js?v=6"></script>
+</body>
+</html>

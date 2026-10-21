@@ -44,7 +44,7 @@
     .dept-name { font-family: var(--font-ui) !important; font-weight: 600; font-size: 1rem; }
     .dept-id   { font-family: var(--font-mono); font-size: .68rem; color: var(--gray-400); margin-top: 2px; }
   </style>
-  <script src="../../assets/js/navigation-shell.js?v=ready-navigation-29"></script>
+  <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
 </head>
 <body>
 <div class="app-shell">
@@ -92,7 +92,7 @@
     <p class="modal-subtitle">Tên khoa phải là duy nhất trong hệ thống.</p>
 
     <div class="form-group">
-      <label class="form-label">Tên khoa *</label>
+      <label class="form-label form-label-required">Tên khoa *</label>
       <input class="form-control" type="text" id="new-dept-name"
              placeholder="VD: Khoa Công nghệ Thông tin" />
     </div>
@@ -105,10 +105,14 @@
 </div>
 
 <div class="toast-container"></div>
-<script src="../../assets/js/app.js?v=ready-navigation-29"></script>
-<script src="../../assets/js/sidebar.js?v=ready-navigation-29"></script>
+<script src="../../assets/js/device-session.js?v=3"></script>
+<script src="../../assets/js/app.js?v=device-3"></script>
+<script src="../../assets/js/sidebar.js?v=device-2"></script>
 <script>
-  Auth.requireAdmin();
+(async () => {
+  Object.assign(window, { colorFor, loadDepts });
+
+  await Auth.requireAdmin();
 
 
   /* esc() — see app.js */
@@ -206,7 +210,9 @@
     if (e.key === 'Enter') document.getElementById('btn-save-dept').click();
   });
 
-  document.addEventListener('DOMContentLoaded', loadDepts);
+  onPageReady(loadDepts);
+
+})().catch(Auth.showError);
 </script>
 
 <!-- Modal: Chi tiết khoa -->

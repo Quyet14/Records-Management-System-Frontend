@@ -1,0 +1,12 @@
+# Tích hợp frontend với hợp đồng backend mới
+
+- `device-session.js` giữ access token/user trong bộ nhớ. Mỗi trang đợi `Auth.require()` khôi phục cookie qua `/auth/refresh`. Web Locks hoặc SharedWorker tuần tự hóa cookie rotation giữa các tab; một promise dùng chung trong tab. Tất cả request API gửi credentials include, bearer chỉ gửi đúng API origin/prefix.
+- Chỉ 401 kích hoạt refresh và thử lại một lần. Các lỗi 403/429/500/503 không xóa phiên. Wrapper `http` giữ status/code/Retry-After; Tổng quan có nút thử lại, kể cả khi bootstrap thất bại.
+- `RECENT_AUTH_REQUIRED` mở CAPTCHA/OTP ngay trên trang, giữ nguyên form trong bộ nhớ. Sau OTP đúng tài khoản, request được gửi lại một lần với body và Idempotency-Key cũ. Hủy xác thực không gửi lại thao tác; refresh không thay thế OTP này.
+- Hai viewer PDF dùng `/documents/:id/view-url`, rồi lấy bytes từ URL backend trả về với no-store/no-referrer, không gắn bearer đăng nhập. Không fallback sang download hoặc đường dẫn kho. Backend quyết định TTL tối đa 120 giây, quyền xem và thu hồi link; frontend không lưu link.
+- Hủy hồ sơ dùng `/destruction/eligible-documents?q=&page=&pageSize=` để server lọc trước phân trang. `capabilities.canCreate` kiểm soát lập đề nghị; `allowedActions` kiểm soát thao tác. User chỉ chọn hồ sơ mình tải lên trong khoa mình, chỉ xem yêu cầu/chứng từ của mình và có thể thu hồi khi server cấp quyền. Hồ sơ thường vẫn cần admin hoặc trưởng khoa; hồ sơ mật cần cả hai vai trò.
+- Menu Thiết bị đăng nhập mở `pages/devices.html`: GET `/auth/sessions`, DELETE `/auth/sessions/:id`, POST `/auth/logout-all`. Lỗi thu hồi giữ phiên và hiển thị thông báo; thu hồi thiết bị hiện tại thành công chuyển về đăng nhập.
+
+Kiểm tra: `npm test` và `npm run test:auth-browser`. Bộ browser dùng Edge headless với API/cookie giả lập cục bộ, kiểm tra OTP, refresh nhiều tab, link PDF, xác thực lại và thu hồi thiết bị. Cần nghiệm thu thêm với backend thật, cookie/CORS HTTPS, SMTP OTP, quyền xem và link hết hạn 120 giây.
+
+Hợp đồng backend người dùng cung cấp trong lần cập nhật này thay thế các mô tả cũ trong `destruction-backend.md` về lịch 48 giờ, bắt buộc hết hạn bảo quản và phạm vi xem hồ sơ mật của trưởng khoa. Frontend lấy thời gian chờ/điều kiện/quyền từ API, không tự xác nhận các chính sách đó.

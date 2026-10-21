@@ -2,50 +2,38 @@
    LTHS — Shared JS: API, Auth, Toast, Modal, Drag-drop, Stamp
    ============================================================ */
 
-// API endpoint - Dùng IP LAN thay vì localhost để đồng nhất
-// Backend đang chạy trên: http://192.168.81.178:3000
-const API = 'http://192.168.0.67:3002';
-
-// Hoặc để auto-detect (uncomment nếu muốn):
-/*
-const API = (() => {
-  const hostname = window.location.hostname;
-  // Nếu truy cập từ localhost/127.0.0.1 → dùng IP LAN
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://192.168.81.178:3000'; // Thay IP này bằng IP máy bạn
-  }
-  // Nếu truy cập từ IP LAN → dùng IP đó cho backend
-  return `http://${hostname}:3000`;
-})();
-*/
+// Configure a same-site HTTPS API with <meta name="lths-api-base" content="https://host:3002">.
+const API = document.querySelector('meta[name="lths-api-base"]')?.content
+  || (window.location.protocol === 'https:' ? window.location.origin : 'http://192.168.0.67:3002');
 
 /* ── Auth helpers ────────────────────────────────────────────── */
 
 // Resolve path to pages/ root regardless of current depth
 function _pagesRoot() {
   const path = window.location.pathname;
-  if (path.includes('/pages/admin/'))     return '../../pages/';
-  if (path.includes('/pages/dept-head/')) return '../../pages/';
-  if (path.includes('/pages/'))           return '../pages/';
-  return 'pages/';
+  const pagesIndex = path.indexOf('/pages/');
+  if (pagesIndex >= 0) return path.slice(0, pagesIndex) + '/pages/';
+  return new URL('pages/', window.location.href).pathname;
 }
 
+const deviceSession = createDeviceSession({
+  apiUrl: API, fetch: window.fetch.bind(window), locks: navigator.locks,
+  SharedWorker: window.SharedWorker,
+  workerUrl: new URL(_pagesRoot() + '../assets/js/auth-cookie-worker.js?v=2', window.location.href).href,
+  storages: [localStorage, sessionStorage],
+  onRecentAuth: user => reauthenticate(user),
+  channel: typeof BroadcastChannel === 'function' ? new BroadcastChannel('lths-device-session') : null,
+  onChange: user => window.dispatchEvent(new CustomEvent('lths:session', { detail: { user } })),
+  onUnauthorized: () => { if (document.querySelector('.main-content')) window.location.href = _pagesRoot() + 'login.html'; }
+});
+
 const Auth = {
-  getToken:   () => localStorage.getItem('lths_token'),
-  getUser:    () => JSON.parse(localStorage.getItem('lths_user') || 'null'),
-  setSession: (token, user) => {
-    localStorage.setItem('lths_token', token);
-    localStorage.setItem('lths_user', JSON.stringify(user));
-  },
+  ...deviceSession,
   roleHome: (role) => {
     const root = _pagesRoot();
     if (role === 'admin') return root + 'admin/dashboard.html';
     if (role === 'department_head') return root + 'dept-head/dashboard.html';
     return root + 'dashboard.html';
-  },
-  clear: () => {
-    localStorage.removeItem('lths_token');
-    localStorage.removeItem('lths_user');
   },
   currentUserId: () => {
     const u = Auth.getUser();
@@ -76,88 +64,13 @@ const Auth = {
     return Auth.permissions().includes(permission);
   },
   refreshUser: async () => {
-    const token = Auth.getToken();
-    if (!token) return null;
-
-    const cachedUser = Auth.getUser();
-    const cachedUserId = cachedUser?.id || cachedUser?._id || cachedUser?.userId || cachedUser?.sub;
-    try {
-      const profileResponse = await fetch(API + '/users/me', {
-        headers: { Authorization: `Bearer ${token}` }, cache: 'no-store'
-      });
-      if (profileResponse.ok) {
-        const user = Auth.extractUser(await profileResponse.json());
-        if (user?.id && user?.role) {
-          localStorage.setItem('lths_user', JSON.stringify(user));
-          return user;
-        }
-      }
-    } catch (_) {}
-    const refreshEndpoints = ['/auth/refresh', '/auth/refresh-token'];
-    for (const endpoint of refreshEndpoints) {
-      try {
-        const res = await fetch(API + endpoint, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          cache: 'no-store'
-        });
-        if (!res.ok) continue;
-        const data = await res.json().catch(() => null);
-        const payload = data?.data || data?.result || data || {};
-        const nextToken = payload.access_token || payload.token;
-        const nextUser = Auth.extractUser(payload);
-        if (nextToken && nextUser?.role) {
-          Auth.setSession(nextToken, nextUser);
-          return nextUser;
-        }
-      } catch (_) {}
-    }
-
-    const endpoints = ['/auth/me', '/users/me', '/me', '/auth/profile', '/users/profile'];
-    if (cachedUserId) endpoints.push(`/users/${encodeURIComponent(cachedUserId)}`);
-    let lastError = null;
-
-    for (const endpoint of endpoints) {
-      try {
-        const res = await fetch(API + endpoint, {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${token}` },
-          cache: 'no-store'
-        });
-
-        if (res.status === 401) {
-          Auth.clear();
-          window.location.href = _pagesRoot() + 'login.html';
-          return null;
-        }
-
-        if (res.status === 404) continue;
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          lastError = new Error(err.message || `HTTP ${res.status}`);
-          continue;
-        }
-
-        const data = await res.json().catch(() => null);
-        const user = Auth.extractUser(data);
-        if (user?.id || user?._id || user?.email) {
-          const oldRole = cachedUser?.role;
-          localStorage.setItem('lths_user', JSON.stringify(user));
-          if (oldRole && user.role && oldRole !== user.role) {
-            window.dispatchEvent(new CustomEvent('lths:user-refreshed', { detail: { user, oldRole } }));
-          }
-          return user;
-        }
-      } catch (err) {
-        lastError = err;
-      }
-    }
-
-    if (lastError) console.warn('[Auth] Could not refresh current user:', lastError);
-    return Auth.getUser();
+    await deviceSession.ensureAccess();
+    const response = await deviceSession.fetch(API + '/users/me');
+    if (!response.ok) { const error = new Error('Không thể tải thông tin tài khoản.'); error.status = response.status; throw error; }
+    const user = Auth.extractUser(await response.json());
+    if (!user?.role) throw new Error('Thông tin tài khoản không hợp lệ.');
+    deviceSession.updateUser(user);
+    return user;
   },
   extractUser: (res) => {
     let payload = res;
@@ -167,7 +80,7 @@ const Auth = {
   refreshReady: null,
   refreshedUntil: 0,
   ensureFresh: (force = false) => {
-    if (!force && !Auth.refreshReady && Date.now() < Auth.refreshedUntil) return Promise.resolve(Auth.getUser());
+    if (!force && Auth.getToken() && !Auth.refreshReady && Date.now() < Auth.refreshedUntil) return Promise.resolve(Auth.getUser());
     if (!Auth.refreshReady) {
       Auth.refreshReady = Auth.refreshUser()
         .then(user => { Auth.refreshedUntil = Date.now() + 10000; return user; })
@@ -226,25 +139,42 @@ const Auth = {
     Auth.syncRoleRoute();
     window.location.reload();
   },
-  require: () => {
-    if (!Auth.getToken()) { window.location.href = _pagesRoot() + 'login.html'; return; }
-    Auth.ensureFresh().then(() => Auth.syncRoleRoute());
+  require: async () => {
+    try {
+      await Auth.ensureFresh();
+      if (!Auth.syncRoleRoute()) throw new Error('Đang chuyển đến trang được cấp quyền.');
+      return Auth.getUser();
+    } catch (error) {
+      if (error.status === 401) window.location.href = _pagesRoot() + 'login.html';
+      throw error;
+    }
   },
-  requireAdmin: () => {
-    if (!Auth.getToken()) { window.location.href = _pagesRoot() + 'login.html'; return; }
-    Auth.ensureFresh().then(() => {
-      if (!Auth.isAdmin()) window.location.href = _pagesRoot() + 'dashboard.html';
-    });
+  requireAdmin: async () => {
+    await Auth.require();
+    if (!Auth.isAdmin()) { window.location.href = Auth.roleHome(Auth.getUser()?.role); throw new Error('Không có quyền Admin.'); }
+    return Auth.getUser();
   },
-  requireDeptHead: () => {
-    if (!Auth.getToken()) { window.location.href = _pagesRoot() + 'login.html'; return; }
-    Auth.ensureFresh().then(() => {
-      if (!Auth.isDeptHead()) window.location.href = _pagesRoot() + 'dashboard.html';
-    });
+  requireDeptHead: async () => {
+    await Auth.require();
+    if (!Auth.isDeptHead()) { window.location.href = Auth.roleHome(Auth.getUser()?.role); throw new Error('Không có quyền Trưởng khoa.'); }
+    return Auth.getUser();
+  },
+  showError: error => {
+    if (error?.status === 401) return;
+    const target = document.querySelector('.main-content') || document.getElementById('login-error');
+    if (target) {
+      const p = document.createElement('p'); p.setAttribute('role', 'alert'); p.textContent = error.message || 'Không thể khôi phục phiên. Vui lòng thử lại.';
+      const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn btn-ghost'; retry.textContent = 'Thử lại';
+      retry.onclick = () => window.location.reload(); p.appendChild(retry); target.prepend(p);
+    }
   }
 };
-
-if (Auth.getToken()) Auth.ensureFresh().then(() => Auth.syncRoleRoute());
+window.Auth = Auth;
+function onPageReady(work) {
+  const run = () => Promise.resolve().then(work).catch(Auth.showError);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
+  else run();
+}
 
 let authFocusRefreshRunning = false;
 window.addEventListener('focus', async () => {
@@ -257,14 +187,14 @@ window.addEventListener('focus', async () => {
     await Auth.ensureFresh(true);
     const after = JSON.stringify([Auth.getUser()?.role, Auth.permissions().slice().sort()]);
     if (Auth.getToken() && before !== after) window.location.reload();
-  } finally {
+  } catch (error) { Auth.showError(error); } finally {
     authFocusRefreshRunning = false;
   }
 });
 
 const AuthRoleChannel = (() => {
   const CHANNEL = 'lths_role_changed';
-  const onMessage = (detail) => Auth.handleExternalRoleChange(detail);
+  const onMessage = (detail) => Auth.handleExternalRoleChange(detail).catch(Auth.showError);
 
   try {
     const bc = new BroadcastChannel(CHANNEL);
@@ -308,14 +238,14 @@ async function http(method, path, body, isForm = false) {
   if (token) headers['Authorization'] = `Bearer ${token}`;
   if (!isForm) headers['Content-Type'] = 'application/json';
 
-  const res = await fetch(API + path, {
+  const res = await Auth.fetch(API + path, {
     method,
     headers,
     cache: 'no-store',
     body: isForm ? body : (body ? JSON.stringify(body) : undefined)
   });
 
-  if (res.status === 401) { Auth.clear(); window.location.href = _pagesRoot() + 'login.html'; }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const messages = Array.isArray(err.message) ? err.message : [err.message];
@@ -328,23 +258,117 @@ async function http(method, path, body, isForm = false) {
       if (shouldNotify) Toast.warning('Backend chưa cập nhật API tìm kiếm. Đã tải danh sách; tìm theo nội dung có thể chưa đầy đủ.');
       return result;
     }
-    throw new Error(err.message || `HTTP ${res.status}`);
+    throw apiError(res, err);
   }
   if (res.status === 204) return null;
   return res.json();
 }
 
-function authDownloadUrl(path) {
-  const token = Auth.getToken();
-  const url = API + path;
-  if (!token) return url;
-  return `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
+function apiError(response, body = {}) {
+  const defaults = {
+    401: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+    403: 'Bạn không có quyền thực hiện thao tác này.',
+    429: 'Có quá nhiều yêu cầu. Vui lòng chờ rồi thử lại.',
+    500: 'Máy chủ gặp lỗi. Vui lòng thử lại sau.',
+    503: 'Dịch vụ tạm thời không sẵn sàng. Vui lòng thử lại sau.'
+  };
+  const message = Array.isArray(body.message) ? body.message.join('; ') : body.message;
+  const error = new Error(message || defaults[response.status] || `HTTP ${response.status}`);
+  error.status = response.status;
+  error.code = body.code || body.error?.code;
+  error.retryAfter = response.headers?.get('Retry-After');
+  return error;
 }
 
-function uploadWithProgress(path, form, onProgress) {
+// Reauthenticate in place so the pending form and request remain in memory.
+function reauthenticate(user) {
+  return new Promise((resolve, reject) => {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'card';
+    dialog.style.cssText = 'width:min(440px,90vw);max-height:90vh;overflow:auto';
+    dialog.innerHTML = `<form><h2>Xác thực lại</h2><p>Nhập mã xác nhận và OTP gửi đến email tài khoản để tiếp tục thao tác.</p>
+      <p data-error role="alert"></p><label class="form-label">Email<input class="form-control" name="email" type="email" required readonly /></label>
+      <div data-captcha><img alt="Mã xác nhận" /><button type="button" data-reload class="btn btn-ghost">Đổi mã</button>
+      <label class="form-label">Mã xác nhận<input class="form-control" name="captcha" autocomplete="off" /></label></div>
+      <label class="form-label" data-otp hidden>Mã OTP<input class="form-control" name="otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" /></label>
+      <button type="submit" class="btn btn-primary">Gửi OTP</button> <button type="button" data-cancel class="btn btn-ghost">Hủy</button></form>`;
+    const form = dialog.querySelector('form'), submit = form.querySelector('[type="submit"]');
+    const error = dialog.querySelector('[data-error]');
+    form.elements.email.value = user?.email || '';
+    let captchaId = '', pendingId = '', active = true, running = false;
+    const finish = (failure) => {
+      if (!active) return;
+      active = false; dialog.close(); dialog.remove();
+      if (failure) reject(failure); else resolve();
+    };
+    const cancel = () => { if (!running) finish(Object.assign(new Error('Đã hủy xác thực lại. Thao tác chưa được thực hiện.'), { code: 'RECENT_AUTH_REQUIRED', status: 403 })); };
+    dialog.addEventListener('cancel', event => { event.preventDefault(); cancel(); });
+    dialog.querySelector('[data-cancel]').onclick = cancel;
+    async function captcha() {
+      captchaId = '';
+      const response = await api.get('/auth/captcha');
+      const data = response.data ?? response, image = data.image || data.svg;
+      if (!data.captcha_id || !image) throw new Error('Không tải được mã xác nhận.');
+      if (!active) return;
+      captchaId = data.captcha_id;
+      dialog.querySelector('img').src = image.startsWith('data:') ? image : `data:image/svg+xml;charset=utf-8,${encodeURIComponent(image)}`;
+      form.elements.captcha.value = '';
+    }
+    dialog.querySelector('[data-reload]').onclick = () => { if (!running) captcha().catch(err => { error.textContent = err.message; }); };
+    form.onsubmit = async event => {
+      event.preventDefault(); if (running) return;
+      running = true; submit.disabled = true; error.textContent = '';
+      try {
+        if (!pendingId) {
+          if (!captchaId || !form.elements.captcha.value.trim()) throw new Error('Vui lòng nhập mã xác nhận.');
+          const response = await api.post('/auth/login', { email: user.email, captcha_id: captchaId, captcha_code: form.elements.captcha.value.trim() });
+          const data = response.data ?? response;
+          if (!data.requires_otp || !data.user_id) throw new Error('Phản hồi yêu cầu OTP không hợp lệ.');
+          pendingId = data.user_id;
+          dialog.querySelector('[data-captcha]').hidden = true;
+          dialog.querySelector('[data-otp]').hidden = false;
+          form.elements.otp.required = true; submit.textContent = 'Xác thực và tiếp tục'; form.elements.otp.focus();
+        } else {
+          const response = await api.post('/auth/verify-otp', { user_id: pendingId, otp: form.elements.otp.value.trim() });
+          const data = response.data ?? response;
+          if (!data.user || String(data.user.id) !== String(user.id)) throw new Error('Tài khoản xác thực không khớp.');
+          Auth.setSession(data.access_token, data.user, data.expires_in);
+          finish();
+        }
+      } catch (err) {
+        error.textContent = err.message;
+        if (!pendingId) await captcha().catch(() => {});
+      } finally { running = false; submit.disabled = false; }
+    };
+    document.body.appendChild(dialog); dialog.showModal();
+    captcha().catch(err => { error.textContent = err.message; });
+  });
+}
+
+async function authDownloadUrl(path) {
+  const match = path.match(/^\/documents\/([^/?]+)\/(download|view)(?:\?|$)/);
+  if (!match) throw new Error('Đường dẫn tải tài liệu không hợp lệ.');
+  const data = await api.get('/documents/' + match[1] + (match[2] === 'view' ? '/view-url' : '/download-url'));
+  const payload = data?.data ?? data;
+  if (!payload?.url) throw new Error('Không nhận được liên kết tải tài liệu.');
+  const url = new URL(payload.url, API);
+  if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Liên kết tài liệu không hợp lệ.');
+  return url.href;
+}
+
+async function fetchDocumentView(docId) {
+  const url = await authDownloadUrl(`/documents/${encodeURIComponent(docId)}/view`);
+  const response = await window.fetch(url, { cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer' });
+  if (!response.ok) throw apiError(response, await response.json().catch(() => ({})));
+  return response;
+}
+
+async function uploadWithProgress(path, form, onProgress, retry = false) {
+  await deviceSession.ensureAccess();
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open('POST', API + path);
+    request.withCredentials = true;
     request.responseType = 'json';
     const token = Auth.getToken();
     if (token) request.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -353,11 +377,13 @@ function uploadWithProgress(path, form, onProgress) {
         onProgress(Math.min(100, Math.round(event.loaded * 100 / event.total)));
       }
     };
-    request.onload = () => {
-      if (request.status === 401) {
-        Auth.clear();
-        window.location.href = _pagesRoot() + 'login.html';
+    request.onload = async () => {
+      if (request.status === 401 && !retry) {
+        try { if (Auth.getToken() === token) await deviceSession.refreshSession(); resolve(await uploadWithProgress(path, form, onProgress, true)); }
+        catch (error) { reject(error); }
+        return;
       }
+      if (request.status === 401) { Auth.clear(); window.location.href = _pagesRoot() + 'login.html'; }
       if (request.status >= 200 && request.status < 300) {
         resolve(request.response);
       } else {
@@ -460,7 +486,7 @@ const api = {
   // Let the browser handle large downloads instead of buffering the full file in JS.
   download: async (path, filename = 'document') => {
     const a = document.createElement('a');
-    a.href = authDownloadUrl(path);
+    a.href = await authDownloadUrl(path);
     a.download = filename;
     a.rel = 'noopener';
     document.body.appendChild(a);
@@ -469,8 +495,10 @@ const api = {
   },
   
   // View file in new tab
-  view: (path) => {
-    window.open(authDownloadUrl(path), '_blank');
+  view: async (path) => {
+    const tab = window.open('about:blank', '_blank');
+    if (tab) tab.opener = null;
+    try { const url = await authDownloadUrl(path); if (tab) tab.location.href = url; } catch (error) { tab?.close(); throw error; }
   }
 };
 
@@ -576,7 +604,6 @@ async function previewFile(docId, filename, options = {}) {
     return;
   }
   const canDownload = options.canDownload ?? Auth.isStaff();
-  const endpoint = options.endpoint || (canDownload ? 'download' : 'view');
   const doc = options.doc || {};
   const previewName = documentFileNameForType(doc, filename);
   const downloadName = previewName || filename || doc.title || 'document';
@@ -658,37 +685,13 @@ async function previewFile(docId, filename, options = {}) {
   }
 
   try {
-    const token = Auth.getToken();
-    const res = await fetch(`${API}/documents/${docId}/${endpoint}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      const errorMsg = errorData.message || `HTTP ${res.status}`;
-      throw new Error(errorMsg);
-    }
-    const contentType = res.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      const data = await res.json();
-      const viewUrl = data.url || data.viewUrl || data.fileUrl || data.signedUrl;
-      if (!viewUrl) throw new Error(data.message || 'Không nhận được liên kết xem tài liệu');
-      const headers = {};
-      if (token && (viewUrl.startsWith(API) || viewUrl.startsWith('/'))) {
-        headers.Authorization = `Bearer ${token}`;
-      }
-      const fileRes = await fetch(viewUrl.startsWith('/') ? API + viewUrl : viewUrl, { headers });
-      if (!fileRes.ok) throw new Error(`HTTP ${fileRes.status}`);
-      await renderPreviewBlob(await fileRes.blob(), filename, canDownload, downloadBtn, overlay);
-      return;
-    }
-
-    const blob = await res.blob();
-    await renderPreviewBlob(blob, filename, canDownload, downloadBtn, overlay);
+    const res = await fetchDocumentView(docId);
+    await renderPreviewBlob(await res.blob(), filename, canDownload, downloadBtn, overlay);
   } catch (err) {
     document.getElementById('pdf-preview-body').innerHTML =
       `<div style="color:#f88;text-align:center;padding:40px">
         <div style="font-size:1.2rem;margin-bottom:12px">❌ Không thể tải tài liệu</div>
-        <div style="font-size:0.9rem;color:#faa">${err.message}</div>
+        <div style="font-size:0.9rem;color:#faa">${esc(err.message)}</div>
         <div style="font-size:0.8rem;color:#999;margin-top:16px">Tài liệu có thể chưa được lưu trữ hoặc file không tồn tại.</div>
       </div>`;
   }
@@ -847,9 +850,10 @@ function canAccessDocumentSecurity(doc, user = Auth.getUser()) {
 }
 
 function configureDocumentSecuritySelect(select, currentValue) {
-  const labels = { normal: 'Thường', confidential: 'Mật', secret: 'Tối mật', top_secret: 'Tuyệt mật' };
+  const labels = { normal: 'Thường', confidential: 'Mật', secret: 'Tối mật'};
   const levels = Object.keys(labels);
-  const current = documentSecurityLevel(currentValue);
+  const normalized = documentSecurityLevel(currentValue);
+  const current = levels.includes(normalized) ? normalized : null;
   const isAdmin = Auth.isAdmin();
   select.innerHTML = levels.map((level, index) =>
     `<option value="${level}"${!isAdmin && (current == null || index < levels.indexOf(current)) ? ' disabled' : ''}>${labels[level]}</option>`
@@ -1046,7 +1050,7 @@ async function loadViewStatusMapFromRequests(docs) {
 async function downloadFile(docId, filename) {
   try {
     const a = document.createElement('a');
-    a.href = authDownloadUrl(`/documents/${docId}/download`);
+    a.href = await authDownloadUrl(`/documents/${docId}/download`);
     a.download = filename || 'document';
     a.rel = 'noopener';
     document.body.appendChild(a);
@@ -1155,12 +1159,34 @@ const Notif = (() => {
   }
 
   function connectStream() {
-    const token = Auth.getToken();
-    if (!token || typeof EventSource === 'undefined') return;
-
     stream?.close();
-    stream = new EventSource(`${API}/notifications/stream?token=${encodeURIComponent(token)}`);
-    stream.onmessage = () => load();
+    const controller = new AbortController();
+    stream = { close: () => controller.abort() };
+    (async () => {
+      while (!controller.signal.aborted && Auth.getToken()) {
+        try {
+          const response = await Auth.fetch(API + '/notifications/stream', { signal: controller.signal });
+          if (!response.ok || !response.body) throw new Error('Notification stream unavailable');
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          // Reconnect before this stream's bearer expires; the next request refreshes if needed.
+          const reconnect = setTimeout(() => reader.cancel().catch(() => {}), 15 * 60 * 1000);
+          let buffer = '';
+          try {
+            while (!controller.signal.aborted) {
+              const chunk = await reader.read(); if (chunk.done) break;
+              buffer += decoder.decode(chunk.value, { stream: true }).replace(/\r\n/g, '\n');
+              let boundary;
+              while ((boundary = buffer.indexOf('\n\n')) >= 0) {
+                const event = buffer.slice(0, boundary); buffer = buffer.slice(boundary + 2);
+                if (/^data:/m.test(event)) load();
+              }
+            }
+          } finally { clearTimeout(reconnect); reader.releaseLock(); }
+        } catch (error) { if (controller.signal.aborted || error.status === 401) break; }
+        if (!controller.signal.aborted) await new Promise(resolve => { const timer = setTimeout(resolve, 5000); controller.signal.addEventListener('abort', () => { clearTimeout(timer); resolve(); }, { once: true }); });
+      }
+    })();
   }
 
   function init() {
@@ -1933,7 +1959,7 @@ document.addEventListener('DOMContentLoaded', () => {
   DarkMode.init();
   Modal.init();
   _initKeyboardNav();
-  if (Auth.getToken()) Notif.init();
+  if (document.querySelector('.main-content')) Auth.ensureFresh().then(() => Notif.init()).catch(Auth.showError);
   _initScrollTop();
   _initButtonLoading();
 });
@@ -1983,6 +2009,7 @@ function _initKeyboardNav() {
 /* ── Auto loading state on btn-submit ────────────────────────── */
 function _initButtonLoading() {
   document.querySelectorAll('form').forEach(form => {
+    if (form.hasAttribute('data-managed-loading')) return;
     form.addEventListener('submit', () => {
       const btn = form.querySelector('[type="submit"]');
       if (btn) btn.classList.add('loading');

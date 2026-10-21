@@ -216,7 +216,7 @@
       }
     }
   </style>
-  <script src="../assets/js/navigation-shell.js?v=ready-navigation-29"></script>
+  <script src="../assets/js/navigation-shell.js?v=device-1"></script>
 </head>
 <body>
 <div class="app-shell">
@@ -311,7 +311,7 @@
     <p class="modal-subtitle" id="request-doc-title"></p>
     <div class="request-duration-grid">
       <div class="form-group">
-        <label class="form-label">Lý do cần xem *</label>
+        <label class="form-label form-label-required">Lý do cần xem *</label>
         <textarea class="form-control" id="request-reason" rows="4" placeholder="Nhập lý do phục vụ công việc..."></textarea>
       </div>
       <div class="form-group">
@@ -364,10 +364,14 @@
   </div>
 </div>
 <div class="toast-container"></div>
-<script src="../assets/js/app.js?v=ready-navigation-29"></script>
-<script src="../assets/js/sidebar.js?v=ready-navigation-29"></script>
+<script src="../assets/js/device-session.js?v=3"></script>
+<script src="../assets/js/app.js?v=device-3"></script>
+<script src="../assets/js/sidebar.js?v=device-2"></script>
 <script>
-  Auth.require();
+(async () => {
+  Object.assign(window, { openDocumentComments, loadDocumentComments, getCurrentUser, normalizeList, normalizeText, getDocumentId, normalizeId, isOwnDocument, normalizeViewStatus, getRequestDocumentId, normalizeRequestList, loadViewStatusesFromRequests, loadViewStatuses, loadDocs, renderFiltered, getDocumentVisibility, updateDocumentTabCounts, searchTerms, docMatchesSmartKeyword, docSearchRelevance, getAdvancedSearchFilters, toDateOnly, hasSearchFilters, renderActiveFilterHint, resetSearchFilters, toggleFilterPanel, renderTable, renderDocumentStatus, renderViewAction, renderViewAccessAction, hasDirectDepartmentViewAccess, hasApprovedViewAccess, formatViewRemaining, canShowExtend, formatDurationFromSeconds, openApprovedDocument, fetchDocumentForView, openViewOnlyModal, closeViewOnlyModal, renderViewOnlyUrl, renderViewOnlyBlob, renderPdfCanvas, openRequestModal, requestJson, createViewRequest, extendViewRequest, requestExtension });
+
+  await Auth.require();
 
   let allDocs = [];
   let visibleDocs = [];
@@ -1039,19 +1043,7 @@
         throw new Error('Bạn chưa được cấp quyền xem tài liệu này.');
       }
       openViewOnlyModal(doc.title || doc.originalFilename || 'Xem tài liệu');
-      const token = Auth.getToken();
-      const endpoints = isOwnDocument(doc) ? ['view', 'download'] : ['view'];
-      const res = await fetchDocumentForView(docId, endpoints, token, isOwnDocument(doc));
-
-      const contentType = res.headers.get('content-type') || '';
-      if (contentType.includes('application/json')) {
-        const data = await res.json();
-        const viewUrl = data.url || data.viewUrl || data.fileUrl || data.signedUrl;
-        if (!viewUrl) throw new Error(data.message || 'Không nhận được liên kết xem tài liệu');
-        await renderViewOnlyUrl(viewUrl, token, doc);
-        return;
-      }
-
+      const res = await fetchDocumentView(docId);
       const blob = await res.blob();
       await renderViewOnlyBlob(blob, doc);
     } catch (err) {
@@ -1060,21 +1052,8 @@
     }
   }
 
-  async function fetchDocumentForView(docId, endpoints, token, isOwner) {
-    let lastError = null;
-    for (const endpoint of endpoints) {
-      const res = await fetch(`${API}/documents/${docId}/${endpoint}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) return res;
-      const errorData = await res.json().catch(() => ({}));
-      lastError = new Error(errorData.message || `HTTP ${res.status}`);
-    }
-
-    if (isOwner) {
-      throw new Error('Backend đang chặn cả quyền xem và tải với chủ tài liệu. Cần cho phép người tải lên được xem tài liệu của chính mình.');
-    }
-    throw lastError || new Error('Không thể mở tài liệu.');
+  async function fetchDocumentForView(docId) {
+    return fetchDocumentView(docId);
   }
 
   function openViewOnlyModal(title) {
@@ -1107,12 +1086,8 @@
   });
 
   async function renderViewOnlyUrl(viewUrl, token, doc) {
-    const headers = {};
-    if (token && (viewUrl.startsWith(API) || viewUrl.startsWith('/'))) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-    const res = await fetch(viewUrl.startsWith('/') ? API + viewUrl : viewUrl, { headers });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await window.fetch(new URL(viewUrl, API).href, { credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer' });
+    if (!res.ok) throw apiError(res, await res.json().catch(() => ({})));
     await renderViewOnlyBlob(await res.blob(), doc);
   }
 
@@ -1192,7 +1167,7 @@
     const token = Auth.getToken();
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    const res = await fetch(API + path, {
+    const res = await Auth.fetch(API + path, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined
@@ -1297,7 +1272,7 @@
     }
   });
 
-  document.addEventListener('DOMContentLoaded', async () => {
+  onPageReady(async () => {
     await Auth.ensureFresh();
     renderBreadcrumb([{ label: 'Trang chủ', href: 'dashboard.html' }, { label: 'Tài liệu' }]);
     const debouncedRender = debounce(renderFiltered, 250);
@@ -1339,6 +1314,8 @@
     renderActiveFilterHint();
     loadDocs();
   });
+
+})().catch(Auth.showError);
 </script>
 </body>
 </html>

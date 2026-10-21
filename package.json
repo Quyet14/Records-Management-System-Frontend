@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "LTHS — Hệ Thống Lưu Trữ Tài Liệu PDF",
   "scripts": {
+    "test": "node --test --test-isolation=none tests/*.test.cjs",
+    "test:auth-browser": "node scripts/test-auth-browser.cjs",
     "start": "npx serve . -p 5000 --no-clipboard",
     "dev": "npx live-server --port=5000 --open=pages/login.html"
   },

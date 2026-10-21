@@ -12,7 +12,7 @@
         document.documentElement.setAttribute('data-theme','dark');
     })();
   </script>
-  <script src="../../assets/js/navigation-shell.js?v=ready-navigation-29"></script>
+  <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
 </head>
 <body>
 <div class="app-shell">
@@ -137,10 +137,14 @@
 </div>
 
 <div class="toast-container"></div>
-<script src="../../assets/js/app.js?v=ready-navigation-29"></script>
-<script src="../../assets/js/sidebar.js?v=ready-navigation-29"></script>
+<script src="../../assets/js/device-session.js?v=3"></script>
+<script src="../../assets/js/app.js?v=device-3"></script>
+<script src="../../assets/js/sidebar.js?v=device-2"></script>
 <script>
-  Auth.requireAdmin();
+(async () => {
+  Object.assign(window, { loadStats, renderRecentDocs });
+
+  await Auth.requireAdmin();
 
 
   /* esc() — see app.js */
@@ -149,6 +153,7 @@
   let _recentDocs = [];
 
   async function loadStats() {
+    document.getElementById('users-retry')?.remove();
     // Hiện skeleton cho tất cả stat values
     const statIds = [
       'stat-users-total','stat-users-active','stat-users-inactive','stat-users-admin',
@@ -184,6 +189,11 @@
           if (el) { el.textContent = '—'; el.classList.remove('skeleton'); }
         });
       Toast.error('Không thể tải dữ liệu tài khoản: ' + usersResult.reason?.message);
+      const retry = document.createElement('button');
+      retry.type = 'button'; retry.className = 'btn btn-ghost'; retry.id = 'users-retry'; retry.textContent = 'Thử tải lại tài khoản';
+      retry.addEventListener('click', loadStats);
+      document.getElementById('users-retry')?.remove();
+      document.querySelector('.main-content').prepend(retry);
     }
 
     // ── Xử lý documents ────────────────────────────────────────
@@ -295,7 +305,9 @@
     });
   }
 
-  document.addEventListener('DOMContentLoaded', loadStats);
+  onPageReady(loadStats);
+
+})().catch(Auth.showError);
 </script>
 </body>
 </html>

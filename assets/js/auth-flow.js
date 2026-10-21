@@ -4,7 +4,7 @@ function authRedirect(res) {
   const token = payload?.access_token || payload?.token || res?.access_token || res?.token;
   const user = payload?.user || res?.user;
   if (!token || !user) throw new Error('Backend không trả về thông tin đăng nhập đầy đủ');
-  Auth.setSession(token, user);
+  Auth.setSession(token, user, payload.expires_in);
   const role = user.role;
   window.location.href = role === 'admin' ? 'admin/dashboard.html'
     : role === 'department_head' ? 'dept-head/dashboard.html' : 'dashboard.html';
@@ -36,11 +36,8 @@ function requiresPasswordChange(res) {
 
 async function authRouteAfterStep(res, userId, emailHint = '') {
   const payload = authPayload(res);
-  if (requiresPasswordChange(res)) {
-    const pendingUserId = payload?.user_id || payload?.user?.id || res.user_id || res.user?.id || userId || '';
-    sessionStorage.setItem('lths_user_id', pendingUserId);
-    sessionStorage.setItem('lths_force_user_id', pendingUserId);
-    window.location.href = 'force-change-password.html';
+  if (payload?.access_token && payload?.user) {
+    authRedirect(res);
     return true;
   }
   if (payload?.requires_totp === true) {

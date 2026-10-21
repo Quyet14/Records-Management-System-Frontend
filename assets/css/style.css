@@ -2111,6 +2111,9 @@ html:not([data-theme="dark"]) .btn-ghost {
   font-size: .88rem;
   font-weight: 800;
 }
+.form-label.form-label-required {
+  color: var(--stamp-deny);
+}
 .form-control {
   min-height: 42px;
   padding: 10px 14px;
