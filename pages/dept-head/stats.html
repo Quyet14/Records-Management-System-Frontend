@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Thống kê khoa — Trưởng khoa</title>
   <link rel="stylesheet" href="../../assets/css/style.css?v=ready-navigation-29" />
-  <link rel="stylesheet" href="../../assets/css/department-reports.css?v=3" />
+  <link rel="stylesheet" href="../../assets/css/department-reports.css?v=6" />
   <script>if(localStorage.getItem('lths_dark')==='1') document.documentElement.setAttribute('data-theme','dark');</script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
@@ -28,9 +28,11 @@
         <a href="documents.html" class="btn btn-ghost">Tài liệu khoa</a>
       </div>
     </header>
+    <p class="report-scope"><span aria-hidden="true">◈</span> Phạm vi báo cáo: <strong id="report-department">Khoa của bạn</strong></p>
     <p id="report-message" role="status" aria-live="polite" class="report-message">Đang xác định khoa…</p>
     <div id="report-summary" class="stats-grid"></div>
     <p class="report-note report-context">Tổng quan và phân bố tính toàn bộ thời gian trong khoa. Bộ lọc năm chỉ áp dụng cho biểu đồ theo tháng, tính theo ngày tải lên và loại trừ hồ sơ đã hủy.</p>
+    <div class="report-section-tab"><span>📊 Phân bố hồ sơ trong khoa</span><i></i></div>
     <div class="report-grid">
       <section class="card report-panel report-chart-panel">
         <h2><span aria-hidden="true">◉</span> Phân bố trạng thái</h2>
@@ -43,6 +45,7 @@
         <details class="report-data-details"><summary>Xem số liệu chi tiết</summary><div id="report-types" data-report-content></div></details>
       </section>
     </div>
+    <div class="report-section-tab"><span>📈 Hoạt động tải lên theo năm</span><i></i></div>
     <section class="card report-panel report-chart-panel">
       <h2><span aria-hidden="true">▧</span> Hồ sơ tải lên theo tháng (<span id="report-year-label"></span>)</h2>
       <div class="report-chart-wrap report-chart-wrap--wide"><canvas id="report-month-chart" role="img" aria-label="Biểu đồ số hồ sơ tải lên theo tháng"></canvas></div>
@@ -52,12 +55,30 @@
       <div class="report-chart-wrap report-chart-wrap--wide"><canvas id="report-month-size-chart" role="img" aria-label="Biểu đồ dung lượng tải lên theo tháng"></canvas></div>
       <details class="report-data-details"><summary>Xem số liệu chi tiết theo tháng</summary><div id="report-months" data-report-content></div></details>
     </section>
+    <div class="report-section-tab"><span>⚖️ Giá trị và thời hạn bảo quản</span><i></i></div>
+    <div class="report-grid">
+      <section class="card report-panel report-chart-panel">
+        <h2>⚖️ Phân bố mức giá trị hồ sơ</h2>
+        <div class="report-chart-wrap report-chart-wrap--donut"><canvas id="report-value-chart" role="img" aria-label="Phân bố mức giá trị hồ sơ trong khoa"></canvas></div>
+        <details class="report-data-details"><summary>Xem số liệu chi tiết</summary><div id="report-values" data-report-content></div></details>
+      </section>
+      <section class="card report-panel">
+        <h2>📁 Tiến độ chỉnh lý hồ sơ cũ</h2>
+        <p class="report-note">Hồ sơ hình thành trước 01/07/2025 trong khoa.</p>
+        <div id="report-stats-progress" data-report-content></div>
+        <a href="monitor.html" class="btn btn-ghost">Mở giám sát khoa →</a>
+      </section>
+    </div>
+    <section class="card report-panel">
+      <div class="report-panel-heading"><h2>⏰ Hồ sơ sắp hết hạn bảo quản</h2><div class="report-toolbar"><label for="report-expiry-days">Trong vòng</label><select id="report-expiry-days" class="form-control"><option value="180">6 tháng</option><option value="365" selected>1 năm</option><option value="730">2 năm</option><option value="1825">5 năm</option></select></div></div>
+      <div id="report-stats-expiry" data-report-content></div>
+    </section>
   </main>
 </div>
 <div class="toast-container"></div>
 <script src="../../assets/js/device-session.js?v=3"></script>
 <script src="../../assets/js/app.js?v=device-3"></script>
 <script src="../../assets/js/sidebar.js?v=dept-reports-1"></script>
-<script src="../../assets/js/department-reports.js?v=4"></script>
+<script src="../../assets/js/department-reports.js?v=6"></script>
 </body>
 </html>

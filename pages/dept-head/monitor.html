@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Giám sát khoa — Trưởng khoa</title>
   <link rel="stylesheet" href="../../assets/css/style.css?v=ready-navigation-29" />
-  <link rel="stylesheet" href="../../assets/css/department-reports.css?v=3" />
+  <link rel="stylesheet" href="../../assets/css/department-reports.css?v=6" />
   <script>if(localStorage.getItem('lths_dark')==='1') document.documentElement.setAttribute('data-theme','dark');</script>
   <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
 </head>
@@ -25,27 +25,30 @@
         <a href="documents.html" class="btn btn-ghost">Tài liệu khoa</a>
       </div>
     </header>
+    <p class="report-scope"><span aria-hidden="true">◈</span> Phạm vi báo cáo: <strong id="report-department">Khoa của bạn</strong></p>
     <p id="report-message" role="status" aria-live="polite" class="report-message">Đang xác định khoa…</p>
     <div id="report-summary" class="stats-grid"></div>
-    <div class="report-section-tab"><span>⚠️ Cảnh báo hồ sơ — Theo dõi khoa</span><i></i></div>
-    <section class="card report-panel">
-      <h2><span aria-hidden="true">⌁</span> Kiểm tra tính toàn vẹn (Checksum)</h2>
-      <p class="report-note">Hồ sơ chưa có checksum, loại trừ hồ sơ đã hủy. Báo cáo không quét lại nội dung tệp.</p>
+    <div class="report-section-tab"><span>⚠️ Cảnh báo lưu trữ trong khoa</span><i></i></div>
+    <div class="report-tabs" role="tablist" aria-label="Nhóm cảnh báo hồ sơ">
+      <button type="button" id="report-tab-review" class="status-tab-btn active" role="tab" aria-selected="true" aria-controls="report-panel-review" tabindex="0">📁 Chưa chỉnh lý <span class="tab-count" id="report-count-review">—</span></button>
+      <button type="button" id="report-tab-expiry" class="status-tab-btn" role="tab" aria-selected="false" aria-controls="report-panel-expiry" tabindex="-1">⏰ Sắp hết hạn <span class="tab-count" id="report-count-expiry">—</span></button>
+      <button type="button" id="report-tab-checksums" class="status-tab-btn" role="tab" aria-selected="false" aria-controls="report-panel-checksums" tabindex="-1">⌁ Thiếu checksum <span class="tab-count" id="report-count-checksums">—</span></button>
+    </div>
+    <section class="card report-panel" id="report-panel-review" role="tabpanel" aria-labelledby="report-tab-review" tabindex="0">
+      <h2>📁 Hồ sơ trước 01/07/2025 cần chỉnh lý</h2>
+      <div id="report-review-progress" data-report-content></div>
+      <div id="report-review" data-report-content></div>
+    </section>
+    <section class="card report-panel" id="report-panel-expiry" role="tabpanel" aria-labelledby="report-tab-expiry" tabindex="0" hidden>
+      <div class="report-panel-heading"><h2>⏰ Hồ sơ sắp hết hạn bảo quản</h2><div class="report-toolbar"><label for="report-expiry-days">Trong vòng</label><select id="report-expiry-days" class="form-control"><option value="180">6 tháng</option><option value="365" selected>1 năm</option><option value="730">2 năm</option><option value="1825">5 năm</option></select></div></div>
+      <div id="report-expiry" data-report-content></div>
+    </section>
+    <section class="card report-panel" id="report-panel-checksums" role="tabpanel" aria-labelledby="report-tab-checksums" tabindex="0" hidden>
+      <h2>⌁ Kiểm tra tính toàn vẹn (Checksum)</h2>
+      <p class="report-note">Theo dõi hồ sơ chưa có SHA-256, loại trừ hồ sơ đã hủy. Báo cáo dựa trên thông tin đã ghi nhận, không quét lại nội dung tệp.</p>
       <div id="report-checksum-status" data-report-content></div>
       <div id="report-checksums" data-report-content></div>
     </section>
-    <div class="report-section-tab"><span>📁 Chỉnh lý và thời hạn bảo quản</span><i></i></div>
-    <div class="report-grid report-monitor-grid">
-      <section class="card report-panel">
-        <h2><span aria-hidden="true">▤</span> Hồ sơ trước 01/07/2025 cần chỉnh lý</h2>
-        <div id="report-review-progress" data-report-content></div>
-        <div id="report-review" data-report-content></div>
-      </section>
-      <section class="card report-panel">
-        <h2><span aria-hidden="true">◷</span> Sắp hết hạn trong 1 năm</h2>
-        <div id="report-expiry" data-report-content></div>
-      </section>
-    </div>
     <div class="report-section-tab report-history-heading">
       <span>🕘 Lịch sử duyệt / từ chối</span><i></i>
       <label for="report-history-filter" class="visually-hidden">Lọc theo hành động</label>
@@ -63,6 +66,6 @@
 <script src="../../assets/js/device-session.js?v=3"></script>
 <script src="../../assets/js/app.js?v=device-3"></script>
 <script src="../../assets/js/sidebar.js?v=dept-reports-1"></script>
-<script src="../../assets/js/department-reports.js?v=4"></script>
+<script src="../../assets/js/department-reports.js?v=6"></script>
 </body>
 </html>

@@ -11,6 +11,7 @@ function fixture(path) {
   const page = Number(url.searchParams.get('page') || 1);
   const envelope = data => ({ data, total: 45, page, limit: 20 });
   switch (url.pathname) {
+    case '/stats/by-classification': return [{ classificationValue: 'permanent', count: 12 }, { classificationValue: 'timed', count: 30 }];
     case '/stats/overview': return structuredClone(overview);
     case '/stats/by-document-type': return { byType: [{ typeName: 'Loại A', totalDocuments: 42 }], unclassifiedCount: 0 };
     case '/stats/by-year': return { year: Number(url.searchParams.get('year')), monthly: Array.from({ length: 12 }, (_, i) => ({ month: i + 1, totalDocuments: i, totalBytes: i * 1024 })) };
@@ -26,7 +27,7 @@ function fixture(path) {
 test('statistics use scoped report endpoints; only the monthly request receives year', async () => {
   const calls = [];
   const data = await reports.loadStats(user, async path => { calls.push(path); return fixture(path); }, 2025);
-  assert.deepEqual(calls, ['/stats/overview', '/stats/by-document-type', '/stats/by-year?year=2025']);
+  assert.deepEqual(calls, ['/stats/overview', '/stats/by-document-type', '/stats/by-year?year=2025', '/stats/by-classification', '/retention/review-summary', '/retention/expiring?days=365']);
   assert.equal(data.summary.totalDocuments, 42);
   assert.equal(data.monthly.year, 2025);
   assert.equal(data.monthly.monthly.length, 12);
@@ -85,10 +86,12 @@ async function setup(mode, options = {}) {
   const get = id => {
     if (!declaredIds.has(id)) return null;
     if (!elements.has(id)) elements.set(id, { innerHTML: '', textContent: '', value: '', disabled: false,
+      hidden: false, attributes: {}, classList: { toggle() {} },
+      setAttribute(name, value) { this.attributes[name] = value; }, focus() { this.focused = true; },
       addEventListener(name, fn) { this[name] = fn; } });
     return elements.get(id);
   };
-  const contentIds = mode === 'stats' ? ['report-status', 'report-types', 'report-months']
+  const contentIds = mode === 'stats' ? ['report-status', 'report-types', 'report-months', 'report-values', 'report-stats-progress', 'report-stats-expiry']
     : ['report-checksum-status', 'report-checksums', 'report-review-progress', 'report-review', 'report-expiry', 'report-history'];
   contentIds.forEach(id => assert.ok(get(id), `${id} must exist in pages/dept-head/${mode}.html`));
   let ready, respond = options.respond, actor = user;
@@ -123,18 +126,18 @@ test('statistics render backend totals and monthly bytes; a year change does not
   assert.match(env.get('report-summary').innerHTML, /<svg viewBox="0 0 24 24"/);
   assert.equal((env.get('report-summary').innerHTML.match(/class="stat-card /g) || []).length, 5);
   assert.match(env.get('report-types').innerHTML, /Loại A/);
-  assert.equal(env.chartConfigs.length, 4);
+  assert.equal(env.chartConfigs.length, 5);
   assert.equal(env.chartConfigs[0].config.type, 'doughnut');
-  assert.equal(env.chartConfigs[2].config.type, 'line');
-  assert.equal(env.chartConfigs[3].config.options.indexAxis, 'y');
+  assert.equal(env.chartConfigs[3].config.type, 'line');
+  assert.equal(env.chartConfigs[4].config.options.indexAxis, 'y');
   assert.equal(env.get('report-year-label').textContent, new Date().getFullYear());
   env.get('report-year').value = '2025';
   await env.get('report-year').change();
-  assert.equal(env.calls.at(-1), '/stats/by-year?year=2025');
+  assert.ok(env.calls.includes('/stats/by-year?year=2025'));
   assert.match(env.get('report-summary').innerHTML, />42</);
   assert.match(env.get('report-months').innerHTML, /11264 bytes/);
-  assert.equal(env.destroyedCharts, 4);
-  assert.equal(env.chartConfigs.length, 8);
+  assert.equal(env.destroyedCharts, 5);
+  assert.equal(env.chartConfigs.length, 10);
 });
 
 test('monitor renders server audit events safely, progress and paginated totals', async () => {
@@ -224,4 +227,47 @@ test('a department change while requests are pending clears the old department r
   await pending;
   assert.equal(env.html(), '');
   assert.match(env.get('report-message').textContent, /Khoa của tài khoản đã thay đổi/);
+});
+
+test('statistics include classification, expiry and review data using scoped APIs', async () => {
+  const env = await setup('stats');
+  assert.match(env.get('report-values').innerHTML, /Vĩnh viễn/);
+  assert.match(env.get('report-stats-progress').innerHTML, /55\/100/);
+  assert.match(env.get('report-stats-expiry').innerHTML, /Sắp hết hạn/);
+  assert.equal(env.get('report-department').textContent, 'Khoa A');
+  assert.ok(env.calls.every(path => !path.includes('departmentId') && !path.startsWith('/documents')));
+});
+
+for (const mode of ['stats', 'monitor']) test(mode + ': expiry filter validates and reloads the selected range', async () => {
+  const env = await setup(mode);
+  env.get('report-expiry-days').value = '730';
+  await env.get('report-expiry-days').change();
+  assert.ok(env.calls.includes('/retention/expiring?days=730'));
+  if (mode === 'monitor') assert.match(env.get('report-summary').innerHTML, /Sắp hết hạn trong 2 năm/);
+  const before = env.calls.length;
+  env.get('report-expiry-days').value = '0';
+  await env.get('report-expiry-days').change();
+  assert.equal(env.calls.length, before);
+  assert.match(env.get('report-message').textContent, /Khoảng thời gian cảnh báo không hợp lệ/);
+});
+
+test('monitor tabs support keyboard navigation without refetching data', async () => {
+  const env = await setup('monitor');
+  const before = env.calls.length;
+  env.get('report-tab-expiry').click();
+  assert.equal(env.get('report-panel-expiry').hidden, false);
+  assert.equal(env.get('report-panel-review').hidden, true);
+  assert.equal(env.get('report-tab-expiry').attributes['aria-selected'], 'true');
+  env.get('report-tab-expiry').keydown({ key: 'ArrowRight', preventDefault() {} });
+  assert.equal(env.get('report-panel-checksums').hidden, false);
+  assert.equal(env.get('report-tab-checksums').focused, true);
+  env.get('report-tab-checksums').keydown({ key: 'Home', preventDefault() {} });
+  assert.equal(env.get('report-panel-review').hidden, false);
+  assert.equal(env.calls.length, before);
+  assert.equal(env.get('report-count-checksums').textContent, 45);
+});
+
+test('status chart colors follow status names even when backend row order changes', async () => {
+  const env = await setup('stats', { respond: path => path === '/stats/overview' ? { ...overview, byStatus: [{ status: 'rejected', count: 5 }, { status: 'stored', count: 37 }] } : undefined });
+  assert.deepEqual(Array.from(env.chartConfigs[0].config.data.datasets[0].backgroundColor), ['#A33B3B', '#2F6F4E']);
 });

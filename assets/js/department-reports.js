@@ -34,20 +34,34 @@
     array(value.byStatus).forEach(row => number(row.count));
     return value;
   }
-  async function loadStats(user, get, year) {
+  function expiryDays(value = 365) {
+    const days = Number(value);
+    if (![180, 365, 730, 1825].includes(days)) throw new Error('Khoảng thời gian cảnh báo không hợp lệ.');
+    return days;
+  }
+  function reviewProgress(value) {
+    ['totalOldDocuments', 'completed', 'remaining', 'completionRate'].forEach(key => number(value?.[key]));
+    if (number(value.completionRate) > 100) throw new Error('Tiến độ chỉnh lý từ máy chủ không hợp lệ.');
+    return value;
+  }
+  async function loadStats(user, get, year, days = 365) {
     scope(user);
     const targetYear = yearValue(year);
-    const [summary, types, monthly] = await Promise.all([
-      get('/stats/overview'), get('/stats/by-document-type'), get('/stats/by-year?year=' + targetYear)
+    const warningDays = expiryDays(days);
+    const [summary, types, monthly, values, progress, expiring] = await Promise.all([
+      get('/stats/overview'), get('/stats/by-document-type'), get('/stats/by-year?year=' + targetYear),
+      get('/stats/by-classification'), get('/retention/review-summary'), get('/retention/expiring?days=' + warningDays)
     ]);
     overview(summary);
     array(types?.byType).forEach(row => number(row.totalDocuments));
     if (monthly?.year !== targetYear || array(monthly?.monthly).length !== 12
       || monthly.monthly.some((row, index) => row.month !== index + 1)) throw new Error('Báo cáo tháng từ máy chủ không hợp lệ.');
     monthly.monthly.forEach(row => { number(row.totalDocuments); number(row.totalBytes); });
-    return { summary, types, monthly };
+    array(values).forEach(row => number(row.count));
+    reviewProgress(progress); array(expiring);
+    return { summary, types, monthly, values, progress, expiring };
   }
-  async function loadMonitor(user, get, pages, action = '') {
+  async function loadMonitor(user, get, pages, action = '', days = 365) {
     scope(user);
     if (!['', 'approve', 'reject', 'auto-approve (private)'].includes(action)) throw new Error('Bộ lọc lịch sử không hợp lệ.');
     const query = kind => {
@@ -55,16 +69,16 @@
       if (!Number.isInteger(current) || current < 1 || current > 1000000) throw new Error('Trang báo cáo không hợp lệ.');
       return new URLSearchParams({ page: current, limit: 20 });
     };
+    const warningDays = expiryDays(days);
     const historyQuery = query('history');
     if (action) historyQuery.set('action', action);
     const [summary, missing, review, progress, expiring, history] = await Promise.all([
       get('/stats/overview'), get('/system/missing-checksums?' + query('checksums')),
       get('/retention/pending-review?' + query('review')), get('/retention/review-summary'),
-      get('/retention/expiring?days=365'), get('/system/audit-logs?' + historyQuery)
+      get('/retention/expiring?days=' + warningDays), get('/system/audit-logs?' + historyQuery)
     ]);
     overview(summary); page(missing); page(review); page(history); array(expiring);
-    ['totalOldDocuments', 'completed', 'remaining', 'completionRate'].forEach(key => number(progress?.[key]));
-    if (number(progress.completionRate) > 100) throw new Error('Tiến độ chỉnh lý từ máy chủ không hợp lệ.');
+    reviewProgress(progress);
     return { summary, missing, review, progress, expiring, history };
   }
   const reports = { scope, loadStats, loadMonitor };
@@ -98,8 +112,22 @@
   function cards(items) {
     return items.map(([label, value, variant, icon]) => `<div class="stat-card stat-card--${variant}"><div class="stat-icon" aria-hidden="true">${icons[icon]}</div><span class="stat-label">${esc(label)}</span><span class="stat-value">${esc(value)}</span></div>`).join('');
   }
+  function themeChart(options) {
+    const dark = document.documentElement?.getAttribute('data-theme') === 'dark';
+    const color = dark ? '#d0ddee' : '#33475b';
+    options.color = color;
+    if (options.plugins?.legend?.labels) options.plugins.legend.labels.color = color;
+    Object.values(options.scales || {}).forEach(axis => {
+      axis.ticks = { ...axis.ticks, color };
+      axis.grid = { ...axis.grid, color: dark ? 'rgba(190,210,235,.15)' : 'rgba(51,71,91,.12)' };
+    });
+  }
+  if (typeof MutationObserver === 'function') new MutationObserver(() => {
+    charts.forEach(chart => { themeChart(chart.config.options); chart.update('none'); });
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   function createChart(id, config) {
     if (typeof Chart === 'undefined') throw new Error('Không tải được thư viện biểu đồ. Vui lòng tải lại trang.');
+    themeChart(config.options);
     charts.push(new Chart($(id), config));
   }
   function destroyCharts() {
@@ -119,7 +147,7 @@
     return `<div class="report-toolbar report-pagination"><button type="button" class="btn btn-ghost btn-sm" data-report-page="${kind}" data-page="${payload.page - 1}" ${payload.page <= 1 ? 'disabled' : ''}>Trước</button><span>Trang ${payload.page}/${pages} · ${payload.total} kết quả</span><button type="button" class="btn btn-ghost btn-sm" data-report-page="${kind}" data-page="${payload.page + 1}" ${payload.page >= pages ? 'disabled' : ''}>Sau</button></div>`;
   }
   function renderStats(data) {
-    const { summary, types, monthly } = data;
+    const { summary, types, monthly, values, progress, expiring } = data;
     const count = status => summary.byStatus.find(row => row.status === status)?.count || 0;
     const statusRows = summary.byStatus.map(row => ({ label: labels[row.status] || row.status, count: number(row.count) }));
     const typeRows = types.byType.map(row => ({ label: row.typeName || 'Chưa phân loại', count: number(row.totalDocuments) }));
@@ -132,14 +160,23 @@
       ['Từ chối', count('rejected'), 'deny', 'rejected'],
       ['Dung lượng đã lưu kho', fmtSize(summary.storedSizeBytes), 'brass', 'size']
     ]);
+    $('report-stats-progress').innerHTML = progressMarkup(progress);
+    $('report-stats-expiry').innerHTML = expiryMarkup(expiring);
+    const valueLabels = { permanent: 'Vĩnh viễn', timed: 'Có thời hạn', unclassified: 'Chưa xác định' };
+    $('report-values').innerHTML = table(['Mức giá trị', 'Số hồ sơ'], values.map(row => '<tr><td>' + esc(valueLabels[row.classificationValue] || row.classificationValue) + '</td><td>' + number(row.count) + '</td></tr>'));
     $('report-year-label').textContent = monthly.year;
     $('report-status').innerHTML = table(['Trạng thái', 'Số hồ sơ'], statusRows.map(row => `<tr><td>${esc(row.label)}</td><td>${row.count}</td></tr>`));
     $('report-types').innerHTML = table(['Loại hồ sơ', 'Số hồ sơ'], typeRows.map(row => `<tr><td>${esc(row.label)}</td><td>${row.count}</td></tr>`));
     $('report-months').innerHTML = table(['Tháng', 'Hồ sơ', 'Dung lượng'], monthly.monthly.map(row => `<tr><td>Tháng ${row.month}</td><td>${number(row.totalDocuments)}</td><td>${esc(fmtSize(row.totalBytes))}</td></tr>`));
     createChart('report-status-chart', {
       type: 'doughnut',
-      data: { labels: statusRows.map(row => row.label), datasets: [{ data: statusRows.map(row => row.count), backgroundColor: statusRows.map((_, index) => colors[index % colors.length]), borderColor: '#fff', borderWidth: 2, hoverOffset: 6 }] },
+      data: { labels: statusRows.map(row => row.label), datasets: [{ data: statusRows.map(row => row.count), backgroundColor: summary.byStatus.map(row => ({ stored: '#2F6F4E', approved: '#287b85', pending: '#B98A2E', rejected: '#A33B3B', destroyed: '#64748b' })[row.status] || '#64748b'), borderColor: '#fff', borderWidth: 2, hoverOffset: 6 }] },
       options: { ...chartOptions(), cutout: '62%', plugins: { ...chartOptions().plugins, legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 10, padding: 16 } } } }
+    });
+    createChart('report-value-chart', {
+      type: 'doughnut',
+      data: { labels: values.map(row => valueLabels[row.classificationValue] || row.classificationValue), datasets: [{ data: values.map(row => number(row.count)), backgroundColor: values.map(row => ({ permanent: '#2F6F4E', timed: '#1B2A4A', unclassified: '#B98A2E' })[row.classificationValue] || '#64748b'), borderWidth: 3, borderColor: '#fff' }] },
+      options: { ...chartOptions(), cutout: '62%', plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 18 } } } }
     });
     createChart('report-types-chart', {
       type: 'bar',
@@ -157,21 +194,26 @@
       options: { ...chartOptions(), indexAxis: 'y', plugins: { ...chartOptions().plugins, legend: { display: false }, tooltip: { callbacks: { label: context => `${context.parsed.x.toFixed(2)} MB` } } }, scales: { x: { beginAtZero: true, ticks: { callback: value => `${Number(value).toFixed(2)} MB` } }, y: { grid: { display: false } } } }
     });
   }
+  function progressMarkup(progress) { return `<div class="report-progress"><div class="report-progress-heading"><strong>Tiến độ chỉnh lý</strong><strong>${number(progress.completed)}/${number(progress.totalOldDocuments)}</strong></div><progress max="100" value="${number(progress.completionRate)}" aria-label="Tiến độ chỉnh lý">${number(progress.completionRate)}%</progress><p>Đã hoàn thành ${number(progress.completionRate)}%. Còn ${number(progress.remaining)} hồ sơ. Hạn hoàn thành: ${esc(date(progress.deadline))}.</p></div>`; }
+  function expiryMarkup(expiring) { return table(['Hồ sơ', 'Loại hồ sơ', 'Hạn bảo quản', 'Số ngày còn lại'], expiring.map(doc => `<tr><td>${esc(doc.title)}</td><td>${esc(doc.documentType || '—')}</td><td>${esc(date(doc.expiresAt))}</td><td>${esc(doc.daysRemaining)}</td></tr>`)); }
   function renderMonitor(data) {
     const { summary, missing, review, progress, expiring, history } = data;
     $('report-summary').innerHTML = cards([
       ['Dung lượng đã lưu kho', fmtSize(summary.storedSizeBytes), 'brass', 'size'],
       ['Thiếu checksum', missing.total, 'deny', 'checksum'],
       ['Chờ chỉnh lý', review.total, 'wait', 'review'],
-      ['Sắp hết hạn trong 1 năm', expiring.length, 'ok', 'expiry']
+      ['Sắp hết hạn trong ' + ({ 180: '6 tháng', 365: '1 năm', 730: '2 năm', 1825: '5 năm' })[expiryDays($('report-expiry-days').value || 365)], expiring.length, 'wait', 'expiry']
     ]);
+    $('report-count-review').textContent = review.total;
+    $('report-count-expiry').textContent = expiring.length;
+    $('report-count-checksums').textContent = missing.total;
     $('report-checksum-status').innerHTML = missing.total
       ? `<div class="report-warning">${number(missing.total)} hồ sơ chưa có SHA-256 trong danh sách theo dõi.</div>`
       : '<div class="report-success">✓ Không có hồ sơ thiếu SHA-256 trong danh sách theo dõi.</div>';
     $('report-checksums').innerHTML = table(['Hồ sơ thiếu checksum', 'Mã hồ sơ', 'Trạng thái', 'Ngày tải'], missing.data.map(doc => `<tr><td>${esc(doc.title)}</td><td>${esc(doc.documentNumber || doc.id)}</td><td>${esc(labels[doc.status] || doc.status)}</td><td>${esc(date(doc.createdAt))}</td></tr>`)) + pager('checksums', missing);
-    $('report-review-progress').innerHTML = `<div class="report-progress"><div class="report-progress-heading"><strong>Tiến độ chỉnh lý</strong><strong>${number(progress.completed)}/${number(progress.totalOldDocuments)}</strong></div><progress max="100" value="${number(progress.completionRate)}" aria-label="Tiến độ chỉnh lý">${number(progress.completionRate)}%</progress><p>Đã hoàn thành ${number(progress.completionRate)}%. Còn ${number(progress.remaining)} hồ sơ. Hạn hoàn thành: ${esc(date(progress.deadline))}.</p></div>`;
+    $('report-review-progress').innerHTML = progressMarkup(progress);
     $('report-review').innerHTML = table(['Hồ sơ cần chỉnh lý', 'Loại hồ sơ', 'Ngày hình thành'], review.data.map(doc => `<tr><td>${esc(doc.title)}</td><td>${esc(doc.documentType || '—')}</td><td>${esc(date(doc.documentDate))}</td></tr>`)) + pager('review', review);
-    $('report-expiry').innerHTML = table(['Hồ sơ', 'Loại hồ sơ', 'Hạn bảo quản', 'Số ngày còn lại'], expiring.map(doc => `<tr><td>${esc(doc.title)}</td><td>${esc(doc.documentType || '—')}</td><td>${esc(date(doc.expiresAt))}</td><td>${esc(doc.daysRemaining)}</td></tr>`));
+    $('report-expiry').innerHTML = expiryMarkup(expiring);
     $('report-history').innerHTML = table(['Thời gian', 'Người xử lý', 'Hành động', 'Hồ sơ', 'Lý do'], history.data.map(log => {
       const action = actions[log.action] || log.action;
       const badge = log.action === 'reject' ? ' report-action-badge--reject' : log.action === 'auto-approve (private)' ? ' report-action-badge--auto' : '';
@@ -181,6 +223,7 @@
   function clear() {
     destroyCharts();
     $('report-summary').innerHTML = '';
+    ['review', 'expiry', 'checksums'].forEach(kind => { const count = $('report-count-' + kind); if (count) count.textContent = '—'; });
     document.querySelectorAll('[data-report-content]').forEach(el => { el.innerHTML = ''; });
   }
   async function reload() {
@@ -192,9 +235,10 @@
       const user = await Auth.requireDeptHead();
       const id = scope(user);
       activeScope = id;
+      $('report-department').textContent = user.department?.name || 'Khoa của bạn';
       const get = path => api.get(path);
-      const data = mode === 'stats' ? await loadStats(user, get, $('report-year').value)
-        : await loadMonitor(user, get, pages, $('report-history-filter').value);
+      const data = mode === 'stats' ? await loadStats(user, get, $('report-year').value, $('report-expiry-days').value || 365)
+        : await loadMonitor(user, get, pages, $('report-history-filter').value, $('report-expiry-days').value || 365);
       if (ticket !== serial) return;
       if (scope(Auth.getUser()) !== id) throw new Error('Khoa của tài khoản đã thay đổi. Vui lòng tải lại trang.');
       mode === 'stats' ? renderStats(data) : renderMonitor(data);
@@ -207,6 +251,26 @@
         : error.message || 'Không tải được báo cáo. Bấm Tải lại để thử lại.';
     } finally { if (ticket === serial) $('report-refresh').disabled = false; }
   }
+  $('report-expiry-days')?.addEventListener('change', reload);
+  const tabKinds = ['review', 'expiry', 'checksums'];
+  function activateTab(kind) {
+    tabKinds.forEach(key => {
+      const selected = key === kind;
+      $('report-tab-' + key).setAttribute('aria-selected', String(selected));
+      $('report-tab-' + key).tabIndex = selected ? 0 : -1;
+      $('report-tab-' + key).classList.toggle('active', selected);
+      $('report-panel-' + key).hidden = !selected;
+    });
+  }
+  if (mode === 'monitor') tabKinds.forEach((kind, index) => {
+    const button = $('report-tab-' + kind);
+    button.addEventListener('click', () => activateTab(kind));
+    button.addEventListener('keydown', event => {
+      const next = event.key === 'ArrowRight' ? (index + 1) % 3 : event.key === 'ArrowLeft' ? (index + 2) % 3 : event.key === 'Home' ? 0 : event.key === 'End' ? 2 : -1;
+      if (next < 0) return;
+      event.preventDefault(); activateTab(tabKinds[next]); $('report-tab-' + tabKinds[next]).focus();
+    });
+  });
   $('report-year')?.addEventListener('change', reload);
   $('report-history-filter')?.addEventListener('change', () => { pages.history = 1; reload(); });
   $('report-refresh').addEventListener('click', reload);

@@ -132,7 +132,7 @@
     // This prevents URL issues when navigating between pages
     const pathPrefix = '/pages/';
     
-    const links = [...cfg.links, { href: '../'.repeat(cfg.prefix ? 1 : 0) + 'devices.html', icon: 'users', label: 'Thiết bị đăng nhập' }].filter(canUseLink).map(link => {
+    const entries = [...cfg.links, { href: '../'.repeat(cfg.prefix ? 1 : 0) + 'devices.html', icon: 'users', label: 'Thiết bị đăng nhập' }].filter(canUseLink).map(link => {
       const target = new URL(pathPrefix + cfg.prefix + link.href, window.location.origin);
       const isActive = target.pathname.split('/').pop() === current
         && target.searchParams.get('feature') === new URLSearchParams(window.location.search).get('feature');
@@ -140,13 +140,39 @@
       const badge    = link.badgeId
         ? `<span class="sb-badge" id="${link.badgeId}" style="display:none">0</span>`
         : '';
-      return `
+      const html = `
         <a href="${href}" class="nav-item${isActive ? ' active' : ''}"${isActive ? ' aria-current="page"' : ''}
            data-label="${e(link.label)}">
           ${svgIcon(link.icon)}
           <span>${e(link.label)}</span>
           ${badge}
         </a>`;
+      const filename = target.pathname.split('/').pop();
+      const group = filename === 'dashboard.html' ? 'home'
+        : ['guide.html', 'devices.html'].includes(filename) ? 'account'
+        : ['stats.html', 'monitor.html'].includes(filename) ? 'reports'
+        : ['users.html', 'departments.html', 'members.html', 'document-types.html'].includes(filename) ? 'management'
+        : 'documents';
+      return { html, group, isActive };
+    });
+    const groups = [
+      { key: 'documents', label: 'Hồ sơ & phê duyệt', icon: 'archive' },
+      { key: 'management', label: role === 'admin' ? 'Quản lý hệ thống' : 'Quản lý khoa', icon: 'briefcase' },
+      { key: 'reports', label: 'Báo cáo & giám sát', icon: 'bar-chart' },
+      { key: 'account', label: 'Hỗ trợ & tài khoản', icon: 'help' },
+    ];
+    const activeGroup = entries.find(entry => entry.isActive)?.group || 'home';
+    const links = entries.filter(entry => entry.group === 'home').map(entry => entry.html).join('') + groups.map(group => {
+      const children = entries.filter(entry => entry.group === group.key);
+      if (!children.length) return '';
+      const open = activeGroup === group.key || (activeGroup === 'home' && group.key === 'documents');
+      return `<details class="sb-nav-group" data-nav-group="${group.key}"${open ? ' open' : ''}>
+        <summary class="sb-group-toggle" title="Mở hoặc thu gọn nhóm ${e(group.label)}">
+          ${svgIcon(group.icon)}<span class="sb-group-label">${e(group.label)}</span><span class="sb-group-dot" hidden aria-hidden="true"></span>
+          <svg class="sb-group-chevron" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7"/></svg>
+        </summary>
+        <div class="sb-group-links">${children.map(entry => entry.html).join('')}</div>
+      </details>`;
     }).join('');
 
     const avatarLetter = e((user?.fullName || user?.email || 'U')[0].toUpperCase());
@@ -244,6 +270,9 @@
       el.textContent = '0';
       el.style.display = 'none';
     }
+    const group = el.closest('.sb-nav-group');
+    const dot = group?.querySelector('.sb-group-dot');
+    if (dot) dot.hidden = !Array.from(group.querySelectorAll('.sb-badge')).some(badge => badge.style.display !== 'none' && badge.textContent !== '0');
   }
 
   async function loadQueueBadge(el) {

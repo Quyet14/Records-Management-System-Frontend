@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hướng dẫn sử dụng — Hệ thống lưu trữ hồ sơ</title>
   <link rel="stylesheet" href="../assets/css/style.css?v=ready-navigation-29" />
-  <link rel="stylesheet" href="../assets/css/guide.css?v=1" />
+  <link rel="stylesheet" href="../assets/css/guide.css?v=3" />
   <script>if(localStorage.getItem('lths_dark')==='1') document.documentElement.setAttribute('data-theme','dark');</script>
   <script src="../assets/js/navigation-shell.js?v=device-1"></script>
 </head>
@@ -14,99 +14,167 @@
   <nav class="sidebar"></nav>
   <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
   <main class="main-content" data-guide>
-    <header class="page-header guide-heading">
-      <p class="guide-eyebrow">TRUNG TÂM TRỢ GIÚP</p>
-      <h1>Hướng dẫn sử dụng</h1>
-      <p>Tra cứu nhanh các chức năng lưu trữ hồ sơ. Nội dung được điều chỉnh theo vai trò tài khoản của bạn.</p>
+    <nav class="guide-breadcrumb" aria-label="Đường dẫn"><a href="dashboard.html" data-guide-link="home">Tổng quan</a><span aria-hidden="true">/</span><span aria-current="page">Hướng dẫn sử dụng</span></nav>
+    <header class="guide-hero">
+      <div class="guide-hero-copy">
+        <p class="guide-eyebrow">SỔ TAY SỬ DỤNG HỆ THỐNG</p>
+        <h1>Từ hồ sơ đầu tiên<br>đến quản lý thành thạo.</h1>
+        <p class="guide-lead">Hướng dẫn từng bước để tải lên, tra cứu và xử lý hồ sơ tại Bệnh viện Hữu Nghị. Chọn việc bạn cần làm để bắt đầu.</p>
+        <div class="guide-hero-actions"><a class="btn btn-primary" href="#getting-started">Bắt đầu sử dụng <span aria-hidden="true">↗</span></a><button class="btn btn-ghost" type="button" id="guide-print">In hướng dẫn</button></div>
+      </div>
+      <aside class="guide-hero-aside" aria-label="Phạm vi hướng dẫn">
+        <span class="guide-book-icon" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M24 12C18 7 9 8 5 10v28c6-3 13-2 19 2 6-4 13-5 19-2V10c-4-2-13-3-19 2Zm0 0v28M11 16c3-1 5 0 8 1m-8 6c3-1 5 0 8 1m11-7c3-1 5-2 8-1m-8 8c3-1 5-2 8-1"/></svg></span>
+        <span class="guide-role" id="guide-role">Đang xác định vai trò…</span>
+        <strong>Đúng thao tác.<br>Đúng phạm vi.</strong>
+        <p>Nội dung và lối tắt hiển thị theo vai trò của tài khoản đang đăng nhập.</p>
+      </aside>
     </header>
 
-    <nav class="guide-toc card" aria-label="Mục lục hướng dẫn">
-      <strong>Nội dung hướng dẫn</strong>
-      <a href="#getting-started">Bắt đầu</a>
-      <a href="#documents">Tìm và xem tài liệu</a>
-      <a href="#upload">Tải tài liệu lên</a>
-      <a href="#requests">Yêu cầu và phê duyệt</a>
-      <a href="#department-guide" data-guide-nav="department_head">Quản lý khoa</a>
-      <a href="#admin-guide" data-guide-nav="admin">Quản trị hệ thống</a>
-      <a href="#account-security">Tài khoản và bảo mật</a>
-    </nav>
-
-    <section class="card guide-section" id="getting-started">
-      <h2><span>01</span> Bắt đầu</h2>
-      <ol>
-        <li>Đăng nhập bằng email đã đăng ký, mật khẩu và mã CAPTCHA trên màn hình. Sau khi thông tin hợp lệ, hệ thống gửi OTP đến email để xác minh.</li>
-        <li>Dùng menu bên trái để mở chức năng; mục menu hiển thị tùy theo vai trò và quyền được cấp.</li>
-        <li>Nếu phiên hết hạn, đăng nhập lại rồi tiếp tục. Không chia sẻ mã OTP hoặc mật khẩu.</li>
-      </ol>
+    <section class="guide-shortcuts" aria-label="Tác vụ thường dùng">
+      <a href="#upload"><span class="guide-shortcut-icon" aria-hidden="true">↑</span><span><strong>Tải hồ sơ đầu tiên</strong><small>Chuẩn bị tệp và gửi duyệt</small></span><b aria-hidden="true">↗</b></a>
+      <a href="#documents"><span class="guide-shortcut-icon" aria-hidden="true">⌕</span><span><strong>Tìm &amp; xem tài liệu</strong><small>Tra cứu, lọc và yêu cầu xem</small></span><b aria-hidden="true">↗</b></a>
+      <a href="#troubleshooting"><span class="guide-shortcut-icon" aria-hidden="true">?</span><span><strong>Gặp vướng mắc?</strong><small>Tra cứu cách xử lý nhanh</small></span><b aria-hidden="true">↗</b></a>
     </section>
 
-    <section class="card guide-section" id="documents">
-      <h2><span>02</span> Tìm và xem tài liệu</h2>
-      <ol>
-        <li>Mở <a href="documents.html">Tài liệu</a> (hoặc <a href="dept-head/documents.html" data-guide-role="department_head">Tài liệu khoa</a>), nhập từ khóa rồi lọc theo thông tin hồ sơ nếu cần.</li>
-        <li>Chọn hồ sơ để xem thông tin. Quyền xem nội dung phụ thuộc vai trò, phạm vi khoa và quyền được cấp.</li>
-        <li>Nếu chưa có quyền xem, gửi yêu cầu xem tài liệu và theo dõi trạng thái tại mục <a href="view-requests-admin.html">Yêu cầu xem</a>.</li>
-        <li>Hồ sơ đã lưu trữ có thể được mở xem theo quyền; hệ thống không đảm bảo có nút tải xuống cho mọi vai trò.</li>
-      </ol>
-    </section>
+    <div class="guide-layout">
+      <aside class="guide-side">
+        <nav class="guide-toc" aria-label="Mục lục hướng dẫn">
+          <p class="guide-eyebrow">TRONG HƯỚNG DẪN NÀY</p>
+          <a href="#getting-started"><span>01</span>Bắt đầu sử dụng</a>
+          <a href="#upload"><span>02</span>Tải hồ sơ lên</a>
+          <a href="#documents"><span>03</span>Tìm &amp; xem tài liệu</a>
+          <a href="#requests"><span>04</span>Phê duyệt &amp; trạng thái</a>
+          <a href="#destruction"><span>05</span>Đề nghị hủy hồ sơ</a>
+          <a href="#department-guide" data-guide-nav="department_head" hidden><span>06</span>Quản lý khoa</a>
+          <a href="#admin-guide" data-guide-nav="admin" hidden><span>06</span>Quản trị hệ thống</a>
+          <a href="#account-security"><span>07</span>Tài khoản &amp; bảo mật</a>
+          <a href="#troubleshooting"><span>08</span>Câu hỏi thường gặp</a>
+        </nav>
+        <div class="guide-help"><strong>Cần hỗ trợ thêm?</strong><p>Ghi lại tên chức năng, mã hồ sơ và thông báo lỗi để gửi quản trị viên. Không gửi mật khẩu hoặc OTP.</p></div>
+      </aside>
 
-    <section class="card guide-section" id="upload">
-      <h2><span>03</span> Tải tài liệu lên</h2>
-      <ol>
-        <li>Mở <a href="upload.html">Tải lên tài liệu</a>, điền tiêu đề, loại hồ sơ và các thông tin bắt buộc.</li>
-        <li>Chọn tệp theo định dạng và dung lượng được biểu mẫu cho phép, kiểm tra thông tin rồi gửi.</li>
-        <li>Theo dõi trạng thái trong <a href="my-documents.html">Tài liệu của tôi</a>. Hồ sơ có thể cần được phê duyệt trước khi lưu trữ.</li>
-        <li>Nếu gửi nhầm hoặc cần sửa thông tin, mở hồ sơ và làm theo các thao tác mà hệ thống cho phép.</li>
-      </ol>
-    </section>
+      <div class="guide-content">
+        <form class="guide-search" id="guide-search-form" role="search">
+          <label for="guide-search">Bạn muốn tìm hiểu điều gì?</label>
+          <div><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="guide-search" type="search" placeholder="Tìm: tải lên, OTP, duyệt, thống kê…" autocomplete="off" /><button type="button" id="guide-search-clear">Xóa</button></div>
+          <p id="guide-search-status" role="status" aria-live="polite">Tra cứu theo chức năng hoặc tình huống bạn đang gặp.</p>
+        </form>
+        <div class="guide-no-results" id="guide-no-results" hidden><strong>Chưa tìm thấy nội dung phù hợp.</strong><p>Thử từ khóa ngắn hơn như “tải lên”, “xem” hoặc “OTP”. Bạn có thể tìm không dấu.</p></div>
 
-    <section class="card guide-section" id="requests">
-      <h2><span>04</span> Yêu cầu và phê duyệt</h2>
-      <ul>
-        <li><strong>Yêu cầu xem:</strong> chọn hồ sơ, nêu lý do và chờ người có thẩm quyền xử lý.</li>
-        <li><strong>Hàng chờ duyệt:</strong> người có quyền phê duyệt kiểm tra thông tin, sau đó duyệt hoặc từ chối; hãy nhập lý do khi biểu mẫu yêu cầu.</li>
-        <li><strong>Yêu cầu hủy hồ sơ:</strong> chỉ gửi khi hồ sơ phù hợp. Việc gửi yêu cầu không đồng nghĩa hồ sơ đã được hủy.</li>
-        <li>Trạng thái và quyền thao tác do hệ thống/backend quyết định; liên hệ quản trị viên nếu quyền cần cấp chưa xuất hiện.</li>
-      </ul>
-    </section>
+        <section class="guide-section" id="getting-started" data-guide-topic>
+          <div class="guide-section-heading"><span class="guide-section-number">01</span><div><p>LÀM QUEN HỆ THỐNG</p><h2>Bắt đầu sử dụng</h2></div></div>
+          <p class="guide-section-intro">Chỉ cần nhớ luồng thao tác: đăng nhập → chọn chức năng → thực hiện → kiểm tra kết quả.</p>
+          <div class="guide-workflow" aria-label="Luồng sử dụng"><span><b>1</b>Đăng nhập</span><i aria-hidden="true">→</i><span><b>2</b>Chọn tác vụ</span><i aria-hidden="true">→</i><span><b>3</b>Gửi &amp; theo dõi</span></div>
+          <ol class="guide-steps">
+            <li><strong>Đăng nhập và xác minh email</strong><p>Nhập email, mật khẩu và CAPTCHA. Khi màn hình chuyển sang xác thực, nhập OTP được gửi đến email của bạn. Dùng “Gửi lại” nếu chưa nhận được mã và nút đã cho phép thao tác.</p></li>
+            <li><strong>Nhận biết không gian làm việc</strong><p>Menu bên trái là danh sách chức năng bạn được dùng. Trên điện thoại, mở menu bằng nút ☰. Mục đang được chọn sẽ được tô nổi bật.</p></li>
+            <li><strong>Kiểm tra trước khi rời màn hình</strong><p>Sau khi gửi, chờ thông báo kết quả. Mở lại hồ sơ để kiểm tra trạng thái thay vì bấm gửi nhiều lần khi hệ thống còn đang xử lý.</p></li>
+          </ol>
+          <div class="guide-callout"><strong>Menu của mỗi người có thể khác nhau.</strong><p>Nhân viên làm việc với hồ sơ và yêu cầu của mình. Trưởng khoa có các trang quản lý khoa. Admin quản lý toàn hệ thống. Nếu thiếu chức năng cần dùng, liên hệ người quản lý để kiểm tra quyền.</p></div>
+          <a class="guide-action" href="dashboard.html" data-guide-link="home">Mở trang Tổng quan <span aria-hidden="true">→</span></a>
+        </section>
 
-    <section class="card guide-section" id="department-guide" data-guide-section="department_head" hidden>
-      <h2><span>05</span> Dành cho Trưởng khoa</h2>
-      <ul>
-        <li><a href="dept-head/members.html">Thành viên khoa:</a> xem danh sách nhân viên trong khoa và cấp các quyền chi tiết được hệ thống hỗ trợ.</li>
-        <li><a href="dept-head/queue.html">Hàng chờ duyệt:</a> xử lý hồ sơ thuộc phạm vi khoa theo quyền được cấp.</li>
-        <li><a href="dept-head/stats.html">Thống kê:</a> xem tổng quan, trạng thái, loại hồ sơ và số liệu theo tháng; chọn năm để lọc dữ liệu theo tháng.</li>
-        <li><a href="dept-head/monitor.html">Giám sát:</a> theo dõi checksum, tiến độ chỉnh lý, thời hạn bảo quản và lịch sử xử lý.</li>
-        <li>Phạm vi báo cáo và quản lý thành viên chỉ áp dụng cho khoa được gán vào tài khoản.</li>
-      </ul>
-    </section>
+        <section class="guide-section" id="upload" data-guide-topic>
+          <div class="guide-section-heading"><span class="guide-section-number">02</span><div><p>ĐƯA TÀI LIỆU VÀO HỆ THỐNG</p><h2>Tải hồ sơ lên</h2></div></div>
+          <p class="guide-section-intro">Chuẩn bị tệp rõ nội dung, tiêu đề dễ tra cứu và thông tin phân loại trước khi gửi.</p>
+          <div class="guide-checklist"><strong>Trước khi bắt đầu</strong><span>✓ Tệp đọc được, đủ trang</span><span>✓ Biết loại hồ sơ và khoa lưu trữ</span><span>✓ Kiểm tra dấu, chữ ký nếu hồ sơ yêu cầu</span></div>
+          <ol class="guide-steps">
+            <li><strong>Mở “Tải lên tài liệu”</strong><p>Chọn tệp hoặc kéo thả vào vùng tải lên. Tuân theo định dạng và dung lượng cho phép được ghi ngay trên biểu mẫu.</p></li>
+            <li><strong>Điền thông tin hồ sơ</strong><p>Nhập tiêu đề, chọn loại hồ sơ và hoàn thiện các trường có dấu *. Kiểm tra ngày hồ sơ, phạm vi hiển thị, độ mật và các thông tin bổ sung mà biểu mẫu yêu cầu.</p></li>
+            <li><strong>Kiểm tra rồi gửi</strong><p>Đối chiếu tệp và thông tin đã nhập trước khi xác nhận. Chờ đến khi hệ thống báo gửi thành công; không đóng trang lúc tệp đang tải.</p></li>
+            <li><strong>Theo dõi kết quả</strong><p>Mở danh sách hồ sơ phù hợp với vai trò của bạn. Nếu đang chờ duyệt, hồ sơ còn cần người có thẩm quyền kiểm tra. Nếu bị từ chối, đọc lý do trước khi sửa hoặc gửi lại bằng thao tác được cho phép.</p></li>
+          </ol>
+          <div class="guide-outcome"><span aria-hidden="true">✓</span><div><strong>Kết quả cần kiểm tra</strong><p>Hồ sơ xuất hiện trong danh sách, có đúng tiêu đề và trạng thái xử lý. Tải lên thành công chưa đồng nghĩa đã được duyệt.</p></div></div>
+          <div class="guide-actions"><a class="guide-action" href="upload.html">Mở Tải lên tài liệu →</a><a class="guide-action guide-action-secondary" href="my-documents.html" data-guide-link="mine">Xem danh sách hồ sơ →</a></div>
+        </section>
 
-    <section class="card guide-section" id="admin-guide" data-guide-section="admin" hidden>
-      <h2><span>06</span> Dành cho Admin</h2>
-      <ul>
-        <li><a href="admin/users.html">Quản lý người dùng:</a> quản lý tài khoản, vai trò và quyền theo chức năng hệ thống.</li>
-        <li><a href="admin/departments.html">Quản lý khoa</a> và <a href="admin/document-types.html">danh mục loại hồ sơ:</a> cập nhật dữ liệu dùng chung.</li>
-        <li><a href="admin/queue.html">Hàng chờ duyệt</a>, <a href="admin/archive.html">kho lưu trữ</a> và <a href="admin/search.html">tìm kiếm:</a> xử lý hồ sơ trong phạm vi quản trị.</li>
-        <li><a href="admin/stats.html">Thống kê</a> và <a href="admin/monitor.html">giám sát:</a> theo dõi số liệu, lưu trữ và cảnh báo toàn hệ thống.</li>
-      </ul>
-    </section>
+        <section class="guide-section" id="documents" data-guide-topic>
+          <div class="guide-section-heading"><span class="guide-section-number">03</span><div><p>TRA CỨU NHANH, XEM ĐÚNG HỒ SƠ</p><h2>Tìm &amp; xem tài liệu</h2></div></div>
+          <ol class="guide-steps">
+            <li><strong>Mở danh sách tài liệu</strong><p>Chọn “Tài liệu”, “Tài liệu khoa” hoặc “Tìm kiếm toàn hệ thống” tùy vai trò. Nhập từ khóa trong tiêu đề, mã hồ sơ hoặc thông tin bạn đã biết.</p></li>
+            <li><strong>Thu hẹp kết quả</strong><p>Kết hợp các bộ lọc đang có trên màn hình, chẳng hạn loại hồ sơ, thời gian hoặc trạng thái. Xóa bộ lọc nếu bạn không tìm thấy hồ sơ mong muốn.</p></li>
+            <li><strong>Mở và đối chiếu</strong><p>Chọn hồ sơ, kiểm tra tiêu đề, mã, ngày và loại hồ sơ trước khi xem nội dung. Nút xem hoặc tải chỉ xuất hiện khi tài khoản được phép sử dụng.</p></li>
+            <li><strong>Gửi yêu cầu xem nếu cần</strong><p>Nếu màn hình có nút yêu cầu xem, nhập lý do cụ thể và thời gian cần truy cập theo biểu mẫu. Sau khi được duyệt, mở lại hồ sơ để xem trong thời hạn được cấp.</p></li>
+          </ol>
+          <div class="guide-example"><span>VÍ DỤ LÝ DO YÊU CẦU XEM</span><p>“Cần đối chiếu hồ sơ HS-2026-015 phục vụ rà soát số liệu của khoa trong đợt tổng hợp tháng 10.”</p></div>
+          <div class="guide-callout"><strong>Không thấy nội dung không có nghĩa hồ sơ bị lỗi.</strong><p>Quyền truy cập phụ thuộc vai trò, khoa, độ mật và thời hạn được duyệt. Hồ sơ đã hủy chỉ giữ thông tin tra cứu, không còn nội dung để xem hoặc tải.</p></div>
+          <a class="guide-action" href="documents.html" data-guide-link="documents">Mở trang tra cứu tài liệu →</a>
+        </section>
 
-    <section class="card guide-section" id="account-security">
-      <h2><span>07</span> Tài khoản và bảo mật</h2>
-      <ul>
-        <li>Không chia sẻ tài khoản, mật khẩu, OTP hoặc liên kết xem tài liệu.</li>
-        <li>Mở <a href="devices.html">Thiết bị đăng nhập</a> để kiểm tra phiên và đăng xuất thiết bị không còn sử dụng.</li>
-        <li>Dùng nút đăng xuất trong menu khi sử dụng xong, đặc biệt trên máy tính dùng chung.</li>
-        <li>Nếu thấy hoạt động bất thường hoặc không truy cập được chức năng, báo quản trị viên và cung cấp tên chức năng cùng thông báo lỗi; không gửi mật khẩu/OTP.</li>
-      </ul>
-    </section>
-    <p class="guide-footer">Hướng dẫn mô tả các thao tác phổ biến. Giao diện và quyền thực tế có thể khác theo cấu hình tài khoản.</p>
+        <section class="guide-section" id="requests" data-guide-topic>
+          <div class="guide-section-heading"><span class="guide-section-number">04</span><div><p>HIỂU KẾT QUẢ XỬ LÝ</p><h2>Phê duyệt &amp; trạng thái hồ sơ</h2></div></div>
+          <p class="guide-section-intro">Người gửi theo dõi trạng thái; người có quyền duyệt kiểm tra thông tin và nội dung trước khi quyết định.</p>
+          <div class="guide-table-wrap"><table><thead><tr><th>Trạng thái</th><th>Ý nghĩa</th><th>Bạn cần làm gì?</th></tr></thead><tbody>
+            <tr><td><span class="guide-status guide-status-wait">Chờ duyệt</span></td><td>Đã gửi, đang chờ kiểm tra.</td><td>Theo dõi hồ sơ; tránh gửi trùng.</td></tr>
+            <tr><td><span class="guide-status guide-status-ok">Đã duyệt / lưu kho</span></td><td>Đã qua bước xử lý tương ứng.</td><td>Tra cứu, xem nội dung theo quyền được cấp.</td></tr>
+            <tr><td><span class="guide-status guide-status-deny">Từ chối</span></td><td>Hồ sơ chưa được chấp nhận.</td><td>Đọc lý do, bổ sung hoặc sửa theo thao tác được phép.</td></tr>
+          </tbody></table></div>
+          <div class="guide-task-box"><h3>Nếu bạn được giao duyệt hồ sơ</h3><ol><li>Mở <strong>Hàng chờ duyệt</strong> trong menu.</li><li>Đọc thông tin, mở tệp để kiểm tra nội dung và các yêu cầu kèm theo.</li><li>Chọn duyệt hoặc từ chối; nhập lý do rõ ràng khi từ chối.</li><li>Kiểm tra thông báo và trạng thái mới của hồ sơ.</li></ol><p>Chỉ thực hiện nếu chức năng xuất hiện trong phạm vi quyền được cấp cho bạn.</p></div>
+        </section>
+
+        <section class="guide-section" id="destruction" data-guide-topic>
+          <div class="guide-section-heading"><span class="guide-section-number">05</span><div><p>THEO DÕI ĐẦY ĐỦ QUY TRÌNH</p><h2>Đề nghị hủy hồ sơ</h2></div></div>
+          <ol class="guide-steps">
+            <li><strong>Chọn hồ sơ và lập đề nghị</strong><p>Mở mục hủy hồ sơ trong menu, chọn “Lập đề nghị”. Tìm và chọn hồ sơ được phép, nhập số quyết định, ngày quyết định, lý do và đính kèm chứng từ theo yêu cầu.</p></li>
+            <li><strong>Gửi để phê duyệt</strong><p>Kiểm tra danh sách và chứng từ trước khi gửi. Người được cấp quyền duyệt mở chi tiết, kiểm tra quyết định và xác thực OTP theo biểu mẫu. Có thể cần nhiều lượt duyệt theo loại hồ sơ.</p></li>
+            <li><strong>Theo dõi lịch và kết quả</strong><p>Sau khi được duyệt đủ, đề nghị chờ đến lịch hủy do hệ thống hiển thị. Mở “Chi tiết” để đọc lịch sử xử lý và kết quả từng hồ sơ.</p></li>
+            <li><strong>Đối chiếu hồ sơ đã hủy</strong><p>Tab “Đã hủy” chỉ có hồ sơ đã được xác nhận hủy thành công. Người được giao đóng hồ sơ bổ sung biên bản hủy và ghi nhận bản sao lưu khi hệ thống cho phép.</p></li>
+          </ol>
+          <div class="guide-callout guide-callout-warning"><strong>“Hủy lỗi” chưa phải “Đã hủy”.</strong><p>Nếu báo lỗi hoặc tệp không còn nhưng kết quả chưa cập nhật, ghi lại mã đề nghị và báo quản trị viên kiểm tra. Không lập lại yêu cầu để thử xóa thêm. Lịch dự kiến cũng không phải bằng chứng đã hủy thành công.</p></div>
+          <a class="guide-action" href="destruction.html">Mở chức năng hủy hồ sơ →</a>
+        </section>
+
+        <section class="guide-section" id="department-guide" data-guide-topic data-guide-section="department_head" hidden>
+          <div class="guide-section-heading"><span class="guide-section-number">06</span><div><p>KHÔNG GIAN TRƯỞNG KHOA</p><h2>Quản lý hồ sơ trong khoa</h2></div></div>
+          <div class="guide-feature-grid">
+            <a href="dept-head/members.html"><span>NHÂN SỰ</span><h3>Thành viên khoa ↗</h3><p>Xem nhân viên trong khoa và cấp các quyền chi tiết được hệ thống hỗ trợ. Kiểm tra đúng người trước khi thay đổi quyền.</p></a>
+            <a href="dept-head/queue.html"><span>XỬ LÝ HỒ SƠ</span><h3>Hàng chờ duyệt ↗</h3><p>Kiểm tra hồ sơ thuộc phạm vi được duyệt. Đối chiếu nội dung trước khi duyệt; ghi rõ lý do nếu từ chối.</p></a>
+            <a href="dept-head/stats.html"><span>BÁO CÁO</span><h3>Thống kê khoa ↗</h3><p>Theo dõi tổng quan, trạng thái và loại hồ sơ của khoa. Bộ lọc năm chỉ áp dụng bảng theo tháng; tổng quan dùng toàn bộ thời gian.</p></a>
+            <a href="dept-head/monitor.html"><span>THEO DÕI</span><h3>Giám sát khoa ↗</h3><p>Xem hồ sơ thiếu checksum, chờ chỉnh lý, sắp hết hạn và nhật ký duyệt. Dùng phân trang hoặc lọc hành động để tra cứu.</p></a>
+          </div>
+          <div class="guide-callout"><strong>Tài khoản phải được gán đúng khoa.</strong><p>Nếu báo không có quyền xem báo cáo hoặc chưa được gán khoa, liên hệ Admin kiểm tra tài khoản. Các báo cáo chỉ thể hiện dữ liệu khoa hiện tại của bạn.</p></div>
+        </section>
+
+        <section class="guide-section" id="admin-guide" data-guide-topic data-guide-section="admin" hidden>
+          <div class="guide-section-heading"><span class="guide-section-number">06</span><div><p>KHÔNG GIAN QUẢN TRỊ</p><h2>Quản trị hệ thống</h2></div></div>
+          <div class="guide-feature-grid">
+            <a href="admin/users.html"><span>TÀI KHOẢN</span><h3>Quản lý người dùng ↗</h3><p>Kiểm tra vai trò, khoa và quyền của tài khoản. Chỉ cấp các chức năng cần thiết cho công việc được giao.</p></a>
+            <a href="admin/departments.html"><span>DỮ LIỆU DÙNG CHUNG</span><h3>Khoa &amp; danh mục ↗</h3><p>Quản lý khoa và đối chiếu danh mục loại hồ sơ để nhân viên phân loại thống nhất khi tải tài liệu lên.</p></a>
+            <a href="admin/archive.html"><span>LƯU TRỮ</span><h3>Kho hồ sơ ↗</h3><p>Tra cứu tài liệu đã lưu. Kiểm tra thông tin hồ sơ, trạng thái và phạm vi truy cập trước khi xử lý yêu cầu.</p></a>
+            <a href="admin/monitor.html"><span>GIÁM SÁT</span><h3>Báo cáo &amp; cảnh báo ↗</h3><p>Đối chiếu thống kê toàn hệ thống, cảnh báo chỉnh lý, thời hạn và lịch sử xử lý. Kiểm tra chi tiết trước khi kết luận có lỗi.</p></a>
+          </div>
+          <a class="guide-action" href="admin/document-types.html">Mở danh mục loại hồ sơ →</a>
+        </section>
+
+        <section class="guide-section" id="account-security" data-guide-topic>
+          <div class="guide-section-heading"><span class="guide-section-number">07</span><div><p>BẢO VỆ TÀI KHOẢN LÀM VIỆC</p><h2>Tài khoản &amp; bảo mật</h2></div></div>
+          <div class="guide-security-grid"><div><h3>Nên thực hiện</h3><ul><li>Dùng tài khoản của chính mình.</li><li>Kiểm tra thiết bị đăng nhập định kỳ.</li><li>Đăng xuất khi xong việc trên máy dùng chung.</li><li>Báo quản trị viên nếu phát hiện hoạt động lạ.</li></ul></div><div><h3>Không chia sẻ</h3><ul><li>Mật khẩu và mã OTP.</li><li>Liên kết xem nội dung hồ sơ.</li><li>Tệp hồ sơ ra ngoài phạm vi được phép.</li><li>Thông tin đăng nhập qua ảnh chụp màn hình.</li></ul></div></div>
+          <p class="guide-section-intro">Mở “Thiết bị đăng nhập”, đối chiếu danh sách và đăng xuất phiên không còn sử dụng. Nếu hết phiên, đăng nhập lại bằng luồng xác thực trên màn hình.</p>
+          <a class="guide-action" href="devices.html">Kiểm tra thiết bị đăng nhập →</a>
+        </section>
+
+        <section class="guide-section" id="troubleshooting" data-guide-topic>
+          <div class="guide-section-heading"><span class="guide-section-number">08</span><div><p>TRA CỨU KHI CẦN</p><h2>Câu hỏi thường gặp</h2></div></div>
+          <div class="guide-faq">
+            <details><summary>Không nhận được OTP thì làm gì?</summary><div>Kiểm tra đúng hộp thư, thư rác và chờ email đến. Dùng nút “Gửi lại” khi được phép, rồi nhập mã mới. Nếu vẫn không nhận được, báo quản trị viên kiểm tra email tài khoản; không gửi mã OTP cho người khác.</div></details>
+            <details><summary>Vì sao không tìm thấy hồ sơ?</summary><div>Xóa từ khóa và bộ lọc cũ, thử mã hồ sơ hoặc một phần tiêu đề. Kiểm tra trạng thái và phạm vi khoa. Nếu bạn biết hồ sơ tồn tại nhưng không thấy, gửi mã hồ sơ cho người quản lý để kiểm tra quyền truy cập.</div></details>
+            <details><summary>Tải lên xong nhưng chưa xem được trong kho?</summary><div>Mở danh sách hồ sơ để kiểm tra trạng thái. Hồ sơ có thể còn chờ duyệt hoặc đã bị từ chối. Nếu đang chờ, theo dõi kết quả; nếu bị từ chối, đọc lý do để bổ sung đúng yêu cầu.</div></details>
+            <details><summary>Không có nút xem, tải hoặc phê duyệt?</summary><div>Các nút chỉ xuất hiện khi vai trò, quyền và trạng thái hồ sơ cho phép. Mở lại hồ sơ để cập nhật. Nếu công việc của bạn cần thao tác này, liên hệ Trưởng khoa hoặc Admin kiểm tra quyền.</div></details>
+            <details><summary>Trang báo “Không có quyền” hoặc lỗi 403?</summary><div>Kiểm tra đang dùng đúng tài khoản. Với Trưởng khoa, tài khoản phải được gán đúng khoa. Gửi tên trang và thông báo lỗi cho Admin; không dùng tài khoản của người khác để thao tác thay.</div></details>
+            <details><summary>Trang trắng hoặc hiện “Cannot GET”?</summary><div>Kiểm tra đường dẫn và mở lại từ menu. Nếu vẫn lỗi, báo quản trị viên kèm địa chỉ trang; đây có thể là trang chưa được cập nhật trên máy chủ. Chỉ tải lại trình duyệt sẽ không khắc phục được khi máy chủ thiếu trang.</div></details>
+            <details><summary>Hệ thống đang xử lý lâu hoặc báo lỗi khi gửi?</summary><div>Kiểm tra kết nối, chờ thông báo rồi xem lại danh sách để biết hồ sơ đã được tạo chưa. Không bấm gửi liên tục. Nếu vẫn lỗi, ghi lại thời điểm, tên chức năng, mã hồ sơ/đề nghị và nội dung lỗi để được hỗ trợ.</div></details>
+          </div>
+          <div class="guide-support"><div><strong>Một yêu cầu hỗ trợ đầy đủ sẽ được xử lý nhanh hơn.</strong><p>Cung cấp: bạn đang làm gì → ở trang nào → mã hồ sơ/đề nghị → thông báo nhận được. Che thông tin nhạy cảm khi gửi ảnh.</p></div><a href="#getting-started">Về đầu hướng dẫn ↑</a></div>
+        </section>
+        <footer class="guide-footer"><span>BỆNH VIỆN HỮU NGHỊ · HỆ THỐNG LƯU TRỮ HỒ SƠ</span><p>Thao tác thực tế phụ thuộc quyền được cấp và trạng thái hồ sơ trên màn hình.</p></footer>
+      </div>
+    </div>
   </main>
 </div>
 <div class="toast-container"></div>
 <script src="../assets/js/device-session.js?v=3"></script>
 <script src="../assets/js/app.js?v=device-3"></script>
 <script src="../assets/js/sidebar.js?v=dept-reports-1"></script>
-<script src="../assets/js/guide.js?v=1"></script>
+<script src="../assets/js/guide.js?v=2"></script>
 </body>
 </html>

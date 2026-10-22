@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard — Bệnh viện Hữu Nghị</title>
   <link rel="stylesheet" href="../assets/css/style.css?v=ready-navigation-29" />
+  <link rel="stylesheet" href="../assets/css/dashboard.css?v=1" />
   <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
   <script>
     (function(){
@@ -22,19 +23,28 @@
 
   <!-- Main -->
   <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
-  <main class="main-content">
-    <div class="page-header page-header-row">
-      <div class="page-header">
-      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
-      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
-      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
-    </div>
-      <a href="upload.html" class="btn btn-brass">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-        Tải lên tài liệu
-      </a>
-    </div>
-
+  <main class="main-content" data-dashboard="user">
+    <header class="dashboard-hero">
+      <div class="dashboard-hero-copy">
+        <p class="dashboard-eyebrow">Không gian làm việc</p>
+        <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+        <p class="dashboard-brand">Vietnam-HuuNghi Hospital</p>
+        <p class="dashboard-description">Theo dõi hồ sơ đã gửi và bắt đầu công việc từ các lối tắt bên dưới.</p>
+        <div class="dashboard-context"><span>Hệ thống lưu trữ hồ sơ</span><time id="dashboard-date"></time></div>
+      </div>
+      <div class="dashboard-art" aria-hidden="true">
+        <div class="dashboard-orbit"></div>
+        <div class="dashboard-sheet dashboard-sheet--back"></div>
+        <div class="dashboard-sheet dashboard-sheet--middle"></div>
+        <div class="dashboard-sheet dashboard-sheet--front"><span class="dashboard-sheet-mark">HỒ SƠ SỐ</span><span class="dashboard-sheet-line"></span><span class="dashboard-sheet-line"></span><span class="dashboard-sheet-line dashboard-sheet-line--short"></span><span class="dashboard-sheet-seal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 8v12h16V8M9 12h6"/><rect x="2" y="3" width="20" height="5" rx="1"/></svg></span></div>
+      </div>
+    </header>
+    <nav class="dashboard-shortcuts" aria-label="Thao tác nhanh">
+      <a class="dashboard-shortcut" href="upload.html"><span class="dashboard-shortcut-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5"/></svg></span><span class="dashboard-shortcut-text"><strong>Tải lên tài liệu</strong><small>Gửi hồ sơ mới vào hệ thống</small></span><span class="dashboard-shortcut-arrow" aria-hidden="true">↗</span></a>
+      <a class="dashboard-shortcut" href="my-documents.html"><span class="dashboard-shortcut-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 8v12h16V8M9 12h6"/><rect x="2" y="3" width="20" height="5" rx="1"/></svg></span><span class="dashboard-shortcut-text"><strong>Tài liệu của tôi</strong><small>Theo dõi hồ sơ đã gửi</small></span><span class="dashboard-shortcut-arrow" aria-hidden="true">↗</span></a>
+      <a class="dashboard-shortcut" href="documents.html"><span class="dashboard-shortcut-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m7 12 3 3 7-7"/><rect x="3" y="3" width="18" height="18" rx="4"/></svg></span><span class="dashboard-shortcut-text"><strong>Tra cứu tài liệu</strong><small>Tìm hồ sơ cần sử dụng</small></span><span class="dashboard-shortcut-arrow" aria-hidden="true">↗</span></a>
+      <a class="dashboard-shortcut" href="guide.html"><span class="dashboard-shortcut-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4m0 3h.01"/></svg></span><span class="dashboard-shortcut-text"><strong>Hướng dẫn sử dụng</strong><small>Xem cách thao tác từng bước</small></span><span class="dashboard-shortcut-arrow" aria-hidden="true">↗</span></a>
+    </nav>
     <!-- Stats -->
     <div class="stats-grid" id="stats-grid">
       <div class="stat-card stat-card--brass">
@@ -211,5 +221,6 @@
 
 })().catch(Auth.showError);
 </script>
+<script src="../assets/js/dashboard.js?v=1" defer></script>
 </body>
 </html>
