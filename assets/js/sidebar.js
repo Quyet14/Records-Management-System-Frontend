@@ -23,6 +23,7 @@
         { href: 'my-documents.html', icon: 'file',      label: 'Tài liệu của tôi' },
         { href: 'destruction.html', icon: 'archive', label: 'Yêu cầu hủy hồ sơ' },
         { href: 'approval.html', icon: 'check', label: 'Chờ phê duyệt', permission: 'approve_documents', badgeId: 'sb-queue-badge' },
+        { href: 'guide.html', icon: 'help', label: 'Hướng dẫn sử dụng' },
       ],
     },
     admin: {
@@ -40,6 +41,7 @@
         { href: 'document-types.html',  icon: 'clock',      label: 'Danh mục loại hồ sơ' },
         { href: 'stats.html',           icon: 'bar-chart',  label: 'Thống kê' },
         { href: 'monitor.html',         icon: 'monitor',    label: 'Giám sát' },
+        { href: '../guide.html',        icon: 'help',       label: 'Hướng dẫn sử dụng' },
       ],
     },
     department_head: {
@@ -54,6 +56,9 @@
         { href: 'documents.html',  icon: 'file',   label: 'Tài liệu khoa' },
         { href: '../destruction.html', icon: 'archive', label: 'Hủy hồ sơ' },
         { href: 'document-types.html', icon: 'clock', label: 'Danh mục hồ sơ' },
+        { href: 'stats.html', icon: 'bar-chart', label: 'Thống kê' },
+        { href: 'monitor.html', icon: 'monitor', label: 'Giám sát' },
+        { href: '../guide.html', icon: 'help', label: 'Hướng dẫn sử dụng' },
       ],
     },
   };
@@ -70,6 +75,7 @@
     briefcase:   `<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>`,
     'bar-chart': `<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>`,
     monitor:     `<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>`,
+    help:        `<circle cx="12" cy="12" r="10"/><path d="M9.6 9a2.5 2.5 0 014.85.85c0 1.7-2.45 2.1-2.45 3.65M12 17h.01"/>`,
     settings:    `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.88l.06.06-1.42 1.42-.06-.06a1.7 1.7 0 00-1.88-.34 1.7 1.7 0 00-1.03 1.56V20h-2v-.48a1.7 1.7 0 00-1.03-1.56 1.7 1.7 0 00-1.88.34l-.06.06-1.42-1.42.06-.06A1.7 1.7 0 009.4 15a1.7 1.7 0 00-1.56-1.03H7v-2h.84A1.7 1.7 0 009.4 11a1.7 1.7 0 00-.34-1.88L9 9.06l1.42-1.42.06.06a1.7 1.7 0 001.88.34A1.7 1.7 0 0013.39 6.5V6h2v.5a1.7 1.7 0 001.03 1.54 1.7 1.7 0 001.88-.34l.06-.06 1.42 1.42-.06.06A1.7 1.7 0 0019.4 11a1.7 1.7 0 001.56 1.03H21v2h-.04A1.7 1.7 0 0019.4 15z"/>`,
     archive:     `<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>`,
     logout:      `<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>`,

@@ -26,6 +26,15 @@
     return '';
   }
   const statusHtml = status => `<span class="destruction-status" data-status="${esc(status)}">${esc(rules.labels[status] || status || 'Chưa xác định')}</span>`;
+  function approvalText(item) {
+    const count = Number.isInteger(item.approvalCount) ? item.approvalCount
+      : Array.isArray(item.approvals) ? item.approvals.length : null;
+    return count !== null && Number.isInteger(item.requiredApprovals) && item.requiredApprovals > 0
+      ? `${count}/${item.requiredApprovals} lượt duyệt` : 'Chưa có đủ thông tin lượt duyệt';
+  }
+  function failureText(item) {
+    return item.failureReason || 'Chưa có nguyên nhân lỗi từ hệ thống. Cần quản trị viên kiểm tra nhật ký xử lý hủy trên máy chủ.';
+  }
   const can = action => state.ready && rules.canAction(state.detail, action, Auth.getUser(), now());
 
   async function request(path, options = {}, base = '/destruction') {
@@ -93,17 +102,18 @@
       if (!items.length) return message($('requests-list'), 'Chưa có đề nghị phù hợp.');
       $('requests-list').innerHTML = table(['Mã đề nghị / Quyết định', 'Người lập', 'Trạng thái', 'Lịch hủy', ''], items.map(item => `<tr>
         <td><strong>${esc(item.code)}</strong><br>${esc(item.decisionNumber)}</td><td>${esc(item.createdBy?.fullName || '—')}</td>
-        <td>${statusHtml(item.status)}<br><small>${Number(item.approvalCount) || 0}/${Number(item.requiredApprovals) || 1} lượt duyệt</small></td>
+        <td>${statusHtml(item.status)}<br><small>${esc(approvalText(item))}</small>${item.status === 'failed' ? `<p class="destruction-error">${esc(item.failureReason || 'Hủy chưa hoàn tất. Bấm Chi tiết để xem nguyên nhân và lịch sử xử lý.')}</p>` : ''}</td>
         <td>${esc(date(item.executeAfter))}</td><td><button type="button" class="btn btn-ghost btn-sm" data-detail="${esc(item.id)}">Chi tiết</button></td></tr>`));
     });
   }
   function loadEligible() {
     const query = $('eligible-query').value.trim();
+    const page = state.pages.eligible;
     return list('eligible', '/eligible-documents', { q: query }, items => {
       state.eligible = items;
       if (!items.length) return message($('eligible-list'), query
         ? 'Không tìm thấy hồ sơ khớp với từ khóa. Thử tìm theo tên, mã hoặc loại hồ sơ khác.'
-        : 'Chưa có hồ sơ trong kho để lập đề nghị hủy.');
+        : 'Không có hồ sơ đã duyệt hoặc lưu kho phù hợp với quyền lập đề nghị của bạn.');
       $('eligible-list').innerHTML = table(['Chọn', 'Hồ sơ / Loại hồ sơ', 'Hết hạn bảo quản', 'Độ mật', 'Điều kiện'], items.map(doc => {
         const blocked = rules.proposalBlockReason(doc, Auth.getUser());
         const allowed = !blocked;
@@ -112,12 +122,27 @@
           <td>${esc(date(doc.retentionUntil))}</td><td>${esc(documentSecurityLabel(doc.securityLevel))}</td>
           <td>${esc(blocked || (rules.eligible(doc, now()) ? 'Đủ điều kiện' : 'Có thể chọn lập đề nghị; điều kiện hủy sẽ được kiểm tra khi gửi.'))}</td></tr>`;
       }));
+    }, async () => {
+      // Proposing uses the same warehouse as the archive. The destruction
+      // endpoint only lists documents that already meet execution conditions.
+      const data = await request('/search?limit=10000', {}, '/documents');
+      const documents = Array.isArray(data) ? data : data?.documents ?? data?.items;
+      if (!Array.isArray(documents)) throw new Error('Dữ liệu hồ sơ trong kho từ backend không hợp lệ.');
+      const actor = Auth.getUser();
+      const keyword = normalizeSearchText(query);
+      const items = documents.map(doc => ({ ...doc, id: getDocumentId(doc) }))
+        .filter(doc => ['stored', 'approved'].includes(doc.status))
+        .filter(doc => actor?.role !== 'user' || !rules.proposalBlockReason(doc, actor))
+        .filter(doc => !keyword || normalizeSearchText([doc.title, doc.code, doc.documentType?.name].join(' ')).includes(keyword));
+      return { items: items.slice((page - 1) * 20, page * 20), total: items.length, page, pageSize: 20 };
     });
   }
 
   function loadDestroyed() {
     return list('destroyed', '/destroyed-documents', { q: $('destroyed-query').value.trim() }, items => {
-      if (!items.length) return message($('destroyed-list'), 'Chưa có hồ sơ đã hủy phù hợp.');
+      if (!items.length) return message($('destroyed-list'), $('destroyed-query').value.trim()
+        ? 'Không tìm thấy hồ sơ đã hủy khớp với từ khóa.'
+        : 'Chưa có hồ sơ được xác nhận hủy thành công trong phạm vi bạn được xem. Đề nghị đang chờ, đang xử lý hoặc hủy lỗi không đồng nghĩa hồ sơ đã hủy. Xem tab “Đề nghị hủy” và bấm “Chi tiết” để kiểm tra trạng thái.');
       $('destroyed-list').innerHTML = table(['Hồ sơ', 'Ngày hủy', 'Quyết định / Người duyệt', 'SHA-256 lúc hủy', 'Đề nghị'], items.map(doc => `<tr>
         <td><strong>${esc(doc.title)}</strong><br>${esc(doc.code || doc.id)}<br>${esc(size(doc.sizeBytes))}</td>
         <td>${esc(date(doc.destroyedAt))}</td><td>${esc(doc.decisionNumber)}<br>${esc((doc.approvers || []).map(a => a.fullName).join(', '))}</td>
@@ -164,12 +189,13 @@
     const items = d.items || [];
     $('request-detail').innerHTML = `
       <div class="destruction-toolbar"><h2 class="destruction-grow">Đề nghị ${esc(d.code)}</h2><button type="button" class="btn btn-ghost" data-refresh-detail>Tải lại chi tiết</button><button type="button" class="btn btn-ghost" data-close-detail>Đóng</button></div>
-      <p>${statusHtml(d.status)} · ${Number(d.approvals?.length) || 0}/${Number(d.requiredApprovals) || 1} lượt duyệt</p>
+      <p>${statusHtml(d.status)} · ${esc(approvalText(d))}</p>
       <div class="destruction-fields"><p><strong>Người lập:</strong> ${esc(d.createdBy?.fullName)}<br><strong>Ngày lập:</strong> ${esc(date(d.createdAt))}</p>
         <p><strong>Quyết định:</strong> ${esc(d.decisionNumber)}<br><strong>Ngày quyết định:</strong> ${esc(d.decisionDate || '—')}</p></div>
       <p><strong>Lý do:</strong> <span style="white-space:pre-wrap">${esc(d.reason)}</span></p>
       ${d.executeAfter ? `<div class="destruction-notice">Lịch hủy: ${esc(date(d.executeAfter))}<br><span id="destruction-countdown"></span></div>` : ''}
-      ${d.failureReason ? `<p class="destruction-notice destruction-error">${esc(d.failureReason)}</p>` : ''}
+      ${d.status === 'failed' ? `<p class="destruction-notice destruction-error" role="alert"><strong>Hủy chưa hoàn tất.</strong> ${esc(failureText(d))}<br>Kiểm tra kết quả từng hồ sơ và lịch sử xử lý bên dưới. Nếu đã hủy được một phần, các hồ sơ được xác nhận hủy thành công vẫn nằm trong “Đã hủy”.</p>`
+        : d.failureReason ? `<p class="destruction-notice destruction-error">${esc(d.failureReason)}</p>` : ''}
       <h3>Hồ sơ trong đề nghị</h3>
       ${table(['Tên / Mã hồ sơ', 'Dung lượng', 'SHA-256', 'Kết quả'], items.map(item => `<tr><td>${esc(item.title)}<br>${esc(item.code || item.documentId)}</td>
         <td>${esc(size(item.sizeBytes))}</td><td><code>${esc(item.checksumAtDestruction || item.checksum || '—')}</code></td>

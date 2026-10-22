@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hướng dẫn sử dụng — Hệ thống lưu trữ hồ sơ</title>
+  <link rel="stylesheet" href="../assets/css/style.css?v=ready-navigation-29" />
+  <link rel="stylesheet" href="../assets/css/guide.css?v=1" />
+  <script>if(localStorage.getItem('lths_dark')==='1') document.documentElement.setAttribute('data-theme','dark');</script>
+  <script src="../assets/js/navigation-shell.js?v=device-1"></script>
+</head>
+<body>
+<div class="app-shell">
+  <nav class="sidebar"></nav>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <main class="main-content" data-guide>
+    <header class="page-header guide-heading">
+      <p class="guide-eyebrow">TRUNG TÂM TRỢ GIÚP</p>
+      <h1>Hướng dẫn sử dụng</h1>
+      <p>Tra cứu nhanh các chức năng lưu trữ hồ sơ. Nội dung được điều chỉnh theo vai trò tài khoản của bạn.</p>
+    </header>
+
+    <nav class="guide-toc card" aria-label="Mục lục hướng dẫn">
+      <strong>Nội dung hướng dẫn</strong>
+      <a href="#getting-started">Bắt đầu</a>
+      <a href="#documents">Tìm và xem tài liệu</a>
+      <a href="#upload">Tải tài liệu lên</a>
+      <a href="#requests">Yêu cầu và phê duyệt</a>
+      <a href="#department-guide" data-guide-nav="department_head">Quản lý khoa</a>
+      <a href="#admin-guide" data-guide-nav="admin">Quản trị hệ thống</a>
+      <a href="#account-security">Tài khoản và bảo mật</a>
+    </nav>
+
+    <section class="card guide-section" id="getting-started">
+      <h2><span>01</span> Bắt đầu</h2>
+      <ol>
+        <li>Đăng nhập bằng email đã đăng ký, mật khẩu và mã CAPTCHA trên màn hình. Sau khi thông tin hợp lệ, hệ thống gửi OTP đến email để xác minh.</li>
+        <li>Dùng menu bên trái để mở chức năng; mục menu hiển thị tùy theo vai trò và quyền được cấp.</li>
+        <li>Nếu phiên hết hạn, đăng nhập lại rồi tiếp tục. Không chia sẻ mã OTP hoặc mật khẩu.</li>
+      </ol>
+    </section>
+
+    <section class="card guide-section" id="documents">
+      <h2><span>02</span> Tìm và xem tài liệu</h2>
+      <ol>
+        <li>Mở <a href="documents.html">Tài liệu</a> (hoặc <a href="dept-head/documents.html" data-guide-role="department_head">Tài liệu khoa</a>), nhập từ khóa rồi lọc theo thông tin hồ sơ nếu cần.</li>
+        <li>Chọn hồ sơ để xem thông tin. Quyền xem nội dung phụ thuộc vai trò, phạm vi khoa và quyền được cấp.</li>
+        <li>Nếu chưa có quyền xem, gửi yêu cầu xem tài liệu và theo dõi trạng thái tại mục <a href="view-requests-admin.html">Yêu cầu xem</a>.</li>
+        <li>Hồ sơ đã lưu trữ có thể được mở xem theo quyền; hệ thống không đảm bảo có nút tải xuống cho mọi vai trò.</li>
+      </ol>
+    </section>
+
+    <section class="card guide-section" id="upload">
+      <h2><span>03</span> Tải tài liệu lên</h2>
+      <ol>
+        <li>Mở <a href="upload.html">Tải lên tài liệu</a>, điền tiêu đề, loại hồ sơ và các thông tin bắt buộc.</li>
+        <li>Chọn tệp theo định dạng và dung lượng được biểu mẫu cho phép, kiểm tra thông tin rồi gửi.</li>
+        <li>Theo dõi trạng thái trong <a href="my-documents.html">Tài liệu của tôi</a>. Hồ sơ có thể cần được phê duyệt trước khi lưu trữ.</li>
+        <li>Nếu gửi nhầm hoặc cần sửa thông tin, mở hồ sơ và làm theo các thao tác mà hệ thống cho phép.</li>
+      </ol>
+    </section>
+
+    <section class="card guide-section" id="requests">
+      <h2><span>04</span> Yêu cầu và phê duyệt</h2>
+      <ul>
+        <li><strong>Yêu cầu xem:</strong> chọn hồ sơ, nêu lý do và chờ người có thẩm quyền xử lý.</li>
+        <li><strong>Hàng chờ duyệt:</strong> người có quyền phê duyệt kiểm tra thông tin, sau đó duyệt hoặc từ chối; hãy nhập lý do khi biểu mẫu yêu cầu.</li>
+        <li><strong>Yêu cầu hủy hồ sơ:</strong> chỉ gửi khi hồ sơ phù hợp. Việc gửi yêu cầu không đồng nghĩa hồ sơ đã được hủy.</li>
+        <li>Trạng thái và quyền thao tác do hệ thống/backend quyết định; liên hệ quản trị viên nếu quyền cần cấp chưa xuất hiện.</li>
+      </ul>
+    </section>
+
+    <section class="card guide-section" id="department-guide" data-guide-section="department_head" hidden>
+      <h2><span>05</span> Dành cho Trưởng khoa</h2>
+      <ul>
+        <li><a href="dept-head/members.html">Thành viên khoa:</a> xem danh sách nhân viên trong khoa và cấp các quyền chi tiết được hệ thống hỗ trợ.</li>
+        <li><a href="dept-head/queue.html">Hàng chờ duyệt:</a> xử lý hồ sơ thuộc phạm vi khoa theo quyền được cấp.</li>
+        <li><a href="dept-head/stats.html">Thống kê:</a> xem tổng quan, trạng thái, loại hồ sơ và số liệu theo tháng; chọn năm để lọc dữ liệu theo tháng.</li>
+        <li><a href="dept-head/monitor.html">Giám sát:</a> theo dõi checksum, tiến độ chỉnh lý, thời hạn bảo quản và lịch sử xử lý.</li>
+        <li>Phạm vi báo cáo và quản lý thành viên chỉ áp dụng cho khoa được gán vào tài khoản.</li>
+      </ul>
+    </section>
+
+    <section class="card guide-section" id="admin-guide" data-guide-section="admin" hidden>
+      <h2><span>06</span> Dành cho Admin</h2>
+      <ul>
+        <li><a href="admin/users.html">Quản lý người dùng:</a> quản lý tài khoản, vai trò và quyền theo chức năng hệ thống.</li>
+        <li><a href="admin/departments.html">Quản lý khoa</a> và <a href="admin/document-types.html">danh mục loại hồ sơ:</a> cập nhật dữ liệu dùng chung.</li>
+        <li><a href="admin/queue.html">Hàng chờ duyệt</a>, <a href="admin/archive.html">kho lưu trữ</a> và <a href="admin/search.html">tìm kiếm:</a> xử lý hồ sơ trong phạm vi quản trị.</li>
+        <li><a href="admin/stats.html">Thống kê</a> và <a href="admin/monitor.html">giám sát:</a> theo dõi số liệu, lưu trữ và cảnh báo toàn hệ thống.</li>
+      </ul>
+    </section>
+
+    <section class="card guide-section" id="account-security">
+      <h2><span>07</span> Tài khoản và bảo mật</h2>
+      <ul>
+        <li>Không chia sẻ tài khoản, mật khẩu, OTP hoặc liên kết xem tài liệu.</li>
+        <li>Mở <a href="devices.html">Thiết bị đăng nhập</a> để kiểm tra phiên và đăng xuất thiết bị không còn sử dụng.</li>
+        <li>Dùng nút đăng xuất trong menu khi sử dụng xong, đặc biệt trên máy tính dùng chung.</li>
+        <li>Nếu thấy hoạt động bất thường hoặc không truy cập được chức năng, báo quản trị viên và cung cấp tên chức năng cùng thông báo lỗi; không gửi mật khẩu/OTP.</li>
+      </ul>
+    </section>
+    <p class="guide-footer">Hướng dẫn mô tả các thao tác phổ biến. Giao diện và quyền thực tế có thể khác theo cấu hình tài khoản.</p>
+  </main>
+</div>
+<div class="toast-container"></div>
+<script src="../assets/js/device-session.js?v=3"></script>
+<script src="../assets/js/app.js?v=device-3"></script>
+<script src="../assets/js/sidebar.js?v=dept-reports-1"></script>
+<script src="../assets/js/guide.js?v=1"></script>
+</body>
+</html>

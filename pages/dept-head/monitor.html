@@ -1,0 +1,68 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Giám sát khoa — Trưởng khoa</title>
+  <link rel="stylesheet" href="../../assets/css/style.css?v=ready-navigation-29" />
+  <link rel="stylesheet" href="../../assets/css/department-reports.css?v=3" />
+  <script>if(localStorage.getItem('lths_dark')==='1') document.documentElement.setAttribute('data-theme','dark');</script>
+  <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
+</head>
+<body>
+<div class="app-shell">
+  <nav class="sidebar"></nav>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <main class="main-content" data-department-report="monitor">
+    <header class="page-header page-header-row">
+      <div class="report-heading">
+        <h1>BỆNH VIỆN HỮU NGHỊ</h1>
+        <p class="report-brand">Vietnam-HuuNghi Hospital</p>
+        <p class="report-intro">Giám sát hồ sơ, tính toàn vẹn, tiến độ chỉnh lý và lịch sử xử lý trong khoa.</p>
+      </div>
+      <div class="report-toolbar report-actions">
+        <button type="button" id="report-refresh" class="btn btn-primary">Làm mới</button>
+        <a href="documents.html" class="btn btn-ghost">Tài liệu khoa</a>
+      </div>
+    </header>
+    <p id="report-message" role="status" aria-live="polite" class="report-message">Đang xác định khoa…</p>
+    <div id="report-summary" class="stats-grid"></div>
+    <div class="report-section-tab"><span>⚠️ Cảnh báo hồ sơ — Theo dõi khoa</span><i></i></div>
+    <section class="card report-panel">
+      <h2><span aria-hidden="true">⌁</span> Kiểm tra tính toàn vẹn (Checksum)</h2>
+      <p class="report-note">Hồ sơ chưa có checksum, loại trừ hồ sơ đã hủy. Báo cáo không quét lại nội dung tệp.</p>
+      <div id="report-checksum-status" data-report-content></div>
+      <div id="report-checksums" data-report-content></div>
+    </section>
+    <div class="report-section-tab"><span>📁 Chỉnh lý và thời hạn bảo quản</span><i></i></div>
+    <div class="report-grid report-monitor-grid">
+      <section class="card report-panel">
+        <h2><span aria-hidden="true">▤</span> Hồ sơ trước 01/07/2025 cần chỉnh lý</h2>
+        <div id="report-review-progress" data-report-content></div>
+        <div id="report-review" data-report-content></div>
+      </section>
+      <section class="card report-panel">
+        <h2><span aria-hidden="true">◷</span> Sắp hết hạn trong 1 năm</h2>
+        <div id="report-expiry" data-report-content></div>
+      </section>
+    </div>
+    <div class="report-section-tab report-history-heading">
+      <span>🕘 Lịch sử duyệt / từ chối</span><i></i>
+      <label for="report-history-filter" class="visually-hidden">Lọc theo hành động</label>
+      <select id="report-history-filter" class="form-control">
+        <option value="">Tất cả hành động</option><option value="approve">Duyệt</option><option value="reject">Từ chối</option><option value="auto-approve (private)">Tự động duyệt (riêng tư)</option>
+      </select>
+    </div>
+    <section class="card report-panel">
+      <p class="report-note">Nhật ký các lượt xử lý hồ sơ thuộc khoa.</p>
+      <div id="report-history" data-report-content></div>
+    </section>
+  </main>
+</div>
+<div class="toast-container"></div>
+<script src="../../assets/js/device-session.js?v=3"></script>
+<script src="../../assets/js/app.js?v=device-3"></script>
+<script src="../../assets/js/sidebar.js?v=dept-reports-1"></script>
+<script src="../../assets/js/department-reports.js?v=4"></script>
+</body>
+</html>

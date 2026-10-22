@@ -74,17 +74,8 @@ async function setup(options = {}) {
       if (path === '/destruction/capabilities') {
         if (options.unavailable) return new Response('{}', { status: 404 });
         body = { ...caps, ...options.caps };
-      } else if (path === '/destruction/eligible-documents') {
-        const params = new URL(url).searchParams, pageNumber = Number(params.get('page') || 1), pageSize = 20;
-        const normalize = text => String(text).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replaceAll('đ', 'd').replaceAll('Đ', 'D').toLowerCase();
-        const query = normalize(params.get('q') || '');
-        const actor = options.user || user;
-        const items = (options.documents || [doc, { ...doc, id: 'held', legalHold: true }])
-          .map(item => ({ ...item, id: item.id || item._id }))
-          .filter(item => ['stored', 'approved'].includes(item.status))
-          .filter(item => actor.role !== 'user' || !rules.proposalBlockReason(item, actor))
-          .filter(item => normalize([item.title, item.code, item.documentType?.name].join(' ')).includes(query));
-        body = { items: items.slice((pageNumber - 1) * pageSize, pageNumber * pageSize), total: items.length, page: pageNumber, pageSize };
+      } else if (path === '/documents/search') {
+        body = { documents: options.documents || [doc, { ...doc, id: 'held', legalHold: true }] };
       }
       else if (path === '/destruction/destroyed-documents') body = page([{
         id: 'destroyed-1', code: 'HS-OLD', title: 'Destroyed', requestId: 'req-1', destroyedAt: stamp,
@@ -166,7 +157,7 @@ for (const tab of ['requests', 'destroyed']) test(`${tab} stays readable when ca
   env.get(`${tab}-filter`).listeners.submit({ preventDefault() {} }); await flush();
   assert.equal(env.calls.filter(call => call.path === listPath).length, 2);
   env.get('eligible-filter').listeners.submit({ preventDefault() {} }); await flush();
-  assert.equal(env.calls.some(call => call.path === '/destruction/eligible-documents'), false);
+  assert.equal(env.calls.some(call => call.path === '/documents/search'), false);
   await env.click({ detail: 'req-1' });
   assert.doesNotMatch(env.get('request-detail').innerHTML, /data-action-form=/);
   const form = new Element({ actionForm: 'approve' });
@@ -175,6 +166,43 @@ for (const tab of ['requests', 'destroyed']) test(`${tab} stays readable when ca
   await env.get('request-detail').listeners.submit({ target: form, preventDefault() {} });
   await env.get('create-form').listeners.submit({ target: env.get('create-form'), preventDefault() {} });
   assert.equal(env.calls.some(call => call.method === 'POST'), false);
+});
+
+test('failed requests show diagnostics without inventing approval counts or retry actions', async () => {
+  const failed = detail({ status: 'failed', allowedActions: [], failureReason: '<storage unavailable>', approvals: [{ userId: 'reviewer' }] });
+  const env = await setup({ detail: failed });
+  assert.match(env.get('requests-list').innerHTML, /1\/1 lượt duyệt/);
+  assert.match(env.get('requests-list').innerHTML, /&lt;storage unavailable&gt;/);
+  await env.click({ detail: 'req-1' });
+  assert.match(env.get('request-detail').innerHTML, /Hủy chưa hoàn tất/);
+  assert.match(env.get('request-detail').innerHTML, /&lt;storage unavailable&gt;/);
+  assert.doesNotMatch(env.get('request-detail').innerHTML, /data-action-form=/);
+
+  const missing = await setup({ detail: detail({ status: 'failed', approvals: undefined, requiredApprovals: undefined, allowedActions: [] }) });
+  assert.match(missing.get('requests-list').innerHTML, /Chưa có đủ thông tin lượt duyệt/);
+  assert.doesNotMatch(missing.get('requests-list').innerHTML, /0\/1 lượt duyệt/);
+  await missing.click({ detail: 'req-1' });
+  assert.match(missing.get('request-detail').innerHTML, /Chưa có nguyên nhân lỗi từ hệ thống/);
+});
+
+test('destroyed tab explains empty results and distinguishes API errors from an empty archive', async () => {
+  const env = await setup({ detail: detail({ status: 'failed' }), respond: url => {
+    if (new URL(url).pathname === '/destruction/destroyed-documents') return new Response(JSON.stringify(page([])));
+  } });
+  await env.tabs[2].listeners.click();
+  assert.equal(env.get('panel-destroyed').hidden, false);
+  assert.equal(env.get('panel-requests').hidden, true);
+  assert.match(env.get('destroyed-list').innerHTML, /Chưa có hồ sơ được xác nhận hủy thành công/);
+  assert.match(env.get('destroyed-list').innerHTML, /hủy lỗi không đồng nghĩa hồ sơ đã hủy/);
+  env.get('destroyed-query').value = 'HS-unknown';
+  env.get('destroyed-filter').listeners.submit({ preventDefault() {} }); await flush();
+  assert.match(env.get('destroyed-list').innerHTML, /Không tìm thấy hồ sơ đã hủy khớp với từ khóa/);
+
+  const broken = await setup({ search: '?view=destroyed', respond: url => {
+    if (new URL(url).pathname === '/destruction/destroyed-documents') return new Response(JSON.stringify({ message: 'Service unavailable' }), { status: 503 });
+  } });
+  assert.match(broken.get('destroyed-list').innerHTML, /Service unavailable/);
+  assert.doesNotMatch(broken.get('destroyed-list').innerHTML, /Chưa có hồ sơ/);
 });
 
 test('capabilities HTTP failure preserves the initial request list', async () => {
@@ -248,7 +276,7 @@ test('shared submit handler leaves managed destruction forms to their async hand
 test('search clears loading on empty results and errors; an older response cannot stop a newer search', async () => {
   const pending = [];
   const env = await setup({ search: '?view=create', respond: url => {
-    if (new URL(url).pathname === '/destruction/eligible-documents') {
+    if (new URL(url).pathname === '/documents/search') {
       return new Promise(resolve => pending.push(resolve));
     }
   } });
@@ -257,9 +285,8 @@ test('search clears loading on empty results and errors; an older response canno
   env.get('eligible-query').value = '  test  ';
   form.listeners.submit({ preventDefault() {} });
   await flush();
-  const search = env.calls.filter(call => call.path === '/destruction/eligible-documents').at(-1);
-  assert.equal(new URL(search.url).searchParams.get('q'), 'test');
-  assert.equal(new URL(search.url).searchParams.get('pageSize'), '20');
+  const search = env.calls.filter(call => call.path === '/documents/search').at(-1);
+  assert.equal(new URL(search.url).searchParams.get('limit'), '10000');
   pending[0](new Response(JSON.stringify(page([doc]))));
   await flush();
   assert.equal(button.classList.contains('loading'), true);
@@ -302,7 +329,23 @@ test('warehouse search finds names without accents, codes and types, and allows 
   form.listeners.submit({ preventDefault() {} }); await flush();
   assert.match(env.get('eligible-list').innerHTML, /Không tìm thấy hồ sơ khớp/);
   assert.match(env.get('selection-count').textContent, /Đã chọn 1\/100/);
-  assert.equal(env.calls.some(call => call.path === '/destruction/eligible-documents'), true);
+  assert.equal(env.calls.some(call => call.path === '/documents/search'), true);
+  assert.equal(env.calls.some(call => call.path === '/destruction/eligible-documents'), false);
+});
+
+test('warehouse response formats normalize document IDs and reject malformed data', async () => {
+  const candidate = { ...doc, id: undefined, documentId: 'warehouse-id' };
+  for (const payload of [[candidate], { data: [candidate] }, { documents: [candidate] }, { items: [candidate] }]) {
+    const env = await setup({ search: '?view=create', respond: url => {
+      if (new URL(url).pathname === '/documents/search') return new Response(JSON.stringify(payload));
+    } });
+    assert.match(env.get('eligible-list').innerHTML, /data-select-document="warehouse-id"/);
+  }
+  const env = await setup({ search: '?view=create', respond: url => {
+    if (new URL(url).pathname === '/documents/search') return new Response('{}');
+  } });
+  assert.match(env.get('eligible-list').innerHTML, /Dữ liệu hồ sơ trong kho từ backend không hợp lệ/);
+  assert.doesNotMatch(env.get('eligible-list').innerHTML, /Không có hồ sơ đã duyệt/);
 });
 
 test('warehouse search filters before pagination and preserves selection between pages', async () => {

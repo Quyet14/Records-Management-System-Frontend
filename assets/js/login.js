@@ -45,8 +45,11 @@
       const email = $('email').value.trim();
       const password = $('password').value;
       const captchaCode = $('captcha-input').value.trim();
+      if (!email) throw new Error('Vui lòng nhập email.');
+      if (!password) throw new Error('Vui lòng nhập mật khẩu.');
+      if (password.length < 6) throw new Error('Mật khẩu phải có ít nhất 6 ký tự.');
       if (!captchaId || !captchaCode) throw new Error('Vui lòng nhập mã xác nhận.');
-      const response = await api.post('/auth/login', { email, ...(password ? { password } : {}), captcha_id: captchaId, captcha_code: captchaCode });
+      const response = await api.post('/auth/login', { email, password, captcha_id: captchaId, captcha_code: captchaCode });
       const data = authPayload(response);
       if (requiresPasswordChange(response)) {
         sessionStorage.setItem('lths_force_email', email.toLowerCase());
