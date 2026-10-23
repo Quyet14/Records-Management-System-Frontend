@@ -154,8 +154,8 @@
 
 <div class="toast-container"></div>
 <script src="../../assets/js/device-session.js?v=3"></script>
-<script src="../../assets/js/app.js?v=device-3"></script>
-<script src="../../assets/js/sidebar.js?v=dept-reports-1"></script>
+<script src="../../assets/js/app.js?v=pending-total-1"></script>
+<script src="../../assets/js/sidebar.js?v=pending-total-1"></script>
 <script>
 (async () => {
   Object.assign(window, { loadStats, renderRecentDocs });
@@ -183,9 +183,9 @@
       `<div class="doc-grid">${skeletonCards(4)}</div>`;
 
     // Tải song song users và documents
-    const [usersResult, docsResult] = await Promise.allSettled([
+    const [usersResult, docsResult, pendingResult] = await Promise.allSettled([
       api.get('/users?limit=10000'),
-      api.get('/documents/search?limit=10000')
+      api.get('/documents/search?limit=10000'), PendingQueue.count()
     ]);
 
     // ── Xử lý users ────────────────────────────────────────────
@@ -231,7 +231,7 @@
       // Đếm từ trang đầu API trả về (trang hiện tại), không phải tổng thật
       // Thêm dấu ~ để người dùng biết đây là số ước tính nếu API phân trang
       const isPartial = total > list.length;
-      document.getElementById('stat-docs-pending').textContent  = (isPartial ? '≈' : '') + list.filter(d => d.status === 'pending').length;
+      document.getElementById('stat-docs-pending').textContent  = pendingResult.status === 'fulfilled' ? pendingResult.value : '—';
       document.getElementById('stat-docs-stored').textContent   = (isPartial ? '≈' : '') + list.filter(d => d.status === 'stored' || d.status === 'approved').length;
       document.getElementById('stat-docs-rejected').textContent = (isPartial ? '≈' : '') + list.filter(d => d.status === 'rejected').length;
 

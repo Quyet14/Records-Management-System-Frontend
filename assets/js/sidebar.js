@@ -281,9 +281,10 @@
     await new Promise(r => setTimeout(r, 0));
     if (typeof api === 'undefined') return;
     try {
-      const res  = await api.get('/documents/pending');
-      const list = Array.isArray(res) ? res : (res.data || res.items || []);
-      setSidebarBadge(el, list.length);
+      const res = await api.get('/documents/pending?page=1&limit=1');
+      const total = Array.isArray(res) ? res.length : res?.total;
+      if (!Number.isSafeInteger(total) || total < 0) return;
+      setSidebarBadge(el, total);
     } catch (_) { /* không hiển thị lỗi badge */ }
   }
 

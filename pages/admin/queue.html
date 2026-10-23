@@ -38,6 +38,10 @@
       font-weight: 700;
       margin-left: 8px;
     }
+    .queue-pagination { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:flex-end; margin-top:20px; }
+    .queue-pagination > span { margin-right:auto; color:var(--gray-600); font-size:.88rem; }
+    .queue-pagination .btn { width:auto; }
+    .queue-pagination button:disabled { opacity:.5; cursor:not-allowed; }
   </style>
   <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
 </head>
@@ -90,6 +94,7 @@
         <h3>Đang tải…</h3>
       </div>
     </div>
+    <nav id="queue-pagination" class="queue-pagination" aria-label="Phân trang hàng chờ"></nav>
   </main>
 </div>
 
@@ -191,8 +196,8 @@
 
 <div class="toast-container"></div>
 <script src="../../assets/js/device-session.js?v=3"></script>
-<script src="../../assets/js/app.js?v=device-3"></script>
-<script src="../../assets/js/sidebar.js?v=dept-reports-1"></script>
+<script src="../../assets/js/app.js?v=pending-total-1"></script>
+<script src="../../assets/js/sidebar.js?v=pending-total-1"></script>
 <script>
 (async () => {
   Object.assign(window, { loadQueue, updateBulkBar, loadDocTypes, openApprove, openReject, removeCardAndUpdateCount });
@@ -204,7 +209,14 @@
   let _selectedIds  = new Set();
 
   /* ── Load queue ─────────────────────────────────────────────── */
-  async function loadQueue() {
+  let _queuePage = 1;
+  let _queueRequest = 0;
+  async function loadQueue(page = _queuePage) {
+    _queuePage = page;
+    const request = ++_queueRequest;
+    _queueDocs = [];
+    const pagination = document.getElementById('queue-pagination');
+    pagination.querySelectorAll('button').forEach(button => { button.disabled = true; });
     const container = document.getElementById('queue-list');
     _selectedIds.clear();
     updateBulkBar();
@@ -226,12 +238,17 @@
       </div>`).join('');
 
     try {
-      const res  = await api.get('/documents/pending');
+      const res = await PendingQueue.load(page);
+      if (request !== _queueRequest) return;
+      const last = Math.max(1, Math.ceil(res.total / res.limit));
+      if (page > last) return loadQueue(last);
+      PendingQueue.sync(res.total);
+      PendingQueue.renderPager(pagination, res, loadQueue);
       const docs = Array.isArray(res) ? res : (res.data || res.items || []);
       _queueDocs = docs;
 
       const countEl = document.getElementById('queue-count');
-      if (countEl) countEl.textContent = docs.length > 0 ? docs.length : '';
+      if (countEl) countEl.textContent = String(res.total);
 
       if (!docs.length) {
         container.innerHTML = emptyStatePro('✅', 'Hàng chờ trống', 'Tất cả tài liệu đã được xử lý.');
@@ -262,7 +279,11 @@
           </div>
         </div>`).join('');
 
-    } catch (err) {
+    } catch(err) {
+      if (request !== _queueRequest) return;
+      pagination.textContent = '';
+      const countEl = document.getElementById('queue-count');
+      if (countEl) countEl.textContent = '—';
       container.innerHTML = emptyStatePro(
         '⚠️', 'Không thể tải hàng chờ', esc(err.message),
         `<button class="btn btn-ghost btn-sm" id="btn-retry-queue">Thử lại</button>`
@@ -312,14 +333,7 @@
     this.classList.remove('loading');
     _selectedIds.clear();
     updateBulkBar();
-    const countEl   = document.getElementById('queue-count');
-    const remaining = document.querySelectorAll('.queue-card').length;
-    if (countEl) countEl.textContent = remaining || '';
-    if (!remaining) {
-      document.getElementById('queue-list').innerHTML = emptyStatePro(
-        '✅', 'Hàng chờ trống', 'Tất cả tài liệu đã được xử lý.'
-      );
-    }
+    await loadQueue();
     Toast.success(`Đã duyệt ${ok} tài liệu${fail ? `, ${fail} lỗi` : ''}!`);
   });
 
@@ -354,14 +368,7 @@
     Modal.close('modal-bulk-reject');
     _selectedIds.clear();
     updateBulkBar();
-    const countEl  = document.getElementById('queue-count');
-    const remaining = document.querySelectorAll('.queue-card').length;
-    if (countEl) countEl.textContent = remaining || '';
-    if (!remaining) {
-      document.getElementById('queue-list').innerHTML = emptyStatePro(
-        '✅', 'Hàng chờ trống', 'Tất cả tài liệu đã được xử lý.'
-      );
-    }
+    await loadQueue();
     Toast.warning(`Đã từ chối ${ok} tài liệu${fail ? `, ${fail} lỗi` : ''}.`);
   });
 
@@ -463,19 +470,9 @@
     setTimeout(() => document.getElementById('reject-reason')?.focus(), 150);
   }
 
-  function removeCardAndUpdateCount(docId) {
-    document.getElementById(`card-${docId}`)?.remove();
+  async function removeCardAndUpdateCount(docId) {
     _selectedIds.delete(docId);
-    updateBulkBar();
-    const countEl  = document.getElementById('queue-count');
-    const remaining = document.querySelectorAll('.queue-card').length;
-    const next     = remaining;
-    if (countEl) countEl.textContent = next > 0 ? next : '';
-    if (!next) {
-      document.getElementById('queue-list').innerHTML = emptyStatePro(
-        '✅', 'Hàng chờ trống', 'Tất cả tài liệu đã được xử lý.'
-      );
-    }
+    await loadQueue();
   }
 
   document.getElementById('btn-confirm-approve').addEventListener('click', async function () {
@@ -507,7 +504,7 @@
       
       Modal.close('modal-approve');
       Toast.success('Tài liệu đã được duyệt và lưu trữ!');
-      removeCardAndUpdateCount(_pendingDocId);
+      await removeCardAndUpdateCount(_pendingDocId);
       _pendingDocId = null;
     } catch (err) { 
       console.error('[Approve Submit] Error:', err);
@@ -529,7 +526,7 @@
       await submitDocumentReject(_pendingDocId, reason);
       Modal.close('modal-reject');
       Toast.warning('Tài liệu đã bị từ chối.');
-      removeCardAndUpdateCount(_pendingDocId);
+      await removeCardAndUpdateCount(_pendingDocId);
       _pendingDocId = null;
     } catch (err) { Toast.error(err.message); }
     finally { this.classList.remove('loading'); }

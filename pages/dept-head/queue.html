@@ -19,6 +19,10 @@
     .queue-card-title { font-family:var(--font-ui) !important;font-size:1.05rem;font-weight:600;margin-bottom:4px; }
     .queue-card-meta  { font-size:.8rem;color:var(--gray-600);display:flex;gap:14px;flex-wrap:wrap; }
     .queue-card-actions { display:flex;gap:8px;flex-shrink:0; }
+    .queue-pagination { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:flex-end; margin-top:20px; }
+    .queue-pagination > span { margin-right:auto; color:var(--gray-600); font-size:.88rem; }
+    .queue-pagination .btn { width:auto; }
+    .queue-pagination button:disabled { opacity:.5; cursor:not-allowed; }
   </style>
   <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
 </head>
@@ -45,6 +49,7 @@
     <div id="queue-list" style="display:flex;flex-direction:column;gap:12px">
       <div class="empty-state"><h3>Đang tải…</h3></div>
     </div>
+    <nav id="queue-pagination" class="queue-pagination" aria-label="Phân trang hàng chờ"></nav>
   </main>
 </div>
 
@@ -90,8 +95,8 @@
 
 <div class="toast-container"></div>
 <script src="../../assets/js/device-session.js?v=3"></script>
-<script src="../../assets/js/app.js?v=device-3"></script>
-<script src="../../assets/js/sidebar.js?v=dept-reports-1"></script>
+<script src="../../assets/js/app.js?v=pending-total-1"></script>
+<script src="../../assets/js/sidebar.js?v=pending-total-1"></script>
 <script>
 (async () => {
   Object.assign(window, { loadQueue, openApprove, openReject, removeCard });
@@ -107,7 +112,14 @@
   let _queueDocs   = [];
   let _pendingDocId = null;
 
-  async function loadQueue() {
+  let _queuePage = 1;
+  let _queueRequest = 0;
+  async function loadQueue(page = _queuePage) {
+    _queuePage = page;
+    const request = ++_queueRequest;
+    _queueDocs = [];
+    const pagination = document.getElementById('queue-pagination');
+    pagination.querySelectorAll('button').forEach(button => { button.disabled = true; });
     const container = document.getElementById('queue-list');
     // Skeleton
     container.innerHTML = Array(3).fill(0).map(() => `
@@ -124,7 +136,12 @@
       </div>`).join('');
 
     try {
-      const res  = await api.get('/documents/pending');
+      const res = await PendingQueue.load(page);
+      if (request !== _queueRequest) return;
+      const last = Math.max(1, Math.ceil(res.total / res.limit));
+      if (page > last) return loadQueue(last);
+      PendingQueue.sync(res.total);
+      PendingQueue.renderPager(pagination, res, loadQueue);
       const list = Array.isArray(res) ? res : (res.data || res.items || []);
       _queueDocs = list;
 
@@ -153,23 +170,13 @@
           </div>
         </div>`).join('');
 
-      // Event delegation
-      container.addEventListener('click', e => {
-        const actionBtn = e.target.closest('[data-action]');
-        const card      = e.target.closest('.queue-card[data-idx]');
-        if (!card) return;
-        const d = _queueDocs[parseInt(card.dataset.idx, 10)];
-        if (!d) return;
-        if (actionBtn) {
-          e.stopPropagation();
-          if (actionBtn.dataset.action === 'approve') openApprove(d.id, d.title || d.originalFilename);
-          if (actionBtn.dataset.action === 'reject')  openReject(d.id, d.title || d.originalFilename);
-          return;
-        }
-        previewFile(d.id, d.originalFilename || d.title, { doc: d });
-      });
+
 
     } catch(err) {
+      if (request !== _queueRequest) return;
+      pagination.textContent = '';
+      const countEl = document.getElementById('queue-count');
+      if (countEl) countEl.textContent = '—';
       container.innerHTML = emptyStatePro('⚠️', 'Không thể tải hàng chờ', esc(err.message),
         `<button class="btn btn-ghost btn-sm" id="btn-retry">Thử lại</button>`);
       document.getElementById('btn-retry')?.addEventListener('click', loadQueue);
@@ -194,14 +201,7 @@
   }
 
   /* ── Xoá card và cập nhật trạng thái ───────────────────────── */
-  function removeCard(docId) {
-    document.getElementById(`card-${docId}`)?.remove();
-    if (!document.querySelectorAll('.queue-card').length) {
-      document.getElementById('queue-list').innerHTML = emptyStatePro(
-        '✅', 'Hàng chờ trống', 'Tất cả tài liệu đã được xử lý.'
-      );
-    }
-  }
+  async function removeCard(docId) { await loadQueue(); }
 
   /* ── Confirm Duyệt ──────────────────────────────────────────── */
   document.getElementById('btn-confirm-approve').addEventListener('click', async function () {
@@ -211,7 +211,7 @@
       await api.patch(`/documents/${_pendingDocId}/approve`);
       Modal.close('modal-approve');
       Toast.success('Tài liệu đã được duyệt!');
-      removeCard(_pendingDocId);
+      await removeCard(_pendingDocId);
       _pendingDocId = null;
     } catch(err) {
       Toast.error(err.message);
@@ -234,7 +234,7 @@
       await submitDocumentReject(_pendingDocId, reason);
       Modal.close('modal-reject');
       Toast.warning('Tài liệu đã bị từ chối.');
-      removeCard(_pendingDocId);
+      await removeCard(_pendingDocId);
       _pendingDocId = null;
     } catch(err) {
       Toast.error(err.message);
@@ -250,7 +250,25 @@
     }
   });
 
-  onPageReady(loadQueue);
+  onPageReady(() => {
+    const container = document.getElementById('queue-list');
+      // Event delegation
+      container.addEventListener('click', e => {
+        const actionBtn = e.target.closest('[data-action]');
+        const card      = e.target.closest('.queue-card[data-idx]');
+        if (!card) return;
+        const d = _queueDocs[parseInt(card.dataset.idx, 10)];
+        if (!d) return;
+        if (actionBtn) {
+          e.stopPropagation();
+          if (actionBtn.dataset.action === 'approve') openApprove(d.id, d.title || d.originalFilename);
+          if (actionBtn.dataset.action === 'reject')  openReject(d.id, d.title || d.originalFilename);
+          return;
+        }
+        previewFile(d.id, d.originalFilename || d.title, { doc: d });
+      });
+    loadQueue();
+  });
 
 })().catch(Auth.showError);
 </script>

@@ -2246,3 +2246,45 @@ function getExpiringDocs(docs, withinDays = 365) {
   }
   return results.sort((a, b) => a.daysLeft - b.daysLeft);
 }
+
+// Pending queue helpers: all counters use the reviewable queue's server total.
+window.PendingQueue = (() => {
+  function normalize(payload, requestedPage = 1, requestedLimit = 20) {
+    if (Array.isArray(payload)) return { data: payload, total: payload.length, page: 1, limit: Math.max(1, payload.length) };
+    const data = payload?.data ?? payload?.items;
+    if (!Array.isArray(data) || !Number.isSafeInteger(payload.total) || payload.total < 0
+      || !Number.isSafeInteger(payload.page) || payload.page < 1 || !Number.isSafeInteger(payload.limit) || payload.limit < 1
+      || data.length > payload.limit || data.length > payload.total || payload.page !== requestedPage || payload.limit !== requestedLimit)
+      throw new Error('Dữ liệu hàng chờ từ máy chủ không hợp lệ.');
+    return { data, total: payload.total, page: payload.page, limit: payload.limit };
+  }
+  async function load(page = 1, limit = 20) {
+    if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+      throw new Error('Trang hàng chờ không hợp lệ.');
+    return normalize(await api.get('/documents/pending?page=' + page + '&limit=' + limit), page, limit);
+  }
+  function sync(total) {
+    const badge = document.getElementById('sb-queue-badge');
+    if (badge) {
+      badge.textContent = total > 99 ? '99+' : String(total);
+      badge.style.display = total > 0 ? 'inline-flex' : 'none';
+      badge.setAttribute('aria-label', total + ' hồ sơ chờ duyệt');
+      const group = badge.closest('.sb-nav-group');
+      const dot = group?.querySelector('.sb-group-dot');
+      if (dot) dot.hidden = !Array.from(group.querySelectorAll('.sb-badge')).some(el => el.style.display !== 'none' && el.textContent !== '0');
+    }
+  }
+  function renderPager(element, payload, onPage) {
+    const { page, limit, total, data } = payload;
+    const last = Math.max(1, Math.ceil(total / limit));
+    const from = data.length ? (page - 1) * limit + 1 : 0;
+    const to = data.length ? from + data.length - 1 : 0;
+    element.innerHTML = '<span role="status">Hiển thị ' + from + '–' + to + ' / ' + total + ' hồ sơ · Trang ' + page + '/' + last + '</span>'
+      + '<button type="button" class="btn btn-ghost btn-sm" data-queue-prev ' + (page <= 1 ? 'disabled' : '') + '>← Trước</button>'
+      + '<button type="button" class="btn btn-ghost btn-sm" data-queue-next ' + (page >= last ? 'disabled' : '') + '>Sau →</button>';
+    element.querySelector('[data-queue-prev]').onclick = () => { if (page > 1) onPage(page - 1); };
+    element.querySelector('[data-queue-next]').onclick = () => { if (page < last) onPage(page + 1); };
+  }
+  return { normalize, load, count: async () => (await load(1, 1)).total, sync, renderPager };
+})();
+// End pending queue helpers.

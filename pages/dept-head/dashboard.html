@@ -88,8 +88,8 @@
 
 <div class="toast-container"></div>
 <script src="../../assets/js/device-session.js?v=3"></script>
-<script src="../../assets/js/app.js?v=device-3"></script>
-<script src="../../assets/js/sidebar.js?v=dept-reports-1"></script>
+<script src="../../assets/js/app.js?v=pending-total-1"></script>
+<script src="../../assets/js/sidebar.js?v=pending-total-1"></script>
 <script>
 (async () => {
   Object.assign(window, { loadStats });
@@ -117,9 +117,9 @@
     document.getElementById('recent-wrap').innerHTML =
       `<div class="doc-grid">${skeletonCards(4)}</div>`;
 
-    const [docsResult, usersResult] = await Promise.allSettled([
+    const [docsResult, usersResult, pendingResult] = await Promise.allSettled([
       api.get('/documents/search?limit=10000'),
-      api.get('/users?limit=10000')
+      api.get('/users?limit=10000'), PendingQueue.count()
     ]);
 
     // ── Docs ────────────────────────────────────────────────────
@@ -136,7 +136,7 @@
 
     ['stat-pending','stat-stored','stat-rejected'].forEach(id =>
       document.getElementById(id)?.classList.remove('skeleton'));
-    document.getElementById('stat-pending').textContent  = docs.filter(d => d.status === 'pending').length;
+    document.getElementById('stat-pending').textContent  = pendingResult.status === 'fulfilled' ? pendingResult.value : '—';
     document.getElementById('stat-stored').textContent   = docs.filter(d => d.status === 'stored' || d.status === 'approved').length;
     document.getElementById('stat-rejected').textContent = docs.filter(d => d.status === 'rejected').length;
 
