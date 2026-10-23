@@ -87,7 +87,7 @@ async function evaluate(cdp, expression) {
       shot = await cdp.call('Page.captureScreenshot', { format: 'png' });
       fs.writeFileSync('artifacts/department-' + mode + '-mobile.png', Buffer.from(shot.data, 'base64'));
       await evaluate(cdp, "document.documentElement.setAttribute('data-theme','dark')"); await delay(200);
-      assert.equal(await evaluate(cdp, "getComputedStyle(document.querySelector('.stat-label')).color"), 'rgb(208, 221, 238)');
+      assert.ok(await evaluate(cdp, "(() => {const label=document.querySelector('.stat-label');const luminance=color=>{const rgb=color.match(/[\\d.]+/g).slice(0,3).map(Number).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;};const fg=luminance(getComputedStyle(label).color),bg=luminance(getComputedStyle(label.closest('.stat-card')).backgroundColor);return (Math.max(fg,bg)+.05)/(Math.min(fg,bg)+.05);})()") >= 4.5, 'Dark theme labels must have readable contrast');
       assert.equal(await evaluate(cdp, 'document.documentElement.scrollWidth <= innerWidth'), true);
       shot = await cdp.call('Page.captureScreenshot', { format: 'png' });
       fs.writeFileSync('artifacts/department-' + mode + '-dark.png', Buffer.from(shot.data, 'base64'));

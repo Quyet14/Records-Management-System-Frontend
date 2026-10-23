@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quản lý Khoa — BV Hữu Nghị</title>
-  <link rel="stylesheet" href="../../assets/css/style.css?v=ready-navigation-29" />
+  <link rel="stylesheet" href="../../assets/css/style.css?v=interface-1" />
   <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
   <script>
     (function(){
@@ -45,6 +45,7 @@
     .dept-id   { font-family: var(--font-mono); font-size: .68rem; color: var(--gray-400); margin-top: 2px; }
   </style>
   <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
+  <link rel="stylesheet" href="../../assets/css/interface.css?v=3" />
 </head>
 <body>
 <div class="app-shell">
@@ -57,9 +58,9 @@
   <main class="main-content">
     <div class="page-header page-header-row">
       <div class="page-header">
-      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
-      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
-      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+      <p class="interface-hospital-brand "><strong>BỆNH VIỆN HỮU NGHỊ</strong><span>Vietnam-HuuNghi Hospital</span></p>
+        <h1 class="interface-page-title">Quản lý khoa</h1>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổ chức danh mục khoa và thông tin quản lý hồ sơ theo từng đơn vị.</p>
     </div>
       <button class="btn btn-brass" id="btn-add-dept">+ Thêm khoa</button>
     </div>
@@ -106,8 +107,8 @@
 
 <div class="toast-container"></div>
 <script src="../../assets/js/device-session.js?v=3"></script>
-<script src="../../assets/js/app.js?v=device-3"></script>
-<script src="../../assets/js/sidebar.js?v=dept-reports-1"></script>
+<script src="../../assets/js/app.js?v=interface-1"></script>
+<script src="../../assets/js/sidebar.js?v=interface-1"></script>
 <script>
 (async () => {
   Object.assign(window, { colorFor, loadDepts });
@@ -750,5 +751,6 @@
     }
   });
 </script>
+<script src="../../assets/js/interface.js?v=2" defer></script>
 </body>
 </html>

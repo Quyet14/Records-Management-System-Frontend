@@ -3,9 +3,10 @@
 <head><meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chờ xác nhận email</title>
-  <link rel="stylesheet" href="../assets/css/style.css?v=smooth-nav-25" />
+  <link rel="stylesheet" href="../assets/css/style.css?v=interface-1" />
   <link rel="stylesheet" href="../assets/css/auth-pages.css?v=3" />
   <style>.status{margin:24px 0;color:var(--navy);font-size:.9rem}</style>
+  <link rel="stylesheet" href="../assets/css/interface.css?v=3" />
 </head>
 <body class="auth-page">
   <main class="auth-wrap">
@@ -32,7 +33,7 @@
     </section>
   </main>
 <script src="../assets/js/device-session.js?v=3"></script>
-<script src="../assets/js/app.js?v=device-3"></script>
+<script src="../assets/js/app.js?v=interface-1"></script>
 <script src="../assets/js/auth-flow.js"></script>
 <script>
   let pendingId=new URLSearchParams(location.search).get('pending_login_id') || sessionStorage.getItem('lths_pending_login_id'); let timer;
@@ -41,5 +42,6 @@
   check(); timer=setInterval(check,2000);
   document.getElementById('resend').addEventListener('click',async function(){ this.disabled=true; try { const res=await api.post('/auth/resend-confirmation',{pending_login_id:pendingId}); if(res.pending_login_id){pendingId=res.pending_login_id;sessionStorage.setItem('lths_pending_login_id',pendingId);} status.textContent='Email xác nhận mới đã được gửi.'; } catch(err){ status.textContent=authErrorMessage(err); } finally { this.disabled=false; } });
 </script>
+<script src="../assets/js/interface.js?v=2" defer></script>
 </body>
 </html>

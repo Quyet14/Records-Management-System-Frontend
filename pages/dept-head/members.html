@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Thành viên khoa - Trưởng Khoa</title>
-  <link rel="stylesheet" href="../../assets/css/style.css?v=ready-navigation-29" />
+  <link rel="stylesheet" href="../../assets/css/style.css?v=interface-1" />
   <script>
     (function(){
       if(localStorage.getItem('lths_dark')==='1')
@@ -12,6 +12,7 @@
     })();
   </script>
   <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
+  <link rel="stylesheet" href="../../assets/css/interface.css?v=3" />
 </head>
 <body>
 <div class="app-shell">
@@ -20,8 +21,8 @@
   <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
   <main class="main-content">
     <div class="page-header">
-      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
-      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
+      <p class="interface-hospital-brand "><strong>BỆNH VIỆN HỮU NGHỊ</strong><span>Vietnam-HuuNghi Hospital</span></p>
+        <h1 class="interface-page-title">Thành viên khoa</h1>
       <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Quản lý tài khoản nhân viên trong khoa và phân quyền truy cập tài liệu.</p>
     </div>
 
@@ -63,8 +64,8 @@
 
 <div class="toast-container"></div>
 <script src="../../assets/js/device-session.js?v=3"></script>
-<script src="../../assets/js/app.js?v=device-3"></script>
-<script src="../../assets/js/sidebar.js?v=dept-reports-1"></script>
+<script src="../../assets/js/app.js?v=interface-1"></script>
+<script src="../../assets/js/sidebar.js?v=interface-1"></script>
 <script>
 (async () => {
   Object.assign(window, { normalizePermissions, normalizePermissionOptions, permissionSummary, loadAssignablePermissions, canManageUser, loadMembers, toggleActive, openPermissions, savePermissions });
@@ -274,5 +275,6 @@
 
 })().catch(Auth.showError);
 </script>
+<script src="../../assets/js/interface.js?v=2" defer></script>
 </body>
 </html>

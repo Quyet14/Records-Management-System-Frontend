@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Giám sát hệ thống — BV Hữu Nghị</title>
-  <link rel="stylesheet" href="../../assets/css/style.css?v=ready-navigation-29" />
+  <link rel="stylesheet" href="../../assets/css/style.css?v=interface-1" />
   <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
   <script>
     (function(){
@@ -82,6 +82,7 @@
     .checksum-row.error  { background: rgba(163,59,59,.08);  color: var(--stamp-deny); }
   </style>
   <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
+  <link rel="stylesheet" href="../../assets/css/interface.css?v=3" />
 </head>
 <body>
 <div class="app-shell">
@@ -92,9 +93,9 @@
   <main class="main-content">
     <div class="page-header page-header-row">
       <div class="page-header">
-      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
-      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
-      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+      <p class="interface-hospital-brand "><strong>BỆNH VIỆN HỮU NGHỊ</strong><span>Vietnam-HuuNghi Hospital</span></p>
+        <h1 class="interface-page-title">Giám sát hệ thống</h1>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Theo dõi trạng thái dịch vụ, cảnh báo lưu trữ và lịch sử xử lý hồ sơ.</p>
     </div>
       <button class="btn btn-ghost" id="btn-refresh">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
@@ -321,8 +322,8 @@
 
 <div class="toast-container"></div>
 <script src="../../assets/js/device-session.js?v=3"></script>
-<script src="../../assets/js/app.js?v=device-3"></script>
-<script src="../../assets/js/sidebar.js?v=dept-reports-1"></script>
+<script src="../../assets/js/app.js?v=interface-1"></script>
+<script src="../../assets/js/sidebar.js?v=interface-1"></script>
 <script>
 (async () => {
   Object.assign(window, { nameFromUser, getDocumentReviewerName, getDocumentUploaderName, getActionActorName, getActionReason, renderAuditDetail, setHealth, loadMonitor, loadRetentionAlerts, _renderExpiringRows, loadHistory });
@@ -787,5 +788,6 @@
 
 })().catch(Auth.showError);
 </script>
+<script src="../../assets/js/interface.js?v=2" defer></script>
 </body>
 </html>

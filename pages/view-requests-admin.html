@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Yêu cầu xem tài liệu — Trưởng khoa</title>
-  <link rel="stylesheet" href="../assets/css/style.css?v=ready-navigation-29" />
+  <link rel="stylesheet" href="../assets/css/style.css?v=interface-1" />
   <script>
     (function(){
       if(localStorage.getItem('lths_dark')==='1')
@@ -12,6 +12,7 @@
     })();
   </script>
   <script src="../assets/js/navigation-shell.js?v=device-1"></script>
+  <link rel="stylesheet" href="../assets/css/interface.css?v=3" />
 </head>
 <body>
 <div class="app-shell">
@@ -20,10 +21,8 @@
 
   <main class="main-content">
     <div class="page-header">
-      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
-      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">
-        Vietnam-HuuNghi Hospital
-      </p>
+      <p class="interface-hospital-brand "><strong>BỆNH VIỆN HỮU NGHỊ</strong><span>Vietnam-HuuNghi Hospital</span></p>
+        <h1 class="interface-page-title">Yêu cầu xem tài liệu</h1>
     </div>
 
     <div id="decision-error" style="display:none;margin-bottom:14px;padding:10px 12px;
@@ -36,8 +35,8 @@
 
 <div class="toast-container"></div>
 <script src="../assets/js/device-session.js?v=3"></script>
-<script src="../assets/js/app.js?v=device-3"></script>
-<script src="../assets/js/sidebar.js?v=dept-reports-1"></script>
+<script src="../assets/js/app.js?v=interface-1"></script>
+<script src="../assets/js/sidebar.js?v=interface-1"></script>
 <script>
 (async () => {
   Object.assign(window, { normalizeList, loadRequests, requestDoc, normalizeId, getRequestId, getDocumentIdFromRequest, requester, renderTable, showDecisionError, getRequestedDuration, getApprovedDuration, getMaxViewDuration, getDefaultApprovedDuration, formatDurationLabel, durationOptions, requestJson, submitDecision, compactPayload, isRetryableDecisionPayloadError, decideRequest });
@@ -374,6 +373,7 @@
 
 })().catch(Auth.showError);
 </script>
+<script src="../assets/js/interface.js?v=2" defer></script>
 </body>
 </html>
 

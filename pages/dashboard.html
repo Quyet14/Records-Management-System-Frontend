@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard — Bệnh viện Hữu Nghị</title>
-  <link rel="stylesheet" href="../assets/css/style.css?v=ready-navigation-29" />
+  <link rel="stylesheet" href="../assets/css/style.css?v=interface-1" />
   <link rel="stylesheet" href="../assets/css/dashboard.css?v=1" />
   <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
   <script>
@@ -14,6 +14,7 @@
     })();
   </script>
   <script src="../assets/js/navigation-shell.js?v=device-1"></script>
+  <link rel="stylesheet" href="../assets/css/interface.css?v=3" />
 </head>
 <body>
 <div class="app-shell">
@@ -96,8 +97,8 @@
 
 <div class="toast-container"></div>
 <script src="../assets/js/device-session.js?v=3"></script>
-<script src="../assets/js/app.js?v=device-3"></script>
-<script src="../assets/js/sidebar.js?v=dept-reports-1"></script>
+<script src="../assets/js/app.js?v=interface-1"></script>
+<script src="../assets/js/sidebar.js?v=interface-1"></script>
 <script>
 (async () => {
   Object.assign(window, { loadDashboard });
@@ -222,5 +223,6 @@
 })().catch(Auth.showError);
 </script>
 <script src="../assets/js/dashboard.js?v=1" defer></script>
+<script src="../assets/js/interface.js?v=2" defer></script>
 </body>
 </html>

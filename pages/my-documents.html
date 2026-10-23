@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tài liệu của tôi — BV Hữu Nghị</title>
-  <link rel="stylesheet" href="../assets/css/style.css?v=ready-navigation-29" />
+  <link rel="stylesheet" href="../assets/css/style.css?v=interface-1" />
   <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
   <script>
     (function(){
@@ -83,6 +83,7 @@
     }
   </style>
   <script src="../assets/js/navigation-shell.js?v=device-1"></script>
+  <link rel="stylesheet" href="../assets/css/interface.css?v=3" />
 </head>
 <body>
 <div class="app-shell">
@@ -95,9 +96,9 @@
   <main class="main-content">
     <div class="page-header" style="margin-bottom:24px">
       <div class="page-header">
-      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
-      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
-      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+      <p class="interface-hospital-brand "><strong>BỆNH VIỆN HỮU NGHỊ</strong><span>Vietnam-HuuNghi Hospital</span></p>
+        <h1 class="interface-page-title">Tài liệu của tôi</h1>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Theo dõi hồ sơ đã gửi, trạng thái phê duyệt và kết quả xử lý.</p>
     </div>
       <a href="upload.html" class="btn btn-brass" style="display:inline-flex;align-items:center;gap:8px">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
@@ -321,8 +322,8 @@
 
 <div class="toast-container"></div>
 <script src="../assets/js/device-session.js?v=3"></script>
-<script src="../assets/js/app.js?v=device-3"></script>
-<script src="../assets/js/sidebar.js?v=dept-reports-1"></script>
+<script src="../assets/js/app.js?v=interface-1"></script>
+<script src="../assets/js/sidebar.js?v=interface-1"></script>
 <script>
 (async () => {
   Object.assign(window, { getCurrentUser, loadDepartments, normalizeText, getDocumentBasisDate, getDocumentVisibility, toDateOnly, applyAdvancedFilters, hasClientSearchFilters, buildParams, loadDocs, loadMore, normalizeRes, normalizeId, isOwnDocument, canViewDocumentInList, setSentinel, updateTabCounts, updateStats, renderTable, rowHtml, initTableDelegation, showDetail, renderDocumentDetail, switchDetailTab, loadEditOptions, openEditDocumentModal, loadComments, submitComment, loadVersions, replaceFile, resetFilters, setActiveTab, initInfiniteScroll });
@@ -1387,5 +1388,6 @@
 
 })().catch(Auth.showError);
 </script>
+<script src="../assets/js/interface.js?v=2" defer></script>
 </body>
 </html>

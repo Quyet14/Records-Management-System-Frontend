@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hàng chờ duyệt — Trưởng Khoa</title>
-  <link rel="stylesheet" href="../../assets/css/style.css?v=ready-navigation-29" />
+  <link rel="stylesheet" href="../../assets/css/style.css?v=interface-1" />
   <!-- Dark mode: áp dụng theme trước khi render để tránh flash -->
   <script>
     (function(){
@@ -25,6 +25,7 @@
     .queue-pagination button:disabled { opacity:.5; cursor:not-allowed; }
   </style>
   <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
+  <link rel="stylesheet" href="../../assets/css/interface.css?v=3" />
 </head>
 <body>
 <div class="app-shell">
@@ -34,9 +35,9 @@
   <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
   <main class="main-content">
     <div class="page-header">
-      <h1>BỆNH VIỆN HỮU NGHỊ</h1>
-      <p style="color:var(--brass);font-weight:600;margin-bottom:12px">Vietnam-HuuNghi Hospital</p>
-      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Tổng quan hệ thống — Thống kê tài khoản và tài liệu toàn bộ hệ thống.</p>
+      <p class="interface-hospital-brand "><strong>BỆNH VIỆN HỮU NGHỊ</strong><span>Vietnam-HuuNghi Hospital</span></p>
+        <h1 class="interface-page-title">Hàng chờ phê duyệt</h1>
+      <p style="font-size:.9rem;color:var(--gray-600);font-weight:500">Kiểm tra và xử lý các hồ sơ chờ duyệt trong phạm vi khoa.</p>
     </div>
 
     <div class="section-tab">
@@ -95,8 +96,8 @@
 
 <div class="toast-container"></div>
 <script src="../../assets/js/device-session.js?v=3"></script>
-<script src="../../assets/js/app.js?v=pending-total-1"></script>
-<script src="../../assets/js/sidebar.js?v=pending-total-1"></script>
+<script src="../../assets/js/app.js?v=interface-1"></script>
+<script src="../../assets/js/sidebar.js?v=interface-1"></script>
 <script>
 (async () => {
   Object.assign(window, { loadQueue, openApprove, openReject, removeCard });
@@ -272,5 +273,6 @@
 
 })().catch(Auth.showError);
 </script>
+<script src="../../assets/js/interface.js?v=2" defer></script>
 </body>
 </html>
