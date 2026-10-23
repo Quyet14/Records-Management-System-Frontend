@@ -17,7 +17,7 @@ async function setup(options = {}) {
     window: { location: { href: '' } }, _pagesRoot: () => '/pages/',
     esc: value => String(value ?? '').replaceAll('<', '&lt;').replaceAll('"', '&quot;'),
     api: {
-      get: async route => { calls.push(['GET', route]); if (options.failure) throw new Error('Service unavailable'); return { sessions: [
+      get: async route => { calls.push(['GET', route]); if (options.failure) throw new Error('Service unavailable'); return { sessions: options.sessions || [
         { id: 'current', isCurrent: true, userAgent: 'My browser' }, { id: 'other', userAgent: '<script>untrusted</script>' }
       ] }; },
       del: async route => { calls.push(['DELETE', route]); if (options.deleteFailure) throw new Error('Denied'); }
@@ -37,6 +37,22 @@ test('device list escapes labels and revokes another device without clearing the
   await env.revoke('other');
   assert.ok(env.calls.some(([method, route]) => method === 'DELETE' && route === '/auth/sessions/other'));
   assert.equal(env.cleared(), false); assert.equal(env.context.window.location.href, '');
+});
+
+test('device list shows escaped device names and derives a label from each session user agent', async () => {
+  const env = await setup({ sessions: [
+    { id: 'named', deviceName: '<script>Office PC</script>', userAgent: 'My browser' },
+    { id: 'windows', isCurrent: true, userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/155.0 Safari/537.36 Edg/155.0' },
+    { id: 'phone', userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Version/18.0 Mobile/15E148 Safari/604.1' },
+    { id: 'unknown' }
+  ] });
+  const html = env.get('sessions-list').innerHTML;
+  assert.match(html, /<th>Tên thiết bị<\/th>/);
+  assert.match(html, /&lt;script>Office PC&lt;\/script>/);
+  assert.match(html, /Máy tính Windows · Microsoft Edge<\/strong><br>Thiết bị hiện tại/);
+  assert.match(html, /iPhone · Safari/);
+  assert.match(html, /Không rõ thiết bị/);
+  assert.ok(!html.includes('<script>'));
 });
 test('revoking the current device clears local session after server success', async () => {
   const env = await setup(); await env.revoke('current');
