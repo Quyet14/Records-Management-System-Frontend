@@ -55,7 +55,19 @@
       ['Tổng hồ sơ hiện có',overview?.totalDocuments,'brass','s-total'], ['Đã lưu kho',count('stored'),'ok','s-stored'], ['Chờ duyệt',count('pending'),'wait','s-pending'], ['Từ chối',count('rejected'),'deny','s-rejected'], ['Đã hủy',count('destroyed'),'deny','s-destroyed'],
       ['Người dùng',overview?.totalUsers,'brass','s-users'], ['Khoa',overview?.totalDepartments,'brass','s-departments'], ['Dung lượng đã lưu kho',overview ? fmtSize(overview.storedSizeBytes) : null,'ok','s-size'], ['Dung lượng hồ sơ hiện có',bytes === null ? null : fmtSize(bytes),'brass','s-all-size'], ['Chưa gán loại hồ sơ',types?.unclassifiedCount,'wait','s-unclassified']
     ];
-    $('summary-stats').innerHTML = items.map(([label,value,variant,id])=>'<div class="stat-card stat-card--'+variant+'"><span class="stats-card-mark" aria-hidden="true">'+({"s-total":'▤',"s-stored":'✓',"s-pending":'◷',"s-rejected":'×',"s-destroyed":'−',"s-users":'♙',"s-departments":'▦',"s-size":'▥',"s-all-size":'▥',"s-unclassified":'!'}[id])+'</span><span class="stat-label">'+esc(label)+'</span><span class="stat-value" id="'+id+'">'+esc(value === null || value === undefined ? '—' : typeof value === 'number' ? fmt(value) : value)+'</span></div>').join('');
+    const icons = {
+      's-total':'<path d="M14 3H6v18h12V7l-4-4Z M14 3v5h4 M9 12h6 M9 16h6"/>',
+      's-stored':'<path d="M3 4h18v5H3z M5 9v11h14V9 M9 14l2 2 4-4"/>',
+      's-pending':'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+      's-rejected':'<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/>',
+      's-destroyed':'<path d="M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13 M10 11v5m4-5v5"/>',
+      's-users':'<circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3 M16 5a3 3 0 0 1 0 6 M18 15a5 5 0 0 1 3 5"/>',
+      's-departments':'<path d="M5 21V3h14v18 M3 21h18 M9 7h1m4 0h1 M9 11h1m4 0h1 M10 21v-6h4v6"/>',
+      's-size':'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v7c0 4 16 4 16 0V5 M4 12v7c0 4 16 4 16 0v-7"/>',
+      's-all-size':'<path d="m12 3 10 5-10 5L2 8l10-5Z M2 12l10 5 10-5 M2 16l10 5 10-5"/>',
+      's-unclassified':'<path d="m12 3 10 18H2L12 3Z M12 9v5 M12 17v1"/>'
+    };
+    $('summary-stats').innerHTML = items.map(([label,value,variant,id])=>'<div class="stat-card stat-card--'+variant+'"><span class="stats-card-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+icons[id]+'</svg></span><span class="stat-label">'+esc(label)+'</span><span class="stat-value" id="'+id+'">'+esc(value === null || value === undefined ? '—' : typeof value === 'number' ? fmt(value) : value)+'</span><span class="stats-card-caption">'+esc(id === 's-total' ? 'Không bao gồm hồ sơ đã hủy' : id === 's-pending' ? 'Hồ sơ cần được xét duyệt' : id === 's-unclassified' ? 'Cần bổ sung phân loại' : id.includes('size') ? 'Dung lượng theo hồ sơ' : 'Toàn bộ thời gian')+'</span></div>').join('');
   }
   function chart(id,type,label,names,numbers,unit = 'count',horizontal = false) {
     const options = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:type === 'doughnut'}}, scales:type === 'doughnut' ? {} : { x:{beginAtZero:true}, y:{beginAtZero:true} } };
@@ -81,7 +93,7 @@
     $('admin-growth-table').innerHTML=growth ? table(['Tháng tải lên','Hồ sơ đã lưu kho','Dung lượng đã lưu kho','Hồ sơ tích lũy','Dung lượng tích lũy'],growth.map(row=>[String(row.month).padStart(2,'0')+'/'+row.year,fmt(row.addedDocs),fmtSize(row.addedBytes),fmt(row.cumulativeDocs),fmtSize(row.cumulativeBytes)])) : message;
     if (departments) {
       const size=metrics.department==='size';
-      chart('chart-by-dept','bar',size?'Dung lượng (MB)':'Hồ sơ hiện có',departments.map(row=>row.departmentName||'Chưa phân khoa'),departments.map(row=>size?row.totalBytes/1048576:row.totalDocuments),size?'size':'count');
+      chart('chart-by-dept','bar',size?'Dung lượng (MB)':'Hồ sơ hiện có',departments.map(row=>row.departmentName||'Chưa phân khoa'),departments.map(row=>size?row.totalBytes/1048576:row.totalDocuments),size?'size':'count',true);
       $('admin-department-table').innerHTML=table(['Khoa','Hồ sơ hiện có','Đã lưu kho','Chờ duyệt','Từ chối','Dung lượng'],departments.map(row=>[row.departmentName,fmt(row.totalDocuments),fmt(row.storedCount),fmt(row.pendingCount),fmt(row.rejectedCount),fmtSize(row.totalBytes)]));
     } else $('admin-department-table').innerHTML=message;
     if (types) {

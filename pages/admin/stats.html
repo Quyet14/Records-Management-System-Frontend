@@ -7,18 +7,25 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="../../assets/js/navigation-shell.js?v=device-1"></script>
   <link rel="stylesheet" href="../../assets/css/interface.css?v=3" />
-  <link rel="stylesheet" href="../../assets/css/statistics.css?v=3" />
-  <script src="../../assets/js/statistics-visuals.js?v=3"></script>
+  <link rel="stylesheet" href="../../assets/css/statistics.css?v=5" />
+  <script src="../../assets/js/statistics-visuals.js?v=4"></script>
 </head><body>
 <div class="app-shell"><nav class="sidebar"></nav><div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 <main class="main-content" data-stats-view="admin">
   <header class="page-header page-header-row"><div class="page-header">
     <p class="interface-hospital-brand"><strong>BỆNH VIỆN HỮU NGHỊ</strong><span>Vietnam-HuuNghi Hospital</span></p>
+    <span class="stats-hero-eyebrow">TRUNG TÂM PHÂN TÍCH · LƯU TRỮ SỐ</span>
     <h1 class="interface-page-title">Thống kê toàn hệ thống</h1>
     <p class="admin-stats-intro">Theo dõi hồ sơ, người dùng, dung lượng và tiến độ lưu trữ từ các báo cáo tổng hợp.</p>
-  </div><button type="button" class="btn btn-primary" id="admin-stats-refresh">Làm mới số liệu</button></header>
+  </div><div class="stats-hero-actions"><span class="stats-hero-badge"><span aria-hidden="true">◈</span> Không gian báo cáo</span><button type="button" class="btn btn-primary" id="admin-stats-refresh">Làm mới số liệu <span aria-hidden="true">↻</span></button></div></header>
 
   <div class="stats-workspace-bar"><p class="admin-stats-status" id="admin-stats-status" role="status" aria-live="polite">Đang tải báo cáo…</p><span class="stats-scope-chip">Toàn hệ thống</span></div>
+  <nav class="stats-jump-nav" aria-label="Các nhóm báo cáo">
+    <a href="#stats-pane-overview"><span aria-hidden="true">01</span> Tổng quan <span aria-hidden="true">↗</span></a>
+    <a href="#stats-pane-distribution"><span aria-hidden="true">02</span> Phân bố hồ sơ <span aria-hidden="true">↗</span></a>
+    <a href="#stats-pane-activity"><span aria-hidden="true">03</span> Hoạt động <span aria-hidden="true">↗</span></a>
+    <a href="#stats-pane-retention"><span aria-hidden="true">04</span> Bảo quản <span aria-hidden="true">↗</span></a>
+  </nav>
   <section id="stats-pane-overview" data-stats-pane="overview">
     <div class="stats-section-heading"><div><span class="stats-eyebrow">BỨC TRANH TOÀN CẢNH</span><h2>Số liệu nổi bật</h2></div><span class="stats-period-label">Toàn bộ thời gian</span></div>
     <div class="stats-grid" id="summary-stats"></div><div class="admin-report-error" data-admin-error="overview" role="status" hidden></div>
@@ -52,5 +59,5 @@
   </section>
 </main></div><div class="toast-container"></div>
 <script src="../../assets/js/device-session.js?v=3"></script><script src="../../assets/js/app.js?v=interface-1"></script><script src="../../assets/js/sidebar.js?v=interface-1"></script>
-<script src="../../assets/js/admin-statistics.js?v=2"></script><script src="../../assets/js/interface.js?v=2" defer></script>
+<script src="../../assets/js/admin-statistics.js?v=4"></script><script src="../../assets/js/interface.js?v=2" defer></script>
 </body></html>

@@ -34,7 +34,7 @@
     const plugins = options.plugins ||= {};
     const legend = plugins.legend ||= {};
     legend.labels = { ...legend.labels, color:c.text, usePointStyle:true, padding:18, font:{ family:'Inter, Segoe UI, sans-serif', size:12 } };
-    if (chart.config.type === 'doughnut') legend.display = false;
+    if (chart.config.type === 'doughnut' || chart.data.datasets.length === 1) legend.display = false;
     plugins.tooltip = { ...plugins.tooltip, backgroundColor:dark() ? '#101f31' : '#153958', titleColor:'#fff', bodyColor:'#e7f2fc', borderColor:dark() ? '#415d78' : '#37638c', borderWidth:1, padding:13, cornerRadius:10, boxPadding:5, titleFont:{ size:12, weight:'600' }, bodyFont:{ size:12 }, displayColors:true };
     Object.entries(options.scales || {}).forEach(([key, axis]) => {
       axis.border = { ...axis.border, display:false };
@@ -58,12 +58,12 @@
     chart.data.datasets.forEach((dataset, index) => {
       if (type === 'doughnut') {
         dataset.backgroundColor = donutColors(chart); dataset.borderColor = colors().surface;
-        dataset.borderWidth = 4; dataset.borderRadius = 5; dataset.hoverOffset = 9;
-        chart.config.options.cutout = '74%'; chart.config.options.layout = { padding:12 };
+        dataset.borderWidth = 4; dataset.borderRadius = 7; dataset.hoverOffset = 7; dataset.spacing = 2;
+        chart.config.options.cutout = '78%'; chart.config.options.layout = { padding:14 };
       } else if (type === 'bar') {
         dataset.borderRadius = 7; dataset.borderSkipped = false; dataset.maxBarThickness = 38; dataset.borderWidth = 0;
         dataset.backgroundColor = context => {
-          const base = palette[(context.dataIndex ?? index) % palette.length];
+          const base = palette[(chart.canvas.id.includes('size') ? 2 : index) % palette.length];
           const area = context.chart.chartArea;
           if (!area) return base;
           const gradient = context.chart.config.options.indexAxis === 'y' ? context.chart.ctx.createLinearGradient(area.left,0,area.right,0) : context.chart.ctx.createLinearGradient(0,area.bottom,0,area.top);
@@ -71,7 +71,7 @@
         };
       } else if (type === 'line') {
         dataset.borderColor = '#2185dd'; dataset.borderWidth = 3; dataset.tension = .35;
-        dataset.fill = true; dataset.pointRadius = 3; dataset.pointHoverRadius = 7; dataset.pointBackgroundColor = '#2185dd'; dataset.pointBorderColor = colors().surface; dataset.pointBorderWidth = 2;
+        dataset.fill = true; dataset.pointRadius = 0; dataset.pointHoverRadius = 6; dataset.pointHitRadius = 18; dataset.pointBackgroundColor = '#2185dd'; dataset.pointBorderColor = colors().surface; dataset.pointBorderWidth = 3;
         dataset.backgroundColor = context => {
           const area = context.chart.chartArea;
           if (!area) return 'rgba(33,133,221,.12)';
@@ -118,8 +118,19 @@
     if (chart.config.type === 'doughnut') {
       chart.canvas.parentElement.classList.add('stats-donut-wrap');
       const legend = document.createElement('div'); legend.className = 'stats-html-legend'; legend.setAttribute('aria-label','Chú giải biểu đồ'); chart.canvas.parentElement.after(legend); chart.$statsLegend = legend;
-    } else if (chart.config.type === 'bar' && chart.config.options.indexAxis === 'y') {
-      chart.canvas.parentElement.style.height = Math.min(720,Math.max(300,chart.data.labels.length * 33 + 50)) + 'px';
+      const composition = document.createElement('div'); composition.className = 'stats-composition';
+      chart.canvas.parentElement.before(composition); composition.append(chart.canvas.parentElement,legend);
+      chart.$statsComposition = composition;
+    } else {
+      const summary = document.createElement('div'); summary.className = 'stats-figure-summary';
+      subtitle.after(summary); chart.$statsSummary = summary;
+      if (chart.config.type === 'bar' && chart.config.options.indexAxis === 'y') {
+        const plot = chart.canvas.parentElement;
+        plot.style.height = Math.max(260,chart.data.labels.length * 34 + 50) + 'px';
+        const scroll = document.createElement('div'); scroll.className = 'stats-plot-scroll';
+        scroll.tabIndex = 0; scroll.setAttribute('role','region'); scroll.setAttribute('aria-label',heading.textContent.trim() + ' — cuộn để xem toàn bộ');
+        plot.before(scroll); scroll.append(plot); chart.$statsScroll = scroll;
+      }
     }
     if (!container.querySelector('details')) {
       const details = document.createElement('details'); details.className = 'stats-chart-data';
@@ -134,13 +145,39 @@
     const focused = container.contains(document.activeElement) ? Number(document.activeElement.dataset.index) : -1;
     container.replaceChildren();
     const hues = donutColors(chart);
+    const numbers = chart.data.datasets[0].data.map(value => Math.max(0,Number(value) || 0));
+    const total = numbers.reduce((sum,value) => sum + value,0);
     chart.data.labels.forEach((label,index) => {
       const button = document.createElement('button'); button.type = 'button'; button.dataset.index = index; button.setAttribute('aria-pressed',String(chart.getDataVisibility(index)));
       const swatch = document.createElement('span'); swatch.className = 'stats-legend-swatch'; swatch.style.backgroundColor = hues[index]; swatch.setAttribute('aria-hidden','true');
       const text = document.createElement('span'); text.className = 'stats-legend-label'; text.textContent = label;
       const value = document.createElement('strong'); value.textContent = format(chart.data.datasets[0].data[index]);
-      button.append(swatch,text,value); button.onclick = () => { chart.toggleDataVisibility(index); chart.update(); }; container.append(button);
+      const percent = total > 0 ? numbers[index] / total * 100 : 0;
+      const share = document.createElement('small'); share.className = 'stats-legend-share'; share.textContent = percent.toLocaleString('vi-VN',{maximumFractionDigits:1}) + '%';
+      const track = document.createElement('span'); track.className = 'stats-legend-track'; track.setAttribute('aria-hidden','true');
+      const fill = document.createElement('span'); fill.style.width = percent + '%'; fill.style.backgroundColor = hues[index]; track.append(fill);
+      button.append(swatch,text,value,share,track); button.onclick = () => { chart.toggleDataVisibility(index); chart.update(); }; container.append(button);
       if (focused === index) button.focus();
+    });
+  }
+  function renderSummary(chart) {
+    if (!chart.$statsSummary) return;
+    const values = chart.data.datasets[0]?.data.map(Number) || [];
+    const valid = values.filter(Number.isFinite);
+    chart.$statsSummary.replaceChildren();
+    if (!valid.length || valid.every(value => value === 0)) return;
+    const maximum = Math.max(...valid), peak = values.indexOf(maximum);
+    const cumulative = chart.canvas.id.includes('growth');
+    const items = cumulative
+      ? [['Tích lũy gần nhất',values.at(-1)],['Kỳ báo cáo',chart.data.labels.at(-1)]]
+      : [['Cao nhất · ' + chart.data.labels[peak],maximum],['Tổng trong biểu đồ',valid.reduce((sum,value) => sum + value,0)]];
+    items.forEach(([label,value]) => {
+      const item = document.createElement('div'), title = document.createElement('span'), number = document.createElement('strong');
+      title.textContent = label; number.textContent = typeof value === 'number' ? format(value) : value;
+      if (typeof value === 'number') {
+        const unit = document.createElement('small'); unit.textContent = /MB/.test(chart.data.datasets[0].label) ? ' MB' : ' hồ sơ'; number.append(unit);
+      }
+      item.append(title,number); chart.$statsSummary.append(item);
     });
   }
   function renderTable(chart) {
@@ -168,11 +205,16 @@
     },
     afterInit(chart) { charts.add(chart); controls(chart); },
     beforeUpdate(chart) { theme(chart); },
-    afterUpdate(chart) { renderLegend(chart); renderTable(chart); },
+    afterUpdate(chart) { renderLegend(chart); renderTable(chart); renderSummary(chart); },
     beforeDatasetsDraw(chart) { chart.ctx.save(); chart.ctx.shadowColor = dark() ? 'rgba(0,0,0,.2)' : 'rgba(34,79,125,.1)'; chart.ctx.shadowBlur = 7; chart.ctx.shadowOffsetY = 3; },
     afterDatasetsDraw(chart) { chart.ctx.restore(); },
     afterDraw(chart) {
       if (!chart.chartArea) return;
+      if (chart.config.type === 'line' && chart.tooltip?.getActiveElements().length) {
+        const x = chart.tooltip.getActiveElements()[0].element.x, ctx = chart.ctx;
+        ctx.save(); ctx.beginPath(); ctx.setLineDash([4,5]); ctx.strokeStyle = colors().muted; ctx.globalAlpha = .4;
+        ctx.moveTo(x,chart.chartArea.top); ctx.lineTo(x,chart.chartArea.bottom); ctx.stroke(); ctx.restore();
+      }
       if (chart.config.type !== 'doughnut') {
         const hasData = chart.data.datasets.some(dataset => dataset.data.some(value => Number.isFinite(Number(value)) && Number(value) !== 0));
         if (!hasData) {
@@ -192,7 +234,11 @@
       while (ctx.measureText(text).width > room && size > 13) { size--; ctx.font = '750 ' + size + 'px Inter, Segoe UI, sans-serif'; }
       ctx.fillText(text,x,y-8); ctx.font = '12px Inter, Segoe UI, sans-serif'; ctx.fillStyle = colors().muted; ctx.fillText('hồ sơ',x,y+20); ctx.restore();
     },
-    afterDestroy(chart) { charts.delete(chart); chart.$statsExport?.remove(); chart.$statsLegend?.remove(); chart.$statsTable?.remove(); }
+    afterDestroy(chart) {
+      charts.delete(chart); chart.$statsExport?.remove(); chart.$statsLegend?.remove(); chart.$statsTable?.remove(); chart.$statsSummary?.remove();
+      const wrapper = chart.$statsComposition || chart.$statsScroll;
+      if (wrapper) { const plot = wrapper.querySelector('.chart-wrap, .report-chart-wrap'); if (plot) wrapper.before(plot); wrapper.remove(); }
+    }
   };
   Chart.register(plugin);
   const update = () => charts.forEach(chart => { theme(chart); chart.update('none'); });
