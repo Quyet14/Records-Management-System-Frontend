@@ -836,6 +836,24 @@ function documentSecurityLabel(value) {
   return ({ normal: 'Thường', confidential: 'Mật', secret: 'Tối mật', top_secret: 'Tuyệt mật' })[documentSecurityLevel(value)] || 'Chưa xác định';
 }
 
+// Match the uploader identity, never a display name or the document author.
+function isUploadedByCurrentUser(doc, user = Auth.getUser()) {
+  if (!doc || !user) return false;
+  const identity = value => {
+    if (value == null) return '';
+    if (typeof value === 'object') return identity(value.id ?? value._id ?? value.userId ?? value.sub ?? value.$oid);
+    return String(value).trim();
+  };
+  const userIds = [user.id, user._id, user.userId, user.sub].map(identity).filter(Boolean);
+  const uploaderIds = [doc.uploaderId, doc.uploader_id, doc.uploadedById, doc.uploaded_by_id, doc.uploader, doc.uploadedBy]
+    .map(identity).filter(Boolean);
+  if (uploaderIds.length) return userIds.length > 0 && uploaderIds.every(id => userIds.includes(id));
+  const email = String(user.email || '').trim().toLowerCase();
+  const uploaderEmails = [doc.uploader?.email, doc.uploadedBy?.email, doc.uploaderEmail, doc.uploadedByEmail]
+    .map(value => String(value || '').trim().toLowerCase()).filter(Boolean);
+  return !!email && uploaderEmails.length > 0 && uploaderEmails.every(value => value === email);
+}
+
 function canAccessDocumentSecurity(doc, user = Auth.getUser()) {
   if (!user) return false;
   if (user.role === 'admin') return true;

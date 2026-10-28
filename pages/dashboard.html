@@ -30,7 +30,7 @@
         <p class="dashboard-eyebrow">Không gian làm việc</p>
         <h1>BỆNH VIỆN HỮU NGHỊ</h1>
         <p class="dashboard-brand">Vietnam-HuuNghi Hospital</p>
-        <p class="dashboard-description">Theo dõi hồ sơ đã gửi và bắt đầu công việc từ các lối tắt bên dưới.</p>
+        <p class="dashboard-description">Theo dõi hồ sơ đã gửi và tra cứu tài liệu đã duyệt được chia sẻ với bạn.</p>
         <div class="dashboard-context"><span>Hệ thống lưu trữ hồ sơ</span><time id="dashboard-date"></time></div>
       </div>
       <div class="dashboard-art" aria-hidden="true">
@@ -52,7 +52,7 @@
         <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
         <span class="stat-label">Tổng tài liệu</span>
         <span class="stat-value" id="stat-total">—</span>
-        <span class="stat-sub">đã gửi lên</span>
+        <span class="stat-sub">trong phạm vi được phép</span>
       </div>
       <div class="stat-card stat-card--wait">
         <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
@@ -81,14 +81,14 @@
         Tài liệu gần đây
       </span>
       <span class="section-tab-line"></span>
-      <a href="my-documents.html" class="btn btn-ghost btn-sm">Xem tất cả</a>
+      <a href="documents.html" class="btn btn-ghost btn-sm">Xem tất cả</a>
     </div>
     <div class="card">
       <div id="recent-docs">
         <div class="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           <h3>Chưa có tài liệu</h3>
-          <p>Bạn chưa tải lên tài liệu nào.</p>
+          <p>Chưa có tài liệu của bạn hoặc tài liệu đã duyệt được chia sẻ với bạn.</p>
         </div>
       </div>
     </div>
@@ -127,6 +127,11 @@
       else if (Array.isArray(res.documents)) docs = res.documents;
       else if (Array.isArray(res.items))     docs = res.items;
 
+      // The API scopes shared documents by visibility, department and security level.
+      // Keep own submissions in every status, and approved shared documents.
+      docs = docs.filter(doc => isUploadedByCurrentUser(doc)
+        || ['stored', 'approved'].includes(String(doc.status || '').toLowerCase()));
+
       statsIds.forEach(id => document.getElementById(id)?.classList.remove('skeleton'));
 
       document.getElementById('stat-total').textContent    = docs.length;
@@ -144,7 +149,7 @@
       if (recent.length === 0) {
         container.innerHTML = emptyStatePro(
           '📄', 'Chưa có tài liệu nào',
-          'Bạn chưa tải lên tài liệu nào.',
+          'Chưa có tài liệu của bạn hoặc tài liệu đã duyệt được chia sẻ với bạn.',
           `<a href="upload.html" class="btn btn-brass">↑ Tải lên ngay</a>`
         );
         return;

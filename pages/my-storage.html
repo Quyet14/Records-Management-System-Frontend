@@ -424,8 +424,9 @@
   /* ── Load files ────────────────────────────────────────────── */
   async function loadFiles() {
     try {
-      // Get all documents - using /documents endpoint (standard)
-      const res = await api.get('/documents?limit=10000');
+      const params = new URLSearchParams({ limit: '10000' });
+      if (Auth.currentUserId()) params.set('uploaderId', Auth.currentUserId());
+      const res = await api.get('/documents?' + params);
       
       // Extract array from response
       let docs = Array.isArray(res) ? res 
@@ -434,33 +435,7 @@
               : Array.isArray(res.items) ? res.items
               : [];
       
-      console.log('[Storage] API response docs count:', docs.length);
-      
-      // Filter to only show documents uploaded by current user
-      const currentUser = Auth.getUser();
-      console.log('[Storage] Current user:', currentUser?.id, currentUser?.email);
-      
-      if (currentUser && currentUser.id) {
-        allFiles = docs.filter(d => {
-          // Check if document was uploaded by current user
-          const uploaderId = d.uploaderId || d.uploader?.id || d.userId || d.user?.id;
-          const match = uploaderId === currentUser.id;
-          if (match) {
-            console.log('[Storage] Matched doc:', d.originalFilename || d.title, 'uploaderId:', uploaderId);
-          }
-          return match;
-        });
-      } else {
-        console.warn('[Storage] No current user found, showing all docs');
-        allFiles = docs;
-      }
-      
-      console.log('[Storage] ✅ Loaded files:', allFiles.length, 'from', docs.length, 'total documents');
-      if (allFiles.length > 0) {
-        console.log('[Storage] First file sample:', allFiles[0]); // DEBUG: xem structure
-      } else {
-        console.warn('[Storage] No files found for current user');
-      }
+      allFiles = docs.filter(doc => isUploadedByCurrentUser(doc));
       updateStats();
       renderFiles();
     } catch (err) {

@@ -428,6 +428,7 @@
   function buildParams(p = 1) {
     const params = new URLSearchParams();
 
+    if (Auth.currentUserId()) params.set('uploaderId', Auth.currentUserId());
     if (_activeTab) params.set('status', _activeTab);
     params.set('page', p);
     params.set('limit', 10000);
@@ -463,7 +464,7 @@
       docs = applyAdvancedFilters(docs);
 
       // Đếm badge tab từ tổng toàn bộ (gọi riêng không phụ thuộc filter)
-      if (_allDocs.length) updateTabCounts(_allDocs);
+      updateTabCounts(_allDocs);
 
       _currentDocs = docs;
       _hasMore     = false;
@@ -543,99 +544,13 @@
   }
 
   function normalizeId(value) {
-    if (!value) return '';
-    if (typeof value === 'object') return value.$oid || value.toString?.() || '';
+    if (value == null) return '';
+    if (typeof value === 'object') return normalizeId(value.id ?? value._id ?? value.$oid);
     return String(value);
   }
 
   function isOwnDocument(doc) {
-    const currentUser = getCurrentUser();
-    const myIds = [
-      currentUser?.id,
-      currentUser?._id,
-      currentUser?.userId,
-      currentUser?.sub,
-    ].map(normalizeId).filter(Boolean);
-    const myEmail = String(currentUser?.email || '').toLowerCase();
-    const myName = normalizeText(currentUser?.fullName || currentUser?.name || '');
-    const ownerFields = [
-      doc?.uploader,
-      doc?.uploadedBy,
-      doc?.owner,
-      doc?.createdBy,
-      doc?.user,
-      doc?.createdUser,
-      doc?.author,
-      doc?.uploaderInfo,
-      doc?.uploadedByInfo,
-      doc?.ownerInfo,
-      doc?.createdUserInfo,
-      doc?.documentOwner,
-    ].filter(Boolean);
-
-    const rawIdFields = [
-      doc?.uploaderId,
-      doc?.uploadedById,
-      doc?.ownerId,
-      doc?.createdById,
-      doc?.createdByUserId,
-      doc?.userId,
-      doc?.owner_id,
-      doc?.uploader_id,
-      doc?.uploaded_by_id,
-      doc?.created_by_id,
-      doc?.created_by_user_id,
-      doc?.user_id,
-      ...ownerFields.flatMap(owner => {
-        if (typeof owner === 'object') {
-          return [
-            owner.id,
-            owner._id,
-            owner.userId,
-            owner.user_id,
-            owner.sub,
-            owner.ownerId,
-            owner.uploaderId,
-            owner.uploadedById,
-          ];
-        }
-        return [owner];
-      })
-    ];
-    const docUserIds = rawIdFields.map(normalizeId).filter(Boolean);
-
-    const rawEmailFields = [
-      doc?.uploaderEmail,
-      doc?.uploadedByEmail,
-      doc?.ownerEmail,
-      doc?.createdByEmail,
-      doc?.email,
-      doc?.user?.email,
-      doc?.uploader?.email,
-      doc?.uploadedBy?.email,
-      doc?.owner?.email,
-      doc?.createdBy?.email,
-      doc?.author?.email,
-      ...ownerFields.map(owner => typeof owner === 'object' ? owner.email : owner),
-    ];
-    const docEmails = rawEmailFields.map(value => String(value || '').toLowerCase()).filter(Boolean);
-    const rawNameFields = [
-      doc?.uploaderName,
-      doc?.uploadedByName,
-      doc?.ownerName,
-      doc?.createdByName,
-      doc?.uploader?.fullName,
-      doc?.uploadedBy?.fullName,
-      doc?.owner?.fullName,
-      doc?.createdBy?.fullName,
-      doc?.user?.fullName,
-      ...ownerFields.map(owner => typeof owner === 'object' ? (owner.fullName || owner.name) : '')
-    ];
-    const docNames = rawNameFields.map(value => normalizeText(value || '')).filter(Boolean);
-
-    return docUserIds.some(id => myIds.includes(id))
-      || (!!myEmail && docEmails.includes(myEmail))
-      || (!!myName && docNames.includes(myName));
+    return isUploadedByCurrentUser(doc, getCurrentUser());
   }
 
   function canViewDocumentInList(doc) {
